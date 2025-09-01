@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Man of the Match</title>
+</head>
+<body>
+    <h1>Test Man of the Match Calculation</h1>
+    <div id="results"></div>
+
+    <script>
+        // Mock cricket app for testing MOTM calculation
+        class MockCricketApp {
+            constructor() {
+                this.currentMatch = {
+                    team1: {
+                        name: "Team A",
+                        players: [
+                            { 
+                                id: 1, 
+                                name: "John Doe", 
+                                matchRuns: 45, 
+                                matchBalls: 30, 
+                                matchBowlingWickets: 2, 
+                                matchBowlingBalls: 24, 
+                                matchBowlingRuns: 18 
+                            },
+                            { 
+                                id: 2, 
+                                name: "Jane Smith", 
+                                matchRuns: 30, 
+                                matchBalls: 25, 
+                                matchBowlingWickets: 0, 
+                                matchBowlingBalls: 0, 
+                                matchBowlingRuns: 0 
+                            }
+                        ]
+                    },
+                    team2: {
+                        name: "Team B",
+                        players: [
+                            { 
+                                id: 3, 
+                                name: "Bob Wilson", 
+                                matchRuns: 25, 
+                                matchBalls: 20, 
+                                matchBowlingWickets: 3, 
+                                matchBowlingBalls: 30, 
+                                matchBowlingRuns: 22 
+                            },
+                            { 
+                                id: 4, 
+                                name: "Alice Brown", 
+                                matchRuns: 15, 
+                                matchBalls: 12, 
+                                matchBowlingWickets: 1, 
+                                matchBowlingBalls: 18, 
+                                matchBowlingRuns: 15 
+                            }
+                        ]
+                    }
+                };
+            }
+
+            // Copy the calculateManOfTheMatch method from app.js
+            calculateManOfTheMatch() {
+                if (!this.currentMatch) return null;
+                
+                // Get all players from both teams
+                const allPlayers = [
+                    ...this.currentMatch.team1.players,
+                    ...this.currentMatch.team2.players
+                ];
+                
+                const playerMetrics = {};
+                
+                // Calculate metrics for each player
+                allPlayers.forEach(player => {
+                    const name = player.name;
+                    
+                    // Batting stats
+                    const runs = player.matchRuns || 0;
+                    const ballsFaced = player.matchBalls || 0;
+                    const sr = ballsFaced > 0 ? (runs / ballsFaced) * 100 : 0;
+                    
+                    // Bowling stats
+                    const wickets = player.matchBowlingWickets || 0;
+                    const ballsBowled = player.matchBowlingBalls || 0;
+                    const runsConceded = player.matchBowlingRuns || 0;
+                    const er = ballsBowled > 0 ? (runsConceded / (ballsBowled / 6)) : 0;
+                    
+                    playerMetrics[name] = {
+                        R: runs,
+                        SR: sr,
+                        W: wickets,
+                        ER: er,
+                        did_bat: ballsFaced > 0,
+                        did_bowl: ballsBowled > 0,
+                        player: player
+                    };
+                });
+                
+                // Calculate normalization factors
+                const maxR = Math.max(...Object.values(playerMetrics).map(p => p.R)) || 1;
+                const maxSR = Math.max(...Object.values(playerMetrics).map(p => p.SR)) || 1;
+                const maxW = Math.max(...Object.values(playerMetrics).map(p => p.W)) || 1;
+                
+                const bowlersER = Object.values(playerMetrics)
+                    .filter(p => p.did_bowl)
+                    .map(p => p.ER);
+                const maxER = bowlersER.length > 0 ? Math.max(...bowlersER) : 0;
+                const minER = bowlersER.length > 0 ? Math.min(...bowlersER) : 0;
+                
+                // Calculate overall scores for each player
+                Object.keys(playerMetrics).forEach(name => {
+                    const metrics = playerMetrics[name];
+                    
+                    // Normalized batting score
+                    const normR = metrics.R / maxR;
+                    const normSR = metrics.SR / maxSR;
+                    const battingScore = metrics.did_bat ? (0.6 * normR) + (0.4 * normSR) : 0;
+                    
+                    // Normalized bowling score
+                    const normW = metrics.W / maxW;
+                    const normER = (metrics.did_bowl && maxER > minER) ? 
+                        (maxER - metrics.ER) / (maxER - minER) : 0;
+                    const bowlingScore = metrics.did_bowl ? (0.7 * normW) + (0.3 * normER) : 0;
+                    
+                    // Overall score
+                    metrics.overall_score = battingScore + bowlingScore;
+                });
+                
+                // Find the player with the highest overall score
+                const manOfTheMatch = Object.entries(playerMetrics)
+                    .sort((a, b) => b[1].overall_score - a[1].overall_score)[0];
+                
+                if (manOfTheMatch) {
+                    return {
+                        name: manOfTheMatch[0],
+                        player: manOfTheMatch[1].player,
+                        stats: {
+                            batting: `${manOfTheMatch[1].R}(${manOfTheMatch[1].player.matchBalls || 0})`,
+                            bowling: manOfTheMatch[1].did_bowl ? 
+                                `${manOfTheMatch[1].W}/${manOfTheMatch[1].R} (${Math.floor((manOfTheMatch[1].player.matchBowlingBalls || 0) / 6)}.${((manOfTheMatch[1].player.matchBowlingBalls || 0) % 6)} ov)` : 
+                                'Did not bowl',
+                            overallScore: manOfTheMatch[1].overall_score.toFixed(3)
+                        },
+                        fullMetrics: playerMetrics
+                    };
+                }
+                
+                return null;
+            }
+        }
+
+        // Test the calculation
+        const testApp = new MockCricketApp();
+        const motm = testApp.calculateManOfTheMatch();
+
+        const resultsDiv = document.getElementById('results');
+        
+        if (motm) {
+            let html = `
+                <h2>🏆 Man of the Match: ${motm.name}</h2>
+                <p><strong>Batting:</strong> ${motm.stats.batting}</p>
+                <p><strong>Bowling:</strong> ${motm.stats.bowling}</p>
+                <p><strong>Overall Score:</strong> ${motm.stats.overallScore}</p>
+                
+                <h3>All Player Metrics:</h3>
+            `;
+            
+            Object.entries(motm.fullMetrics).forEach(([name, metrics]) => {
+                html += `
+                    <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
+                        <strong>${name}</strong><br>
+                        Runs: ${metrics.R}, Strike Rate: ${metrics.SR.toFixed(1)}<br>
+                        Wickets: ${metrics.W}, Economy Rate: ${metrics.ER.toFixed(2)}<br>
+                        Overall Score: ${metrics.overall_score.toFixed(3)}
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = html;
+        } else {
+            resultsDiv.innerHTML = '<p>No Man of the Match calculated</p>';
+        }
+    </script>
+</body>
+</html>

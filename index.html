@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cricket Team Manager</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Cricket PWA">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" href="favicon.ico">
+    
+    <!-- Tailwind CSS CDN for quick setup -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Alpine.js for reactivity -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8'
+                        },
+                        success: {
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            800: '#15803d'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Alpine.js for interactivity -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        /* Custom animations */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.5s ease-in-out; }
+        .animate-slide-up { animation: slideUp 0.3s ease-out; }
+        
+        /* PWA specific styles */
+        @media (display-mode: standalone) {
+            body { user-select: none; -webkit-user-select: none; }
+        }
+        
+        /* Touch-friendly buttons */
+        .touch-target { min-height: 44px; min-width: 44px; }
+        
+        /* Status cards */
+        .status-card {
+            background: linear-gradient(135deg, var(--bg-color), var(--bg-color-dark));
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status-ready { --bg-color: #22c55e; --bg-color-dark: #16a34a; }
+        .status-pending { --bg-color: #6b7280; --bg-color-dark: #4b5563; }
+        .status-in-progress { --bg-color: #3b82f6; --bg-color-dark: #2563eb; }
+        .status-completed { --bg-color: #059669; --bg-color-dark: #047857; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div id="app" x-data="cricketApp()" class="pb-20">
+        <!-- Header -->
+        <div class="px-4 pt-8 pb-6 animate-fade-in">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2" x-text="greeting"></h1>
+            <p class="text-gray-600" x-text="'Ready to play cricket? • ' + currentDate"></p>
+        </div>
+
+        <!-- Status Overview -->
+        <div class="px-4 mb-8 animate-slide-up" style="animation-delay: 0.1s">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">📊 Overview</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Players Card -->
+                <div class="status-card rounded-xl p-6 text-white relative overflow-hidden" 
+                     :class="data.players > 0 ? 'status-ready' : 'status-pending'">
+                    <div class="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-8 -mt-8"></div>
+                    <div class="flex items-center justify-between mb-3">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        <span class="bg-white/20 px-2 py-1 rounded-full text-xs" x-text="data.players > 0 ? 'Ready' : 'Pending'"></span>
+                    </div>
+                    <div class="text-3xl font-bold mb-1" x-text="data.players"></div>
+                    <div class="text-sm text-white/90">Players</div>
+                </div>
+
+                <!-- Teams Card -->
+                <div class="status-card rounded-xl p-6 text-white relative overflow-hidden" 
+                     :class="data.teams >= 2 ? 'status-ready' : 'status-pending'">
+                    <div class="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-8 -mt-8"></div>
+                    <div class="flex items-center justify-between mb-3">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        <span class="bg-white/20 px-2 py-1 rounded-full text-xs" x-text="data.teams >= 2 ? 'Ready' : 'Pending'"></span>
+                    </div>
+                    <div class="text-3xl font-bold mb-1" x-text="data.teams"></div>
+                    <div class="text-sm text-white/90">Teams</div>
+                </div>
+
+                <!-- Matches Card -->
+                <div class="status-card status-completed rounded-xl p-6 text-white relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-8 -mt-8"></div>
+                    <div class="flex items-center justify-between mb-3">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                        <span class="bg-white/20 px-2 py-1 rounded-full text-xs">Completed</span>
+                    </div>
+                    <div class="text-3xl font-bold mb-1" x-text="data.matches"></div>
+                    <div class="text-sm text-white/90">Matches</div>
+                </div>
+
+                <!-- Status Card -->
+                <div class="status-card rounded-xl p-6 text-white relative overflow-hidden" 
+                     :class="data.currentMatch ? 'status-in-progress' : 'status-ready'">
+                    <div class="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-8 -mt-8"></div>
+                    <div class="flex items-center justify-between mb-3">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        <span class="bg-white/20 px-2 py-1 rounded-full text-xs" x-text="data.currentMatch ? 'Live' : 'Ready'"></span>
+                    </div>
+                    <div class="text-3xl font-bold mb-1" x-text="data.currentMatch ? 'Live' : 'Ready'"></div>
+                    <div class="text-sm text-white/90">Status</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="px-4 mb-8 animate-slide-up" style="animation-delay: 0.2s">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">⚡ Quick Actions</h2>
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Add Players -->
+                    <button @click="navigateTo('players')" 
+                            class="bg-blue-600 text-white rounded-xl p-6 text-center space-y-2 touch-target transition-all duration-200 hover:bg-blue-700 active:scale-95">
+                        <svg class="w-8 h-8 mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                        <div class="font-semibold">Add Players</div>
+                        <div class="text-sm opacity-75">Manage roster</div>
+                    </button>
+
+                    <!-- Create Teams -->
+                    <button @click="navigateTo('teams')" 
+                            :disabled="data.players < 4"
+                            :class="data.players >= 4 ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
+                            class="rounded-xl p-6 text-center space-y-2 touch-target transition-all duration-200 active:scale-95">
+                        <svg class="w-8 h-8 mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        <div class="font-semibold">Create Teams</div>
+                        <div class="text-sm opacity-75">Balance squads</div>
+                    </button>
+                </div>
+
+                <!-- Analytics - Full width below -->
+                <button @click="navigateTo('analytics')" 
+                        class="w-full bg-gray-100 text-gray-700 rounded-xl p-6 text-center space-y-2 touch-target transition-all duration-200 hover:bg-gray-200 active:scale-95">
+                    <svg class="w-8 h-8 mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                    <div class="font-semibold">Analytics</div>
+                    <div class="text-sm opacity-75">Player insights & statistics</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="px-4 mb-8 animate-slide-up" style="animation-delay: 0.3s">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">🕒 Recent Activity</h2>
+            
+            <div x-show="data.teams >= 2" class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-gray-900 mb-1">Team A vs Team B</h3>
+                        <p class="text-gray-600 mb-2">Teams ready for match</p>
+                        <div class="flex items-center text-sm text-gray-500">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                            Today
+                        </div>
+                    </div>
+                    <button class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                        View
+                    </button>
+                </div>
+            </div>
+
+            <div x-show="data.teams < 2" 
+                 class="bg-gradient-to-br from-blue-50 to-green-50 rounded-xl p-8 text-center border border-blue-100">
+                <div class="text-4xl mb-4">🎯</div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                    Get started by adding players and creating teams!
+                </h3>
+                <p class="text-gray-600 text-sm">
+                    💡 Tip: You need at least 4 players to create balanced teams
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-bottom">
+        <div class="grid grid-cols-5 h-16">
+            <button @click="setActiveTab('home')" 
+                    :class="activeTab === 'home' ? 'text-blue-600' : 'text-gray-400'"
+                    class="flex flex-col items-center justify-center space-y-1 transition-colors">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                <span class="text-xs">Home</span>
+            </button>
+            <button @click="setActiveTab('players')" 
+                    :class="activeTab === 'players' ? 'text-blue-600' : 'text-gray-400'"
+                    class="flex flex-col items-center justify-center space-y-1 transition-colors">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                <span class="text-xs">Players</span>
+            </button>
+            <button @click="setActiveTab('teams')" 
+                    :class="activeTab === 'teams' ? 'text-blue-600' : 'text-gray-400'"
+                    class="flex flex-col items-center justify-center space-y-1 transition-colors">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                <span class="text-xs">Teams</span>
+            </button>
+            <button @click="setActiveTab('scoring')" 
+                    :class="activeTab === 'scoring' ? 'text-blue-600' : 'text-gray-400'"
+                    class="flex flex-col items-center justify-center space-y-1 transition-colors">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <span class="text-xs">Scoring</span>
+            </button>
+            <button @click="setActiveTab('analytics')" 
+                    :class="activeTab === 'analytics' ? 'text-blue-600' : 'text-gray-400'"
+                    class="flex flex-col items-center justify-center space-y-1 transition-colors">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                <span class="text-xs">Analytics</span>
+            </button>
+        </div>
+    </nav>
+
+    <script>
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => console.log('SW registered'))
+                    .catch(error => console.log('SW registration failed'));
+            });
+        }
+
+        // Alpine.js app data
+        function cricketApp() {
+            return {
+                activeTab: 'home',
+                greeting: '',
+                currentDate: '',
+                data: {
+                    players: 12,
+                    teams: 2,
+                    matches: 5,
+                    currentMatch: null
+                },
+                
+                init() {
+                    this.updateGreeting();
+                    setInterval(() => this.updateGreeting(), 60000);
+                    
+                    // Load data from localStorage
+                    const stored = localStorage.getItem('cricketData');
+                    if (stored) {
+                        this.data = { ...this.data, ...JSON.parse(stored) };
+                    }
+                },
+                
+                updateGreeting() {
+                    const now = new Date();
+                    const hour = now.getHours();
+                    
+                    if (hour < 12) {
+                        this.greeting = 'Good Morning! 🌅';
+                    } else if (hour < 17) {
+                        this.greeting = 'Good Afternoon! ☀️';
+                    } else {
+                        this.greeting = 'Good Evening! 🌙';
+                    }
+                    
+                    this.currentDate = now.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                },
+                
+                setActiveTab(tab) {
+                    this.activeTab = tab;
+                    // Here you would typically navigate to different pages
+                    console.log('Navigate to:', tab);
+                },
+                
+                navigateTo(page) {
+                    this.setActiveTab(page);
+                    // Implement actual navigation logic
+                },
+                
+                saveData() {
+                    localStorage.setItem('cricketData', JSON.stringify(this.data));
+                }
+            }
+        }
+
+        // PWA install prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            deferredPrompt = e;
+            // Show install banner after a delay
+            setTimeout(() => {
+                if (deferredPrompt) {
+                    const installBanner = document.createElement('div');
+                    installBanner.innerHTML = `
+                        <div class="fixed top-4 left-4 right-4 bg-blue-600 text-white p-4 rounded-xl shadow-lg z-50 flex items-center justify-between">
+                            <div>
+                                <div class="font-semibold">Install Cricket PWA</div>
+                                <div class="text-sm opacity-90">Add to home screen for better experience</div>
+                            </div>
+                            <button onclick="installPWA()" class="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium">
+                                Install
+                            </button>
+                        </div>
+                    `;
+                    document.body.appendChild(installBanner);
+                }
+            }, 3000);
+        });
+
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    deferredPrompt = null;
+                    document.querySelector('.fixed.top-4').remove();
+                });
+            }
+        }
+    </script>
+    
+    <!-- Include the Cricket Data Manager -->
+    <script src="data-manager.js"></script>
+    
+    <!-- Include the main Cricket App -->
+    <script src="app.js"></script>
+</body>
+</html>
