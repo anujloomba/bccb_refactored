@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.anujloomba.bccb_refactored",
+      "sha256_cert_fingerprints": [
+        "8D:A1:A7:E0:03:80:0B:E5:24:64:0A:5A:04:78:07:2C:56:C9:B6:4F:8C:DE:0A:B7:4C:5C:EF:D2:96:B8:4D:7E"
+      ]
+    }
+  }
+]
