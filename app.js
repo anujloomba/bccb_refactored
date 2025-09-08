@@ -1195,11 +1195,11 @@ class CricketApp {
 
     updateStats() {
         const playerCountEl = document.getElementById('playerCount');
-        const teamCountEl = document.getElementById('teamCount');
+        const captainCountEl = document.getElementById('captainCount');
         const matchCountEl = document.getElementById('matchCount');
         
         if (playerCountEl) playerCountEl.textContent = this.players.length;
-        if (teamCountEl) teamCountEl.textContent = this.getUniqueCaptainsCount();
+        if (captainCountEl) captainCountEl.textContent = this.getUniqueCaptainsCount();
         if (matchCountEl) matchCountEl.textContent = this.matches.length;
         
         // Update match format display
