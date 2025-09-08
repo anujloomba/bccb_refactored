@@ -864,8 +864,9 @@ class CricketApp {
         
         // Initialize with BCCB data if empty or force reload for testing
         if (this.players.length === 0) {
-            console.log('📊 Loading BCCB player data...');
-            this.initSampleData();
+            console.log('📊 No sample data fallback - debugging JSON loading...');
+            // Temporarily disabled: this.initSampleData();
+            this.showNotification('⚠️ No data loaded - check cricket_stats.json');
         } else {
             console.log(`✅ Found ${this.players.length} existing players`);
             this.showNotification(`📱 ${this.players.length} players ready`);
