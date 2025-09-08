@@ -383,6 +383,16 @@
             border-radius: 12px;
             padding: 16px;
             margin: 16px 0;
+            color: white;
+        }
+
+        .scorecard-section p {
+            color: white;
+            margin: 8px 0;
+        }
+
+        .scorecard-section strong {
+            color: var(--primary-300);
         }
 
         .scorecard-header {
@@ -4485,7 +4495,28 @@
 
             console.log(`📊 Batting records: ${battingData.length}, Bowling records: ${bowlingData.length}`);
 
-            const date = new Date(match.Date_Saved);
+            // Fix date parsing
+            const matchDate = match.Date || match.date || match.Date_Saved;
+            const date = matchDate ? new Date(matchDate) : new Date();
+            
+            // Get captain names properly
+            const team1Captain = match.Team1_Captain || match.team1Captain || 'Unknown';
+            const team2Captain = match.Team2_Captain || match.team2Captain || 'Unknown';
+            
+            // Determine winning/losing team captains
+            const winningTeam = match.Winning_Team || match.winningTeam;
+            const team1Name = match.Team1 || match.team1?.name || `${team1Captain}'s Team`;
+            const team2Name = match.Team2 || match.team2?.name || `${team2Captain}'s Team`;
+            
+            let winningCaptain, losingCaptain;
+            if (winningTeam === team1Name || winningTeam === match.Team1) {
+                winningCaptain = team1Captain;
+                losingCaptain = team2Captain;
+            } else {
+                winningCaptain = team2Captain;
+                losingCaptain = team1Captain;
+            }
+            
             const winningScore = parseInt((match.Winning_Team_Score || '0/0').split('/')[0]) || 0;
             const losingScore = parseInt((match.Losing_Team_Score || '0/0').split('/')[0]) || 0;
             const margin = winningScore - losingScore;
@@ -4500,9 +4531,9 @@
                         
                         <div class="scorecard-section">
                             <div class="scorecard-header">🏆 Match Summary</div>
-                            <p><strong>Date:</strong> ${date.toLocaleString()}</p>
-                            <p><strong>Teams:</strong> ${match.Winning_Captain || 'Unknown'}'s Team vs ${match.Losing_Captain || 'Unknown'}'s Team</p>
-                            <p><strong>Result:</strong> ${match.Winning_Captain || 'Unknown'}'s Team won by ${margin} runs</p>
+                            <p><strong>Date:</strong> ${date.toLocaleDateString()} ${date.toLocaleTimeString()}</p>
+                            <p><strong>Teams:</strong> ${team1Name} vs ${team2Name}</p>
+                            <p><strong>Result:</strong> ${winningCaptain}'s Team won by ${margin} runs</p>
                             <p><strong>Final Scores:</strong> ${match.Winning_Team_Score || 'N/A'} vs ${match.Losing_Team_Score || 'N/A'}</p>
                             <p><strong>Overs Played:</strong> ${match.Winning_Team_Overs_Played || 'N/A'} vs ${match.Losing_Team_Overs_Played || 'N/A'}</p>
                             <p><strong>Man of the Match:</strong> ${match.Man_of_the_Match || 'Unknown'}</p>
@@ -4584,58 +4615,42 @@
 
         console.log('🗑️ Deleting match:', matchId);
 
-        // Load current data from JSON file
-        fetch('./cricket_stats.json')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Remove match from matches or history (handle both formats)
-                if (data.matches) {
-                    data.matches = data.matches.filter(m => m.Match_ID !== matchId);
-                } else if (data.history) {
-                    data.history = data.history.filter(m => m.Match_ID !== matchId);
-                }
+        // Call the server API to delete the match
+        fetch('/api/delete-match', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ matchId: matchId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('✅ Match deleted successfully:', data.message);
                 
-                // Remove associated batting and bowling data
-                if (data.match_batting_performance) {
-                    data.match_batting_performance = data.match_batting_performance.filter(b => b.Match_ID !== matchId);
-                }
-                if (data.match_bowling_performance) {
-                    data.match_bowling_performance = data.match_bowling_performance.filter(b => b.Match_ID !== matchId);
-                }
-                if (data.index) {
-                    data.index = data.index.filter(i => i.Match_ID !== matchId);
-                }
-
-                // Save updated data to localStorage
-                localStorage.setItem('cricket-stats', JSON.stringify(data));
-                
-                console.log('✅ Match deleted successfully');
-
                 // Refresh the match history display
                 loadMatchHistory();
-
+                
                 // Close the modal
                 closeScorecard();
-
+                
                 if (window.cricketApp && window.cricketApp.showNotification) {
                     window.cricketApp.showNotification('✅ Match deleted successfully');
                 } else {
                     alert('Match deleted successfully');
                 }
-            })
-            .catch(error => {
-                console.error('❌ Error deleting match:', error);
-                if (window.cricketApp && window.cricketApp.showNotification) {
-                    window.cricketApp.showNotification('❌ Error deleting match: ' + error.message);
-                } else {
-                    alert('Error deleting match: ' + error.message);
-                }
-            });
+            } else {
+                throw new Error(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error deleting match:', error);
+            if (window.cricketApp && window.cricketApp.showNotification) {
+                window.cricketApp.showNotification('❌ Error deleting match: ' + error.message);
+            } else {
+                alert('Error deleting match: ' + error.message);
+            }
+        });
     }
 
     // Load match history when page loads

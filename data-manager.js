@@ -127,49 +127,6 @@ class CricketDataManager {
                     return appData;
                 }
             }
-
-            // Fallback: Try to load from the combined JSON file
-            const playersResponse = await fetch(`./cricket_players.json`);
-            if (playersResponse.ok) {
-                const data = await playersResponse.json();
-                
-                // If it's a combined file with players, matches, teams
-                if (data.players && Array.isArray(data.players)) {
-                    return {
-                        players: data.players,
-                        matches: data.matches || [],
-                        teams: data.teams || []
-                    };
-                }
-                
-                // If it's just an array of players
-                if (Array.isArray(data)) {
-                    return {
-                        players: data,
-                        matches: [],
-                        teams: []
-                    };
-                }
-            }
-
-            // Fallback: try to load separate files
-            const [matchesResponse, teamsResponse] = await Promise.all([
-                fetch(`./cricket_matches.json`),
-                fetch(`./cricket_teams.json`)
-            ]);
-
-            if (matchesResponse.ok && teamsResponse.ok) {
-                const [matches, teams] = await Promise.all([
-                    matchesResponse.json(),
-                    teamsResponse.json()
-                ]);
-
-                return { 
-                    players: [], 
-                    matches: Array.isArray(matches) ? matches : [], 
-                    teams: Array.isArray(teams) ? teams : [] 
-                };
-            }
         } catch (error) {
             console.error('Error loading JSON data:', error);
         }
@@ -650,10 +607,8 @@ class CricketDataManager {
 
     async saveJSONData(data) {
         try {
-            // Save to localStorage (since we can't write files directly from browser)
-            localStorage.setItem('cricket-players', JSON.stringify(data.players));
-            localStorage.setItem('cricket-matches', JSON.stringify(data.matches));
-            localStorage.setItem('cricket-teams', JSON.stringify(data.teams));
+            // Save consolidated data to localStorage
+            localStorage.setItem('cricket-stats', JSON.stringify(data));
             
             // Edit existing JSON files in place instead of creating new ones
             await this.editJSONFilesInPlace(data);
@@ -675,22 +630,17 @@ class CricketDataManager {
 
     async editJSONFilesInPlace(data) {
         try {
-            console.log('Starting edit-in-place for JSON files...');
+            console.log('Starting edit-in-place for cricket_stats.json...');
             
             // Create backup before editing (for data integrity)
             await this.createBackupBeforeEdit();
             
-            // Edit individual JSON files in place
-            await Promise.all([
-                this.editPlayersJSON(data.players),
-                this.editMatchesJSON(data.matches),
-                this.editTeamsJSON(data.teams),
-                this.editCricketStatsJSON(data)
-            ]);
+            // Edit the main cricket_stats.json file
+            await this.editCricketStatsJSON(data);
             
-            console.log('All JSON files updated in place successfully');
+            console.log('Cricket stats JSON file updated successfully');
         } catch (error) {
-            console.error('Error editing JSON files in place:', error);
+            console.error('Error editing cricket stats JSON file:', error);
             // If editing fails, we still have the backup and localStorage
             this.showNotification('Warning: JSON file update failed, but data is safely stored in browser storage.');
             throw error;
@@ -701,17 +651,12 @@ class CricketDataManager {
         try {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
             
-            // Load current files and create backup
-            const [players, matches, teams, stats] = await Promise.all([
-                this.loadExistingJSON('./cricket_players.json', []),
-                this.loadExistingJSON('./cricket_matches.json', []),
-                this.loadExistingJSON('./cricket_teams.json', []),
-                this.loadExistingJSON('./cricket_stats.json', this.createEmptyStatsStructure())
-            ]);
+            // Load current cricket_stats.json file and create backup
+            const stats = await this.loadExistingJSON('./cricket_stats.json', this.createEmptyStatsStructure());
             
             // Store backup in localStorage with timestamp
             localStorage.setItem(`cricket-backup-${timestamp}`, JSON.stringify({
-                players, matches, teams, stats, timestamp
+                stats, timestamp
             }));
             
             console.log(`Backup created with timestamp: ${timestamp}`);
@@ -738,57 +683,6 @@ class CricketDataManager {
             });
         } catch (error) {
             console.warn('Error cleaning up old backups:', error);
-        }
-    }
-
-    async editPlayersJSON(players) {
-        try {
-            // Load existing players file
-            const existingPlayers = await this.loadExistingJSON('./cricket_players.json', []);
-            
-            // Merge new players with existing ones
-            const mergedPlayers = this.mergePlayersData(existingPlayers, players);
-            
-            // Save updated data
-            await this.saveUpdatedJSON('cricket_players.json', mergedPlayers);
-            console.log(`Players JSON updated: ${mergedPlayers.length} players`);
-        } catch (error) {
-            console.error('Error editing players JSON:', error);
-            throw error;
-        }
-    }
-
-    async editMatchesJSON(matches) {
-        try {
-            // Load existing matches file
-            const existingMatches = await this.loadExistingJSON('./cricket_matches.json', []);
-            
-            // Merge new matches with existing ones
-            const mergedMatches = this.mergeMatchesData(existingMatches, matches);
-            
-            // Save updated data
-            await this.saveUpdatedJSON('cricket_matches.json', mergedMatches);
-            console.log(`Matches JSON updated: ${mergedMatches.length} matches`);
-        } catch (error) {
-            console.error('Error editing matches JSON:', error);
-            throw error;
-        }
-    }
-
-    async editTeamsJSON(teams) {
-        try {
-            // Load existing teams file
-            const existingTeams = await this.loadExistingJSON('./cricket_teams.json', []);
-            
-            // Merge new teams with existing ones
-            const mergedTeams = this.mergeTeamsData(existingTeams, teams);
-            
-            // Save updated data
-            await this.saveUpdatedJSON('cricket_teams.json', mergedTeams);
-            console.log(`Teams JSON updated: ${mergedTeams.length} teams`);
-        } catch (error) {
-            console.error('Error editing teams JSON:', error);
-            throw error;
         }
     }
 
@@ -1406,9 +1300,6 @@ To complete the update:
             const backup = JSON.parse(backupData);
             
             // Restore to localStorage
-            localStorage.setItem('cricket-players', JSON.stringify(backup.players));
-            localStorage.setItem('cricket-matches', JSON.stringify(backup.matches));
-            localStorage.setItem('cricket-teams', JSON.stringify(backup.teams));
             localStorage.setItem('cricket-stats', JSON.stringify(backup.stats));
             
             console.log(`Restored data from backup: ${backupTimestamp}`);
