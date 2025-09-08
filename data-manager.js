@@ -336,13 +336,99 @@ class CricketDataManager {
         return { players, matches, teams };
     }
 
+    // Validate and normalize match data when loading from JSON
+    validateAndNormalizeLoadedMatch(match) {
+        if (!match) return null;
+        
+        // Normalize team data - ensure consistent object format
+        const normalizeTeam = (teamData, fallbackName) => {
+            if (!teamData) return { name: fallbackName };
+            if (typeof teamData === 'string') return { name: teamData };
+            if (typeof teamData === 'object' && teamData.name) return { name: teamData.name };
+            return { name: fallbackName };
+        };
+        
+        // Normalize score strings
+        const normalizeScore = (score) => {
+            if (!score && score !== 0) return 'N/A';
+            if (typeof score === 'number') return score.toString();
+            if (typeof score === 'string' && score.trim() !== '') return score.trim();
+            return 'N/A';
+        };
+        
+        const normalized = {
+            // Use Match_ID as primary, fallback to id
+            id: match.Match_ID || match.id || Date.now(),
+            
+            // Date handling
+            date: match.Date || match.date || new Date().toISOString().split('T')[0],
+            venue: match.Venue || match.venue || 'Not specified',
+            
+            // Team data - ensure object format with name property
+            team1: normalizeTeam(match.Team1 || match.team1, 'Team 1'),
+            team2: normalizeTeam(match.Team2 || match.team2, 'Team 2'),
+            
+            // Captain data
+            team1Captain: match.Team1_Captain || match.team1Captain || '',
+            team2Captain: match.Team2_Captain || match.team2Captain || '',
+            
+            // Team compositions
+            team1Composition: match.Team1_Composition || match.team1Composition || [],
+            team2Composition: match.Team2_Composition || match.team2Composition || [],
+            
+            // Results
+            winningTeam: match.Winning_Team || match.winningTeam || match.winner || '',
+            losingTeam: match.Losing_Team || match.losingTeam || match.loser || '',
+            result: match.Result || match.result || 'Match completed',
+            
+            // Scores
+            winningTeamScore: normalizeScore(match.Winning_Team_Score || match.winningTeamScore),
+            losingTeamScore: normalizeScore(match.Losing_Team_Score || match.losingTeamScore),
+            
+            // Match metadata
+            overs: match.Overs || match.overs || 20,
+            matchType: match.Match_Type || match.matchType || 'Regular',
+            status: match.Status || match.status || 'Completed',
+            manOfTheMatch: match.Man_Of_The_Match || match.Man_of_the_Match || match.manOfTheMatch || '',
+            
+            // Timestamps
+            gameStartTime: match.Game_Start_Time || match.gameStartTime || match.startTime || '',
+            gameFinishTime: match.Game_Finish_Time || match.gameFinishTime || match.finishTime || '',
+            
+            // Additional properties
+            completed: match.completed !== false, // Default to true
+            target: match.target || 0,
+            currentInnings: match.currentInnings || 1
+        };
+        
+        // Validate team names
+        if (!normalized.team1.name || normalized.team1.name === '') {
+            console.warn(`⚠️ Invalid team1 name in match ${normalized.id}, using fallback`);
+            normalized.team1.name = 'Team 1';
+        }
+        if (!normalized.team2.name || normalized.team2.name === '') {
+            console.warn(`⚠️ Invalid team2 name in match ${normalized.id}, using fallback`);
+            normalized.team2.name = 'Team 2';
+        }
+        
+        // Validate scores
+        if (normalized.winningTeamScore === 'N/A' && normalized.losingTeamScore === 'N/A') {
+            console.warn(`⚠️ Missing score data for match ${normalized.id}`);
+        }
+        
+        return normalized;
+    }
+
+    convertAppDataToStats(players, matches, teams) {
+    }
+
     convertToSkillLevel(battingStyle, bowlingStyle, isStar) {
         let skill = 5; // Base skill
         
-        // Batting style bonus
-        if (battingStyle === 'R') skill += 2;      // Reliable
-        else if (battingStyle === 'S') skill += 1; // Slogger
-        // 'U' (Unreliable) gets no bonus
+        // Batting style bonus - handle both old (R/S/U) and new (Reliable/So-So/Tailend) formats
+        if (battingStyle === 'R' || battingStyle === 'Reliable') skill += 2;
+        else if (battingStyle === 'S' || battingStyle === 'So-So') skill += 1;
+        // 'U' (Unreliable) or 'Tailend' gets no bonus
         
         // Bowling style bonus
         if (bowlingStyle === 'Fast') skill += 2;
@@ -357,11 +443,15 @@ class CricketDataManager {
     }
 
     determineRole(battingStyle, bowlingStyle) {
-        if (battingStyle !== 'U' && bowlingStyle !== 'DNB') {
+        // Handle both old (U) and new (Tailend) formats
+        const isTailender = (battingStyle === 'U' || battingStyle === 'Tailend');
+        const isNonBowler = (bowlingStyle === 'DNB');
+        
+        if (!isTailender && !isNonBowler) {
             return 'allrounder';
-        } else if (battingStyle === 'U' && bowlingStyle !== 'DNB') {
+        } else if (isTailender && !isNonBowler) {
             return 'bowler';
-        } else if (battingStyle !== 'U' && bowlingStyle === 'DNB') {
+        } else if (!isTailender && isNonBowler) {
             return 'batsman';
         } else {
             return 'batsman'; // Default
@@ -376,8 +466,29 @@ class CricketDataManager {
         // Convert player info data to app format
         if (statsData.player_info) {
             statsData.player_info.forEach((playerInfo, index) => {
-                const battingStats = statsData.batting_stats?.find(b => b.Player === playerInfo.Name) || {};
-                const bowlingStats = statsData.bowling_stats?.find(b => b.Player === playerInfo.Name) || {};
+                // Aggregate batting performance from match data
+                const playerBattingPerformances = statsData.match_batting_performance?.filter(b => b.Player === playerInfo.Name) || [];
+                const playerBowlingPerformances = statsData.match_bowling_performance?.filter(b => b.Player === playerInfo.Name) || [];
+                
+                // Calculate aggregated batting stats
+                const totalRuns = playerBattingPerformances.reduce((sum, match) => sum + (parseInt(match.Runs) || 0), 0);
+                const totalBallsFaced = playerBattingPerformances.reduce((sum, match) => sum + (parseInt(match.Balls_Faced) || 0), 0);
+                const totalFours = playerBattingPerformances.reduce((sum, match) => sum + (parseInt(match.Fours) || 0), 0);
+                const totalSixes = playerBattingPerformances.reduce((sum, match) => sum + (parseInt(match.Sixes) || 0), 0);
+                const battingInnings = playerBattingPerformances.length;
+                const notOuts = playerBattingPerformances.filter(match => !match.Out).length;
+                const highestScore = Math.max(...playerBattingPerformances.map(match => parseInt(match.Runs) || 0), 0);
+                const battingAverage = (battingInnings - notOuts) > 0 ? (totalRuns / (battingInnings - notOuts)) : 0;
+                const strikeRate = totalBallsFaced > 0 ? ((totalRuns / totalBallsFaced) * 100) : 0;
+                
+                // Calculate aggregated bowling stats
+                const totalRunsConceded = playerBowlingPerformances.reduce((sum, match) => sum + (parseInt(match.Runs) || 0), 0);
+                const totalWickets = playerBowlingPerformances.reduce((sum, match) => sum + (parseInt(match.Wickets) || 0), 0);
+                const totalBallsBowled = playerBowlingPerformances.reduce((sum, match) => sum + (parseInt(match.Balls) || 0), 0);
+                const bowlingInnings = playerBowlingPerformances.length;
+                const bowlingAverage = totalWickets > 0 ? (totalRunsConceded / totalWickets) : 0;
+                const economy = totalBallsBowled > 0 ? ((totalRunsConceded / totalBallsBowled) * 6) : 0;
+                const bowlingStrikeRate = totalWickets > 0 ? (totalBallsBowled / totalWickets) : 0;
 
                 const player = {
                     id: Date.now() + index,
@@ -385,33 +496,38 @@ class CricketDataManager {
                     skill: this.convertToSkillLevel(playerInfo.Batting_Style, playerInfo.Bowling_Style, playerInfo.Is_Star),
                     role: this.determineRole(playerInfo.Batting_Style, playerInfo.Bowling_Style),
                     
-                    // Batting statistics
-                    matches: parseInt(battingStats.Matches || '0'),
-                    innings: parseInt(battingStats.Innings || '0'),
-                    notOuts: parseInt(battingStats.Not_Outs || '0'),
-                    runs: parseInt(battingStats.Runs || '0'),
-                    highestScore: parseInt(battingStats.Highest_Score || '0'),
-                    battingAverage: parseFloat(battingStats.Average || '0'),
-                    ballsFaced: parseInt(battingStats.Balls_Faced || '0'),
-                    strikeRate: parseFloat(battingStats.Strike_Rate || '0'),
-                    centuries: parseInt(battingStats['100s'] || '0'),
-                    halfCenturies: parseInt(battingStats['50s'] || '0'),
-                    ducks: parseInt(battingStats['0s'] || '0'),
-                    fours: parseInt(battingStats['4s'] || '0'),
-                    sixes: parseInt(battingStats['6s'] || '0'),
+                    // Batting statistics (calculated from match data)
+                    matches: battingInnings,
+                    innings: battingInnings,
+                    notOuts: notOuts,
+                    runs: totalRuns,
+                    highestScore: highestScore,
+                    battingAverage: Math.round(battingAverage * 100) / 100,
+                    ballsFaced: totalBallsFaced,
+                    strikeRate: Math.round(strikeRate * 100) / 100,
+                    centuries: playerBattingPerformances.filter(match => parseInt(match.Runs) >= 100).length,
+                    halfCenturies: playerBattingPerformances.filter(match => parseInt(match.Runs) >= 50 && parseInt(match.Runs) < 100).length,
+                    ducks: playerBattingPerformances.filter(match => parseInt(match.Runs) === 0).length,
+                    fours: totalFours,
+                    sixes: totalSixes,
                     
-                    // Bowling statistics
-                    bowlingMatches: parseInt(bowlingStats.Matches || '0'),
-                    bowlingInnings: parseInt(bowlingStats.Innings || '0'),
-                    ballsBowled: parseInt(bowlingStats.Balls || '0'),
-                    runsConceded: parseInt(bowlingStats.Runs || '0'),
-                    wickets: parseInt(bowlingStats.Wickets || '0'),
-                    bestBowlingInnings: bowlingStats.BBI || 'N/A',
-                    bowlingAverage: parseFloat(bowlingStats.Average || '0'),
-                    economy: parseFloat(bowlingStats.Economy || '0'),
-                    bowlingStrikeRate: parseFloat(bowlingStats.Strike_Rate || '0'),
-                    fourWickets: parseInt(bowlingStats['4W'] || '0'),
-                    fiveWickets: parseInt(bowlingStats['5W'] || '0'),
+                    // Bowling statistics (calculated from match data)
+                    bowlingMatches: bowlingInnings,
+                    bowlingInnings: bowlingInnings,
+                    ballsBowled: totalBallsBowled,
+                    runsConceded: totalRunsConceded,
+                    wickets: totalWickets,
+                    bestBowlingInnings: playerBowlingPerformances.length > 0 ? 
+                        playerBowlingPerformances.reduce((best, match) => 
+                            (parseInt(match.Wickets) || 0) > (parseInt(best.Wickets) || 0) ? match : best
+                        ).Wickets + '/' + playerBowlingPerformances.reduce((best, match) => 
+                            (parseInt(match.Wickets) || 0) > (parseInt(best.Wickets) || 0) ? match : best
+                        ).Runs : 'N/A',
+                    bowlingAverage: Math.round(bowlingAverage * 100) / 100,
+                    economy: Math.round(economy * 100) / 100,
+                    bowlingStrikeRate: Math.round(bowlingStrikeRate * 100) / 100,
+                    fourWickets: playerBowlingPerformances.filter(match => parseInt(match.Wickets) >= 4).length,
+                    fiveWickets: playerBowlingPerformances.filter(match => parseInt(match.Wickets) >= 5).length,
                     
                     // BCCB specific data
                     battingStyle: playerInfo.Batting_Style,
@@ -431,7 +547,69 @@ class CricketDataManager {
         }
 
         // Convert match history to app format
-        if (statsData.history) {
+        if (statsData.matches) {
+            // New format with matches array
+            statsData.matches.forEach((match, index) => {
+                // Validate and normalize each match
+                const normalizedMatch = this.validateAndNormalizeLoadedMatch(match);
+                
+                const appMatch = {
+                    id: normalizedMatch.id,
+                    matchId: normalizedMatch.id,
+                    date: normalizedMatch.date,
+                    venue: normalizedMatch.venue,
+                    team1: normalizedMatch.team1,
+                    team2: normalizedMatch.team2,
+                    team1Captain: normalizedMatch.team1Captain,
+                    team2Captain: normalizedMatch.team2Captain,
+                    team1Composition: normalizedMatch.team1Composition,
+                    team2Composition: normalizedMatch.team2Composition,
+                    winningTeam: normalizedMatch.winningTeam,
+                    losingTeam: normalizedMatch.losingTeam,
+                    gameStartTime: normalizedMatch.gameStartTime,
+                    gameFinishTime: normalizedMatch.gameFinishTime,
+                    winningTeamScore: normalizedMatch.winningTeamScore,
+                    losingTeamScore: normalizedMatch.losingTeamScore,
+                    result: normalizedMatch.result,
+                    overs: normalizedMatch.overs,
+                    matchType: normalizedMatch.matchType,
+                    completed: normalizedMatch.status === 'Completed',
+                    status: normalizedMatch.status === 'Completed' ? 'completed' : 'in-progress',
+                    manOfTheMatch: normalizedMatch.manOfTheMatch,
+                    
+                    // Convert performance data
+                    battingPerformances: (statsData.match_batting_performance || [])
+                        .filter(perf => perf.Match_ID === match.Match_ID)
+                        .map(perf => ({
+                            playerId: perf.Player_ID,
+                            playerName: perf.Player,
+                            runs: perf.Runs,
+                            ballsFaced: perf.Balls_Faced,
+                            strikeRate: perf.Strike_Rate,
+                            fours: perf.Fours,
+                            sixes: perf.Sixes,
+                            out: perf.Out,
+                            dismissalType: perf.Dismissal_Type,
+                            position: perf.Position
+                        })),
+                    bowlingPerformances: (statsData.match_bowling_performance || [])
+                        .filter(perf => perf.Match_ID === match.Match_ID)
+                        .map(perf => ({
+                            playerId: perf.Player_ID,
+                            playerName: perf.Player,
+                            overs: perf.Overs,
+                            maidens: perf.Maidens,
+                            runs: perf.Runs,
+                            wickets: perf.Wickets,
+                            economy: perf.Economy,
+                            balls: perf.Balls
+                        }))
+                };
+
+                matches.push(appMatch);
+            });
+        } else if (statsData.history) {
+            // Legacy format with history array
             statsData.history.forEach((historyEntry, index) => {
                 const match = {
                     id: historyEntry.Match_ID,
@@ -477,9 +655,8 @@ class CricketDataManager {
             localStorage.setItem('cricket-matches', JSON.stringify(data.matches));
             localStorage.setItem('cricket-teams', JSON.stringify(data.teams));
             
-            // Also convert and save to cricket_stats.json format
-            const statsData = this.convertAppDataToStats(data);
-            localStorage.setItem('cricket-stats', JSON.stringify(statsData));
+            // Edit existing JSON files in place instead of creating new ones
+            await this.editJSONFilesInPlace(data);
             
             // Also save metadata
             const metadata = {
@@ -490,24 +667,166 @@ class CricketDataManager {
             };
             localStorage.setItem('cricket-metadata', JSON.stringify(metadata));
             
-            console.log('Data saved to localStorage');
+            console.log('Data saved to localStorage and JSON files updated in place');
         } catch (error) {
             console.error('Error saving JSON data:', error);
+        }
+    }
+
+    async editJSONFilesInPlace(data) {
+        try {
+            console.log('Starting edit-in-place for JSON files...');
+            
+            // Create backup before editing (for data integrity)
+            await this.createBackupBeforeEdit();
+            
+            // Edit individual JSON files in place
+            await Promise.all([
+                this.editPlayersJSON(data.players),
+                this.editMatchesJSON(data.matches),
+                this.editTeamsJSON(data.teams),
+                this.editCricketStatsJSON(data)
+            ]);
+            
+            console.log('All JSON files updated in place successfully');
+        } catch (error) {
+            console.error('Error editing JSON files in place:', error);
+            // If editing fails, we still have the backup and localStorage
+            this.showNotification('Warning: JSON file update failed, but data is safely stored in browser storage.');
+            throw error;
+        }
+    }
+
+    async createBackupBeforeEdit() {
+        try {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            
+            // Load current files and create backup
+            const [players, matches, teams, stats] = await Promise.all([
+                this.loadExistingJSON('./cricket_players.json', []),
+                this.loadExistingJSON('./cricket_matches.json', []),
+                this.loadExistingJSON('./cricket_teams.json', []),
+                this.loadExistingJSON('./cricket_stats.json', this.createEmptyStatsStructure())
+            ]);
+            
+            // Store backup in localStorage with timestamp
+            localStorage.setItem(`cricket-backup-${timestamp}`, JSON.stringify({
+                players, matches, teams, stats, timestamp
+            }));
+            
+            console.log(`Backup created with timestamp: ${timestamp}`);
+            
+            // Keep only last 5 backups to manage storage
+            this.cleanupOldBackups();
+        } catch (error) {
+            console.warn('Could not create backup before edit:', error);
+            // Don't throw - editing can still proceed
+        }
+    }
+
+    cleanupOldBackups() {
+        try {
+            const backupKeys = Object.keys(localStorage)
+                .filter(key => key.startsWith('cricket-backup-'))
+                .sort()
+                .reverse(); // Most recent first
+            
+            // Remove backups beyond the last 5
+            backupKeys.slice(5).forEach(key => {
+                localStorage.removeItem(key);
+                console.log(`Removed old backup: ${key}`);
+            });
+        } catch (error) {
+            console.warn('Error cleaning up old backups:', error);
+        }
+    }
+
+    async editPlayersJSON(players) {
+        try {
+            // Load existing players file
+            const existingPlayers = await this.loadExistingJSON('./cricket_players.json', []);
+            
+            // Merge new players with existing ones
+            const mergedPlayers = this.mergePlayersData(existingPlayers, players);
+            
+            // Save updated data
+            await this.saveUpdatedJSON('cricket_players.json', mergedPlayers);
+            console.log(`Players JSON updated: ${mergedPlayers.length} players`);
+        } catch (error) {
+            console.error('Error editing players JSON:', error);
+            throw error;
+        }
+    }
+
+    async editMatchesJSON(matches) {
+        try {
+            // Load existing matches file
+            const existingMatches = await this.loadExistingJSON('./cricket_matches.json', []);
+            
+            // Merge new matches with existing ones
+            const mergedMatches = this.mergeMatchesData(existingMatches, matches);
+            
+            // Save updated data
+            await this.saveUpdatedJSON('cricket_matches.json', mergedMatches);
+            console.log(`Matches JSON updated: ${mergedMatches.length} matches`);
+        } catch (error) {
+            console.error('Error editing matches JSON:', error);
+            throw error;
+        }
+    }
+
+    async editTeamsJSON(teams) {
+        try {
+            // Load existing teams file
+            const existingTeams = await this.loadExistingJSON('./cricket_teams.json', []);
+            
+            // Merge new teams with existing ones
+            const mergedTeams = this.mergeTeamsData(existingTeams, teams);
+            
+            // Save updated data
+            await this.saveUpdatedJSON('cricket_teams.json', mergedTeams);
+            console.log(`Teams JSON updated: ${mergedTeams.length} teams`);
+        } catch (error) {
+            console.error('Error editing teams JSON:', error);
+            throw error;
+        }
+    }
+
+    async editCricketStatsJSON(appData) {
+        try {
+            // Load existing cricket_stats file
+            const existingStats = await this.loadExistingJSON('./cricket_stats.json', this.createEmptyStatsStructure());
+            
+            // Convert app data to stats format
+            const newStatsData = this.convertAppDataToStats(appData);
+            
+            // Merge stats data intelligently
+            const mergedStats = this.mergeStatsData(existingStats, newStatsData);
+            
+            // Save updated data
+            await this.saveUpdatedJSON('cricket_stats.json', mergedStats);
+            console.log('Cricket stats JSON updated in place');
+        } catch (error) {
+            console.error('Error editing cricket stats JSON:', error);
+            throw error;
         }
     }
 
     convertAppDataToStats(data) {
         const statsData = {
             player_info: [],
-            // batting_stats: [], // Removed aggregate
-            // bowling_stats: [], // Removed aggregate
             matches: [],
             match_batting_performance: [],
             match_bowling_performance: [],
-            device_id: {
-                id: this.deviceId
-            },
-            history: []
+            export_metadata: {
+                total_players: data.players ? data.players.length : 0,
+                total_matches: data.matches ? data.matches.length : 0,
+                export_date: new Date().toISOString(),
+                export_timestamp: new Date().toLocaleString(),
+                app_version: '1.0.0',
+                data_format_version: '2.0',
+                created_by: 'Cricket PWA'
+            }
         };
 
         // Create player ID mapping
@@ -517,7 +836,7 @@ class CricketDataManager {
         // Convert players back to cricket_stats format
         if (data.players) {
             data.players.forEach(player => {
-                // Generate Player_ID
+                // Generate Player_ID using sequential counter for consistency
                 const playerId = `P${playerIdCounter.toString().padStart(3, '0')}`;
                 playerIdMap.set(player.name, playerId);
                 playerIdCounter++;
@@ -526,93 +845,87 @@ class CricketDataManager {
                 statsData.player_info.push({
                     Player_ID: playerId,
                     Name: player.name,
-                    Bowling_Style: player.bowlingStyle || 'Medium',
-                    Batting_Style: player.battingStyle || 'R',
-                    Is_Star: player.isStar || false,
-                    Last_Updated: player.lastUpdated || new Date().toISOString().split('T')[0],
+                    Bowling_Style: player.bowlingStyle || player.bowling || 'Medium',
+                    Batting_Style: player.battingStyle || player.batting || 'Reliable',
+                    Is_Star: player.isStar || player.is_star || false,
+                    Last_Updated: player.lastUpdated || player.last_updated || new Date().toISOString().split('T')[0],
                     Last_Edit_Date: player.lastEditDate || new Date().toISOString().split('T')[0]
                 });
             });
         }
 
-        // Convert matches back to history format
+        // Convert matches to new format
         if (data.matches) {
             data.matches.forEach(match => {
-                statsData.history.push({
-                    Match_ID: match.id,
-                    Date_Saved: match.date || new Date().toISOString().replace('T', ' ').substring(0, 19),
-                    Winning_Captain: match.winningCaptain || '',
-                    Losing_Captain: match.losingCaptain || '',
-                    Winning_Team_Score: match.winningTeamScore || '',
-                    Losing_Team_Score: match.losingTeamScore || '',
-                    Man_of_the_Match: match.manOfTheMatch || '',
-                    Winning_Team_Overs_Played: match.winningTeamOvers || '',
-                    Losing_Team_Overs_Played: match.losingTeamOvers || ''
-                });
-
-                // Add match performance data if available, ensuring Player_ID is included
-                if (match.battingPerformance) {
-                    const battingWithIds = match.battingPerformance.map(perf => ({
-                        Match_ID: perf.Match_ID || match.id,
-                        Player_ID: perf.Player_ID || playerIdMap.get(perf.Player) || perf.Player,
-                        Player: perf.Player,
-                        Runs: perf.Runs || 0,
-                        Balls_Faced: perf.Balls_Faced || 0,
-                        Strike_Rate: perf.Strike_Rate || "0.00",
-                        Fours: perf.Fours || 0,
-                        Sixes: perf.Sixes || 0,
-                        Out: perf.Out || false,
-                        Dismissal_Type: perf.Dismissal_Type || '',
-                        Dismissal_Details: perf.Dismissal_Details || (perf.Out ? 'out' : 'not out'),
-                        Position: perf.Position || 0
-                    }));
-                    statsData.match_batting_performance.push(...battingWithIds);
-                }
-                if (match.bowlingPerformance) {
-                    const bowlingWithIds = match.bowlingPerformance.map(perf => ({
-                        Match_ID: perf.Match_ID || match.id,
-                        Player_ID: perf.Player_ID || playerIdMap.get(perf.Player) || perf.Player,
-                        Player: perf.Player,
-                        Overs: perf.Overs || "0.0",
-                        Maidens: perf.Maidens || 0,
-                        Runs: perf.Runs || 0,
-                        Wickets: perf.Wickets || 0,
-                        Economy: perf.Economy || "0.00",
-                        Balls: perf.Balls || 0
-                    }));
-                    statsData.match_bowling_performance.push(...bowlingWithIds);
-                }
-            });
-        }
-
-        // Convert matches to cricket_stats format
-        if (data.matches) {
-            data.matches.forEach(match => {
-                const convertPlayersToIds = (players) => {
-                    return players.map(player => {
-                        const playerId = playerIdMap.get(player.name);
-                        return playerId || player.name; // fallback to name if ID not found
-                    });
+                const normalizedMatch = {
+                    Match_ID: match.id || match.matchId || Date.now(),
+                    Date: match.date || new Date().toISOString().split('T')[0],
+                    Venue: match.venue || 'Not specified',
+                    Team1: this.extractTeamName(match.team1) || 'Team 1',
+                    Team2: this.extractTeamName(match.team2) || 'Team 2',
+                    Team1_Captain: match.team1Captain || match.captains?.team1 || '',
+                    Team2_Captain: match.team2Captain || match.captains?.team2 || '',
+                    Team1_Composition: match.team1Composition || match.compositions?.team1 || [],
+                    Team2_Composition: match.team2Composition || match.compositions?.team2 || [],
+                    Winning_Team: this.extractTeamName(match.winner) || match.winningTeam || '',
+                    Losing_Team: this.extractTeamName(match.loser) || match.losingTeam || '',
+                    Game_Start_Time: match.gameStartTime || match.startTime || (match.date + 'T14:00:00Z'),
+                    Game_Finish_Time: match.gameFinishTime || match.finishTime || '',
+                    Winning_Team_Score: this.normalizeScore(match.winningTeamScore || match.scores?.winner) || 'N/A',
+                    Losing_Team_Score: this.normalizeScore(match.losingTeamScore || match.scores?.loser) || 'N/A',
+                    Result: match.result || match.winner || 'Match completed',
+                    Overs: match.overs || match.totalOvers || 20,
+                    Match_Type: match.matchType || match.match_type || 'Regular',
+                    Status: match.completed !== false ? 'Completed' : 'In Progress',
+                    Man_Of_The_Match: match.manOfTheMatch?.name || match.manOfTheMatch || ''
                 };
 
-                statsData.matches.push({
-                    match_id: match.match_id,
-                    date: match.date,
-                    status: match.status,
-                    team1: {
-                        name: match.team1?.name || '',
-                        captain_id: playerIdMap.get(match.team1?.captain) || match.team1?.captain || '',
-                        player_ids: convertPlayersToIds(match.team1?.players || []),
-                        strength: match.team1?.strength || 0
-                    },
-                    team2: {
-                        name: match.team2?.name || '',
-                        captain_id: playerIdMap.get(match.team2?.captain) || match.team2?.captain || '',
-                        player_ids: convertPlayersToIds(match.team2?.players || []),
-                        strength: match.team2?.strength || 0
-                    },
-                    created: match.created || match.date
-                });
+                // Validate the normalized match
+                if (!normalizedMatch.Team1 || !normalizedMatch.Team2) {
+                    console.warn(`⚠️ Missing team names for match ${normalizedMatch.Match_ID}`);
+                    normalizedMatch.Team1 = normalizedMatch.Team1 || 'Team 1';
+                    normalizedMatch.Team2 = normalizedMatch.Team2 || 'Team 2';
+                }
+
+                statsData.matches.push(normalizedMatch);
+
+                // Add batting performance data
+                if (match.battingPerformances || match.battingPerformance) {
+                    const battingData = match.battingPerformances || match.battingPerformance || [];
+                    battingData.forEach(perf => {
+                        statsData.match_batting_performance.push({
+                            Match_ID: match.id || match.matchId,
+                            Player_ID: perf.playerId || perf.Player_ID || playerIdMap.get(perf.playerName || perf.Player) || '',
+                            Player: perf.playerName || perf.Player || '',
+                            Runs: perf.runs || perf.Runs || 0,
+                            Balls_Faced: perf.ballsFaced || perf.Balls_Faced || 0,
+                            Strike_Rate: perf.strikeRate || perf.Strike_Rate || "0.00",
+                            Fours: perf.fours || perf.Fours || 0,
+                            Sixes: perf.sixes || perf.Sixes || 0,
+                            Out: perf.out !== undefined ? perf.out : (perf.Out !== undefined ? perf.Out : false),
+                            Dismissal_Type: perf.dismissalType || perf.Dismissal_Type || '',
+                            Position: perf.position || perf.Position || 1
+                        });
+                    });
+                }
+
+                // Add bowling performance data
+                if (match.bowlingPerformances || match.bowlingPerformance) {
+                    const bowlingData = match.bowlingPerformances || match.bowlingPerformance || [];
+                    bowlingData.forEach(perf => {
+                        statsData.match_bowling_performance.push({
+                            Match_ID: match.id || match.matchId,
+                            Player_ID: perf.playerId || perf.Player_ID || playerIdMap.get(perf.playerName || perf.Player) || '',
+                            Player: perf.playerName || perf.Player || '',
+                            Overs: perf.overs || perf.Overs || '0.0',
+                            Maidens: perf.maidens || perf.Maidens || 0,
+                            Runs: perf.runs || perf.Runs || 0,
+                            Wickets: perf.wickets || perf.Wickets || 0,
+                            Economy: perf.economy || perf.Economy || '0.00',
+                            Balls: perf.balls || perf.Balls || 0
+                        });
+                    });
+                }
             });
         }
 
@@ -731,9 +1044,10 @@ class CricketDataManager {
     }
 
     skillToBattingStyle(player) {
-        if (player.skill >= 8) return 'R';
-        if (player.skill >= 6) return 'S';
-        return 'U';
+        // Return new full word format
+        if (player.skill >= 8) return 'Reliable';
+        if (player.skill >= 6) return 'So-So';
+        return 'Tailend';
     }
 
     arrayToCSV(array) {
@@ -765,25 +1079,11 @@ class CricketDataManager {
     async saveCricketStatsJSON(players, matches, teams, includeDeviceId = false) {
         try {
             const appData = { players, matches, teams };
-            const statsData = this.convertAppDataToStats(appData);
             
-            // Save to localStorage (since browsers can't write files directly)
-            localStorage.setItem('cricket-stats', JSON.stringify(statsData));
+            // Use edit-in-place instead of creating new files
+            await this.editCricketStatsJSON(appData);
             
-            // Determine filename based on whether to include device ID
-            let filename = 'cricket_stats.json';
-            if (includeDeviceId) {
-                const deviceId = await this.getDeviceId();
-                if (deviceId) {
-                    filename = `cricket_stats_${deviceId}.json`;
-                }
-            }
-            
-            // In a real environment, this would make an API call to save the file
-            // For now, trigger a download of the updated cricket_stats.json
-            this.downloadJSON(statsData, filename);
-            
-            console.log('Cricket stats JSON updated');
+            console.log('Cricket stats JSON updated in place');
             return true;
         } catch (error) {
             console.error('Error saving cricket stats JSON:', error);
@@ -835,5 +1135,321 @@ class CricketDataManager {
         } else {
             console.log(message);
         }
+    }
+
+    addPlayer(playerData) {
+        try {
+            if (!this.data || !this.data.players) {
+                console.warn('Data manager not properly initialized for adding player');
+                return;
+            }
+            
+            // Add player to the data structure
+            this.data.players.push(playerData);
+            
+            // Save the updated data
+            this.saveJSONData(this.data);
+            
+            console.log(`Player ${playerData.name} added to data manager`);
+        } catch (error) {
+            console.error('Error adding player to data manager:', error);
+        }
+    }
+
+    // Helper function to extract team name from various formats
+    extractTeamName(teamData) {
+        if (!teamData) return null;
+        if (typeof teamData === 'string') return teamData;
+        if (typeof teamData === 'object' && teamData.name) return teamData.name;
+        return null;
+    }
+
+    // Helper function to normalize score strings
+    normalizeScore(score) {
+        if (!score && score !== 0) return 'N/A';
+        if (typeof score === 'number') return score.toString();
+        if (typeof score === 'string' && score.trim() !== '') return score.trim();
+        return 'N/A';
+    }
+
+    // Edit-in-place helper methods
+    async loadExistingJSON(filePath, defaultValue) {
+        try {
+            const response = await fetch(filePath);
+            if (response.ok) {
+                const data = await response.json();
+                return data;
+            } else {
+                console.warn(`File ${filePath} not found, using default value`);
+                return defaultValue;
+            }
+        } catch (error) {
+            console.warn(`Error loading ${filePath}, using default value:`, error);
+            return defaultValue;
+        }
+    }
+
+    async saveUpdatedJSON(filename, data) {
+        try {
+            // Since browsers can't directly write files, we'll trigger a download
+            // with specific instructions for replacing the existing file
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            
+            // Add timestamp to make downloads unique
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+            link.download = filename.replace('.json', `_updated_${timestamp}.json`);
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            // Show detailed notification
+            this.showUpdateNotification(filename, data);
+        } catch (error) {
+            console.error(`Error saving updated ${filename}:`, error);
+            throw error;
+        }
+    }
+
+    showUpdateNotification(filename, data) {
+        let count = 'unknown';
+        if (Array.isArray(data)) {
+            count = data.length;
+        } else if (data && typeof data === 'object') {
+            if (data.player_info) count = `${data.player_info.length} players, ${data.matches?.length || 0} matches`;
+            else if (data.export_metadata) count = `${data.export_metadata.total_players} players, ${data.export_metadata.total_matches} matches`;
+        }
+        
+        const message = `📁 Updated ${filename} downloaded (${count} items). 
+        
+To complete the update:
+1. Go to your Downloads folder
+2. Copy the downloaded file
+3. Replace the existing ${filename} in your project folder
+        
+💾 Data is safely backed up in browser storage.`;
+        
+        this.showNotification(message);
+    }
+
+    mergePlayersData(existingPlayers, newPlayers) {
+        if (!Array.isArray(existingPlayers)) existingPlayers = [];
+        if (!Array.isArray(newPlayers)) newPlayers = [];
+        
+        const merged = [...existingPlayers];
+        const existingIds = new Set(existingPlayers.map(p => p.id).filter(id => id));
+        
+        newPlayers.forEach(newPlayer => {
+            if (!newPlayer || !newPlayer.id) return; // Skip invalid players
+            
+            if (!existingIds.has(newPlayer.id)) {
+                // Add new player
+                merged.push(newPlayer);
+                console.log(`Added new player: ${newPlayer.name || newPlayer.id}`);
+            } else {
+                // Update existing player
+                const index = merged.findIndex(p => p.id === newPlayer.id);
+                if (index !== -1) {
+                    merged[index] = { ...merged[index], ...newPlayer };
+                    console.log(`Updated existing player: ${newPlayer.name || newPlayer.id}`);
+                }
+            }
+        });
+        
+        return merged;
+    }
+
+    mergeMatchesData(existingMatches, newMatches) {
+        if (!Array.isArray(existingMatches)) existingMatches = [];
+        if (!Array.isArray(newMatches)) newMatches = [];
+        
+        const merged = [...existingMatches];
+        const existingIds = new Set(existingMatches.map(m => m.id).filter(id => id));
+        
+        newMatches.forEach(newMatch => {
+            if (!newMatch || !newMatch.id) return; // Skip invalid matches
+            
+            if (!existingIds.has(newMatch.id)) {
+                // Add new match
+                merged.push(newMatch);
+                console.log(`Added new match: ${newMatch.id} (${newMatch.date || 'no date'})`);
+            } else {
+                // Update existing match (be careful - matches should rarely be updated after creation)
+                const index = merged.findIndex(m => m.id === newMatch.id);
+                if (index !== -1) {
+                    merged[index] = { ...merged[index], ...newMatch };
+                    console.log(`Updated existing match: ${newMatch.id}`);
+                }
+            }
+        });
+        
+        return merged;
+    }
+
+    mergeTeamsData(existingTeams, newTeams) {
+        if (!Array.isArray(existingTeams)) existingTeams = [];
+        if (!Array.isArray(newTeams)) newTeams = [];
+        
+        const merged = [...existingTeams];
+        const existingIds = new Set(existingTeams.map(t => t.id).filter(id => id));
+        
+        newTeams.forEach(newTeam => {
+            if (!newTeam || !newTeam.id) return; // Skip invalid teams
+            
+            if (!existingIds.has(newTeam.id)) {
+                // Add new team
+                merged.push(newTeam);
+                console.log(`Added new team: ${newTeam.name || newTeam.id}`);
+            } else {
+                // Update existing team
+                const index = merged.findIndex(t => t.id === newTeam.id);
+                if (index !== -1) {
+                    merged[index] = { ...merged[index], ...newTeam };
+                    console.log(`Updated existing team: ${newTeam.name || newTeam.id}`);
+                }
+            }
+        });
+        
+        return merged;
+    }
+
+    mergeStatsData(existingStats, newStatsData) {
+        const merged = { ...existingStats };
+        
+        // Update export metadata
+        merged.export_metadata = newStatsData.export_metadata;
+        
+        // Merge player_info
+        if (newStatsData.player_info) {
+            const existingPlayerIds = new Set(merged.player_info?.map(p => p.Player_ID) || []);
+            
+            merged.player_info = merged.player_info || [];
+            
+            newStatsData.player_info.forEach(newPlayer => {
+                if (!existingPlayerIds.has(newPlayer.Player_ID)) {
+                    merged.player_info.push(newPlayer);
+                } else {
+                    const index = merged.player_info.findIndex(p => p.Player_ID === newPlayer.Player_ID);
+                    if (index !== -1) {
+                        merged.player_info[index] = { ...merged.player_info[index], ...newPlayer };
+                    }
+                }
+            });
+        }
+        
+        // Merge matches
+        if (newStatsData.matches) {
+            const existingMatchIds = new Set(merged.matches?.map(m => m.Match_ID) || []);
+            
+            merged.matches = merged.matches || [];
+            
+            newStatsData.matches.forEach(newMatch => {
+                if (!existingMatchIds.has(newMatch.Match_ID)) {
+                    merged.matches.push(newMatch);
+                } else {
+                    const index = merged.matches.findIndex(m => m.Match_ID === newMatch.Match_ID);
+                    if (index !== -1) {
+                        merged.matches[index] = { ...merged.matches[index], ...newMatch };
+                    }
+                }
+            });
+        }
+        
+        // Merge batting performance
+        if (newStatsData.match_batting_performance) {
+            merged.match_batting_performance = merged.match_batting_performance || [];
+            merged.match_batting_performance.push(...newStatsData.match_batting_performance);
+        }
+        
+        // Merge bowling performance
+        if (newStatsData.match_bowling_performance) {
+            merged.match_bowling_performance = merged.match_bowling_performance || [];
+            merged.match_bowling_performance.push(...newStatsData.match_bowling_performance);
+        }
+        
+        return merged;
+    }
+
+    createEmptyStatsStructure() {
+        return {
+            player_info: [],
+            matches: [],
+            match_batting_performance: [],
+            match_bowling_performance: [],
+            export_metadata: {
+                total_players: 0,
+                total_matches: 0,
+                export_date: new Date().toISOString(),
+                export_timestamp: new Date().toLocaleString(),
+                app_version: '1.0.0',
+                data_format_version: '2.0',
+                created_by: 'Cricket PWA'
+            }
+        };
+    }
+
+    // Utility method to restore from backup if needed
+    async restoreFromBackup(backupTimestamp) {
+        try {
+            const backupKey = `cricket-backup-${backupTimestamp}`;
+            const backupData = localStorage.getItem(backupKey);
+            
+            if (!backupData) {
+                throw new Error(`Backup with timestamp ${backupTimestamp} not found`);
+            }
+            
+            const backup = JSON.parse(backupData);
+            
+            // Restore to localStorage
+            localStorage.setItem('cricket-players', JSON.stringify(backup.players));
+            localStorage.setItem('cricket-matches', JSON.stringify(backup.matches));
+            localStorage.setItem('cricket-teams', JSON.stringify(backup.teams));
+            localStorage.setItem('cricket-stats', JSON.stringify(backup.stats));
+            
+            console.log(`Restored data from backup: ${backupTimestamp}`);
+            this.showNotification(`✅ Data restored from backup: ${backupTimestamp}`);
+            
+            return true;
+        } catch (error) {
+            console.error('Error restoring from backup:', error);
+            this.showNotification(`❌ Failed to restore from backup: ${error.message}`);
+            return false;
+        }
+    }
+
+    // List available backups
+    getAvailableBackups() {
+        const backupKeys = Object.keys(localStorage)
+            .filter(key => key.startsWith('cricket-backup-'))
+            .map(key => key.replace('cricket-backup-', ''))
+            .sort()
+            .reverse(); // Most recent first
+        
+        return backupKeys;
+    }
+
+    // Show instructions for the new edit-in-place workflow
+    showEditInPlaceInstructions() {
+        const message = `🔄 Edit-in-Place Mode Active
+
+How it works:
+1. When you complete a match, updated JSON files are downloaded
+2. Replace the existing files in your project folder with the downloaded ones
+3. Your data is always safely backed up in browser storage
+
+Benefits:
+✅ No more multiple JSON files
+✅ Always editing the same files
+✅ Automatic backups before each edit
+✅ Data integrity protection
+
+Available backups: ${this.getAvailableBackups().length}`;
+        
+        this.showNotification(message);
     }
 }

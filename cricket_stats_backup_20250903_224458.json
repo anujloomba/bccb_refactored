@@ -1,0 +1,159 @@
+{
+  "player_info": [
+    {
+      "Player_ID": 1756903470163,
+      "Name": "Anuj",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": true,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470164,
+      "Name": "Anil",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470165,
+      "Name": "Vivek",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "So-So",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470166,
+      "Name": "Kiran",
+      "Bowling_Style": "DNB",
+      "Batting_Style": "Tailend",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470167,
+      "Name": "Ravi Nakka",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "So-So",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470168,
+      "Name": "Chiru",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "So-So",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470169,
+      "Name": "Rohit",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "Reliable",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470170,
+      "Name": "Mani",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "Tailend",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470171,
+      "Name": "Saurabh",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "So-So",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470172,
+      "Name": "Dileep",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470173,
+      "Name": "Harshak",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Tailend",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470174,
+      "Name": "Kasim",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470175,
+      "Name": "Omi",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "So-So",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470176,
+      "Name": "TJ",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "So-So",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470177,
+      "Name": "Himalaya",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470178,
+      "Name": "Roshan",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": 1756903470179,
+      "Name": "Roshan",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    }
+  ],
+  "last_export": "2025-09-03T12:44:58.189Z",
+  "total_records": 17
+}

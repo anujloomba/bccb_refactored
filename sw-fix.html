@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Worker Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        button:hover { background: #0056b3; }
+        .danger { background: #dc3545; }
+        .danger:hover { background: #c82333; }
+        .success { background: #28a745; }
+        .success:hover { background: #218838; }
+        #output {
+            background: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Service Worker Error Fix</h1>
+    <p>This page will help fix the "Failed to convert value to 'Response'" errors.</p>
+    
+    <h3>Quick Fix (Recommended):</h3>
+    <button class="danger" onclick="quickFix()">🚀 Quick Fix - Clear Everything</button>
+    
+    <h3>Manual Steps:</h3>
+    <button onclick="unregisterServiceWorkers()">1️⃣ Unregister Service Workers</button>
+    <button onclick="clearCaches()">2️⃣ Clear All Caches</button>
+    <button onclick="registerNewServiceWorker()">3️⃣ Register New Service Worker</button>
+    
+    <h3>Test:</h3>
+    <button class="success" onclick="testApp()">✅ Go to Cricket App</button>
+    
+    <div id="output"></div>
+
+    <script>
+        function log(message) {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toTimeString().substr(0, 8);
+            output.textContent += `${timestamp} ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+            console.log(message);
+        }
+
+        async function unregisterServiceWorkers() {
+            log('🔄 Unregistering all service workers...');
+            
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    
+                    for (let registration of registrations) {
+                        log(`🗑️ Unregistering: ${registration.scope}`);
+                        await registration.unregister();
+                    }
+                    
+                    log('✅ All service workers unregistered');
+                } catch (error) {
+                    log(`❌ Error: ${error.message}`);
+                }
+            } else {
+                log('❌ Service Worker not supported');
+            }
+        }
+
+        async function clearCaches() {
+            log('🔄 Clearing all caches...');
+            
+            if ('caches' in window) {
+                try {
+                    const cacheNames = await caches.keys();
+                    log(`Found caches: ${cacheNames.join(', ')}`);
+                    
+                    for (let cacheName of cacheNames) {
+                        log(`🗑️ Deleting: ${cacheName}`);
+                        await caches.delete(cacheName);
+                    }
+                    
+                    log('✅ All caches cleared');
+                } catch (error) {
+                    log(`❌ Error: ${error.message}`);
+                }
+            } else {
+                log('❌ Cache API not supported');
+            }
+        }
+
+        async function registerNewServiceWorker() {
+            log('🔄 Registering new service worker...');
+            
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.register('/sw.js', {
+                        scope: '/'
+                    });
+                    
+                    log(`✅ New service worker registered: ${registration.scope}`);
+                    
+                    // Wait for it to become active
+                    if (registration.installing) {
+                        log('⏳ Waiting for service worker to install...');
+                        registration.installing.addEventListener('statechange', function() {
+                            if (this.state === 'activated') {
+                                log('✅ Service worker activated');
+                            }
+                        });
+                    }
+                } catch (error) {
+                    log(`❌ Error: ${error.message}`);
+                }
+            }
+        }
+
+        async function quickFix() {
+            log('🚀 Starting quick fix...');
+            
+            await unregisterServiceWorkers();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await clearCaches();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Clear local storage
+            log('🗑️ Clearing localStorage...');
+            localStorage.clear();
+            
+            await registerNewServiceWorker();
+            
+            log('✅ Quick fix complete! You can now test the app.');
+        }
+
+        function testApp() {
+            log('🚀 Opening Cricket App...');
+            window.location.href = '/complete.html';
+        }
+
+        // Show current status on load
+        window.addEventListener('load', async function() {
+            log('🔍 Checking current status...');
+            
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                log(`Active service workers: ${registrations.length}`);
+            }
+            
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                log(`Active caches: ${cacheNames.length} (${cacheNames.join(', ')})`);
+            }
+            
+            log('💡 Use "Quick Fix" to resolve service worker errors');
+        });
+    </script>
+</body>
+</html>

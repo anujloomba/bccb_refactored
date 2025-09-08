@@ -2,7 +2,7 @@
   "name": "Cricket Team Manager",
   "short_name": "Cricket PWA",
   "description": "A Progressive Web App for managing cricket teams and matches",
-  "start_url": "/bccb_refactored/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#1a202c",
   "theme_color": "#ff6b35",

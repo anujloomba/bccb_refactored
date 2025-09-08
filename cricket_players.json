@@ -29,7 +29,7 @@
             "bowlingStrikeRate": 8.0,
             "fourWickets": 1,
             "fiveWickets": 0,
-            "battingStyle": "R",
+            "battingStyle": "Reliable",
             "bowlingStyle": "Fast",
             "isStar": true,
             "boundaries": {
@@ -67,7 +67,7 @@
             "bowlingStrikeRate": 0,
             "fourWickets": 0,
             "fiveWickets": 0,
-            "battingStyle": "S",
+            "battingStyle": "So-So",
             "bowlingStyle": "DNB",
             "isStar": false,
             "boundaries": {
@@ -105,7 +105,7 @@
             "bowlingStrikeRate": 12.0,
             "fourWickets": 0,
             "fiveWickets": 0,
-            "battingStyle": "U",
+            "battingStyle": "Tailend",
             "bowlingStyle": "Medium",
             "isStar": false,
             "boundaries": {

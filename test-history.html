@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Match History</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .match-item { border: 1px solid #ccc; margin: 10px 0; padding: 10px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Cricket Match History Test</h1>
+    <div id="status">Loading...</div>
+    <div id="results"></div>
+
+    <script>
+        console.log('🧪 Starting match history test...');
+        
+        // Helper function to get player name from Player_ID
+        function getPlayerNameFromId(playerId, playerInfo) {
+            if (!playerId || !playerInfo) return 'Unknown';
+            
+            // Handle both object format {P001: {name: "..."}} and array format [{Player_ID: "P001", Name: "..."}]
+            if (Array.isArray(playerInfo)) {
+                const player = playerInfo.find(p => p.Player_ID === playerId);
+                return player ? (player.Name || player.name) : playerId;
+            } else {
+                // Object format
+                const player = playerInfo[playerId];
+                return player ? (player.Name || player.name) : playerId;
+            }
+        }
+
+        function testMatchHistory() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            fetch('./cricket_stats.json')
+                .then(response => {
+                    console.log('📡 Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('📊 Loaded data:', data);
+                    statusDiv.innerHTML = '<span class="success">✅ Data loaded successfully</span>';
+                    
+                    // Check data structure
+                    const hasMatches = data.matches && Array.isArray(data.matches);
+                    const hasHistory = data.history && Array.isArray(data.history);
+                    const hasPlayerInfo = data.player_info;
+                    
+                    console.log('📋 Data analysis:');
+                    console.log('  - Has matches:', hasMatches, hasMatches ? data.matches.length : 0);
+                    console.log('  - Has history:', hasHistory, hasHistory ? data.history.length : 0);
+                    console.log('  - Has player_info:', hasPlayerInfo);
+                    console.log('  - Player info type:', Array.isArray(data.player_info) ? 'array' : 'object');
+                    
+                    let html = '<h2>Data Structure Analysis</h2>';
+                    html += `<p>Matches: ${hasMatches ? data.matches.length : 'None'}</p>`;
+                    html += `<p>History: ${hasHistory ? data.history.length : 'None'}</p>`;
+                    html += `<p>Player Info: ${hasPlayerInfo ? (Array.isArray(data.player_info) ? 'Array with ' + data.player_info.length + ' players' : 'Object') : 'None'}</p>`;
+                    
+                    // Process matches
+                    const matchesData = data.matches || data.history || [];
+                    if (matchesData.length > 0) {
+                        html += '<h2>Match History</h2>';
+                        
+                        matchesData.forEach(match => {
+                            let winningCaptain, losingCaptain, matchResult;
+                            
+                            if (match.Team1 && match.Team2) {
+                                // New format
+                                const team1Captain = getPlayerNameFromId(match.Team1_Captain, data.player_info);
+                                const team2Captain = getPlayerNameFromId(match.Team2_Captain, data.player_info);
+                                winningCaptain = match.Winning_Team === match.Team1 ? team1Captain : team2Captain;
+                                losingCaptain = match.Losing_Team === match.Team1 ? team1Captain : team2Captain;
+                                matchResult = match.Result || `${match.Winning_Team} won`;
+                            } else {
+                                // Legacy format
+                                winningCaptain = match.Winning_Captain || 'Unknown';
+                                losingCaptain = match.Losing_Captain || 'Unknown';
+                                matchResult = `${winningCaptain}'s Team won`;
+                            }
+                            
+                            const matchDate = match.Date || match.Date_Saved || 'Unknown date';
+                            
+                            html += `
+                                <div class="match-item">
+                                    <strong>${match.Match_ID}</strong> - ${matchDate}<br>
+                                    ${winningCaptain} vs ${losingCaptain}<br>
+                                    ${matchResult}<br>
+                                    Score: ${match.Winning_Team_Score || 'N/A'} vs ${match.Losing_Team_Score || 'N/A'}
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html += '<p class="error">❌ No match data found</p>';
+                    }
+                    
+                    resultsDiv.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('❌ Error loading data:', error);
+                    statusDiv.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+                    resultsDiv.innerHTML = `<p class="error">Failed to load cricket_stats.json: ${error.message}</p>`;
+                });
+        }
+        
+        // Run test when page loads
+        testMatchHistory();
+    </script>
+</body>
+</html>

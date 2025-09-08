@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Button Test</title>
+</head>
+<body>
+    <h1>Simple Button Test</h1>
+    <button onclick="alert('Button clicked!')">Test Button</button>
+    <button onclick="testFunction()">Test Function</button>
+    <button onclick="showPage('home')">Show Page</button>
+    
+    <script>
+        function testFunction() {
+            alert('Test function works!');
+        }
+        
+        function showPage(page) {
+            alert('Show page called with: ' + page);
+        }
+        
+        console.log('Test page loaded');
+        console.log('showPage function exists:', typeof showPage);
+        console.log('testFunction exists:', typeof testFunction);
+    </script>
+</body>
+</html>

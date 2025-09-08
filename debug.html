@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Cricket App</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: #333; 
+            color: white; 
+        }
+        button { 
+            padding: 15px 20px; 
+            margin: 10px; 
+            font-size: 16px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            background: #007bff; 
+            color: white; 
+        }
+        button:hover { background: #0056b3; }
+        .test-area { 
+            background: #444; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin: 20px 0; 
+        }
+    </style>
+</head>
+<body>
+    <h1>🏏 Cricket App Button Debug</h1>
+    
+    <div class="test-area">
+        <h2>Basic Function Tests</h2>
+        <button onclick="testBasicClick()">Test Basic Click</button>
+        <button onclick="showPage('players')">Show Players Page</button>
+        <button onclick="handleRunButton(1)">Handle Run Button (1)</button>
+        <button onclick="alert('Direct alert works!')">Direct Alert</button>
+    </div>
+
+    <div class="test-area">
+        <h2>Navigation Tests</h2>
+        <button onclick="showPage('home')">Home</button>
+        <button onclick="showPage('players')">Players</button>
+        <button onclick="showPage('teams')">Teams</button>
+        <button onclick="showPage('scoring')">Scoring</button>
+        <button onclick="showPage('settings')">Settings</button>
+    </div>
+
+    <div class="test-area">
+        <h2>Cricket App Tests</h2>
+        <button onclick="checkCricketApp()">Check Cricket App</button>
+        <button onclick="testAllGlobalFunctions()">Test All Functions</button>
+        <button onclick="forceCreateApp()">Force Create App</button>
+    </div>
+
+    <div id="output" style="background: #222; padding: 15px; border-radius: 8px; margin-top: 20px; font-family: monospace; font-size: 14px; white-space: pre-wrap;"></div>
+
+    <!-- Load the actual app scripts -->
+    <script src="import-data.js"></script>
+    <script src="data-manager.js"></script>
+    <script src="app.js"></script>
+
+    <script>
+        // Define functions immediately at the top
+        console.log('🚀 Debug page loading...');
+        
+        // Basic test function
+        function testBasicClick() {
+            alert('✅ Basic click works!');
+            log('✅ testBasicClick() executed successfully');
+            return true;
+        }
+
+        // Check cricket app
+        function checkCricketApp() {
+            log('🔍 Checking Cricket App...');
+            log('CricketApp class: ' + typeof CricketApp);
+            log('window.cricketApp: ' + typeof window.cricketApp);
+            log('window.app: ' + typeof window.app);
+            
+            if (window.cricketApp) {
+                log('✅ Cricket app exists!');
+                log('Players: ' + (window.cricketApp.players?.length || 0));
+                log('Current match: ' + !!window.cricketApp.currentMatch);
+            } else {
+                log('❌ Cricket app not found');
+            }
+        }
+
+        // Force create app
+        function forceCreateApp() {
+            log('🔧 Force creating Cricket App...');
+            try {
+                if (typeof CricketApp !== 'undefined') {
+                    window.cricketApp = new CricketApp();
+                    window.app = window.cricketApp;
+                    log('✅ Cricket App created successfully!');
+                    
+                    // Register global functions
+                    setupGlobalFunctions();
+                    
+                } else {
+                    log('❌ CricketApp class not available');
+                }
+            } catch (error) {
+                log('❌ Error creating app: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        // Setup global functions
+        function setupGlobalFunctions() {
+            log('📝 Setting up global functions...');
+            
+            // Navigation function
+            window.showPage = function(pageId) {
+                log('📄 showPage called with: ' + pageId);
+                alert('Page navigation: ' + pageId);
+            };
+
+            // Run button function
+            window.handleRunButton = function(runs) {
+                log('🏏 handleRunButton called with: ' + runs);
+                alert('Run button pressed: ' + runs);
+            };
+
+            // Add more functions as needed
+            window.goBack = function() {
+                log('⬅️ goBack called');
+                alert('Go back');
+            };
+
+            log('✅ Global functions set up');
+        }
+
+        // Test all global functions
+        function testAllGlobalFunctions() {
+            log('🧪 Testing all global functions...');
+            
+            const functions = [
+                'showPage', 'handleRunButton', 'goBack', 'testBasicClick',
+                'removePlayer', 'editPlayer', 'generateBalancedTeams'
+            ];
+            
+            functions.forEach(funcName => {
+                const exists = typeof window[funcName] === 'function';
+                log((exists ? '✅' : '❌') + ' ' + funcName + ': ' + typeof window[funcName]);
+            });
+        }
+
+        // Logging function
+        function log(message) {
+            console.log(message);
+            const output = document.getElementById('output');
+            if (output) {
+                output.textContent += new Date().toTimeString().substr(0,8) + ' ' + message + '\n';
+                output.scrollTop = output.scrollHeight;
+            }
+        }
+
+        // Setup basic functions immediately
+        setupGlobalFunctions();
+
+        // Log initial state
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 DOM loaded');
+            log('Testing basic functions...');
+            
+            setTimeout(function() {
+                checkCricketApp();
+                testAllGlobalFunctions();
+            }, 1000);
+        });
+
+        // Auto-create app after scripts load
+        window.addEventListener('load', function() {
+            log('🌐 Window loaded');
+            
+            setTimeout(function() {
+                if (!window.cricketApp && typeof CricketApp !== 'undefined') {
+                    forceCreateApp();
+                }
+            }, 2000);
+        });
+
+        log('📄 Debug page script loaded');
+    </script>
+</body>
+</html>

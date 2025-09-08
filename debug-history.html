@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Match History</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border-left: 4px solid #333; }
+        .match-item { border: 1px solid #ccc; margin: 10px 0; padding: 10px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Debug Match History Loading</h1>
+    <div class="debug" id="debug">Debug info will appear here...</div>
+    <div id="matchHistoryContainer">
+        <!-- Match history will load here -->
+    </div>
+
+    <script>
+        function debugLog(message) {
+            console.log(message);
+            const debugDiv = document.getElementById('debug');
+            debugDiv.innerHTML += '<br>' + message;
+        }
+
+        // Helper function to get player name from Player_ID
+        function getPlayerNameFromId(playerId, playerInfo) {
+            if (!playerId || !playerInfo) return 'Unknown';
+            
+            // Handle both object format {P001: {name: "..."}} and array format [{Player_ID: "P001", Name: "..."}]
+            if (Array.isArray(playerInfo)) {
+                const player = playerInfo.find(p => p.Player_ID === playerId);
+                return player ? (player.Name || player.name) : playerId;
+            } else {
+                // Object format
+                const player = playerInfo[playerId];
+                return player ? (player.Name || player.name) : playerId;
+            }
+        }
+
+        function displayMatchHistory(data, historyContainer) {
+            debugLog('🎯 Processing match history data...');
+            
+            // Handle both new format (matches) and legacy format (history)
+            const matchesData = data.matches || data.history || [];
+            
+            if (!data || matchesData.length === 0) {
+                historyContainer.innerHTML = '<div class="no-matches">No match history available</div>';
+                debugLog('⚠️ No match data found');
+                return;
+            }
+
+            debugLog(`📋 Found ${matchesData.length} matches in data`);
+
+            // Sort matches by date (newest first)
+            const sortedMatches = matchesData.sort((a, b) => {
+                const dateA = new Date(a.Date || a.Date_Saved);
+                const dateB = new Date(b.Date || b.Date_Saved);
+                return dateB - dateA;
+            });
+
+            historyContainer.innerHTML = sortedMatches.map((match, index) => {
+                debugLog(`🔍 Processing match ${index + 1}: ${match.Match_ID}`);
+                
+                // Handle both formats
+                const matchDate = match.Date || match.Date_Saved;
+                const date = new Date(matchDate);
+                const formattedDate = date.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+
+                // Handle new format vs legacy format
+                let winningCaptain, losingCaptain, winningTeamScore, losingTeamScore, manOfMatch;
+                let matchResult;
+                
+                if (match.Team1 && match.Team2) {
+                    // New format
+                    const team1 = match.Team1;
+                    const team2 = match.Team2;
+                    winningCaptain = match.Winning_Team;
+                    losingCaptain = match.Losing_Team;
+                    winningTeamScore = match.Winning_Team_Score || 'N/A';
+                    losingTeamScore = match.Losing_Team_Score || 'N/A';
+                    matchResult = match.Result || `${winningCaptain} won`;
+                    
+                    // Try to get captain names
+                    if (match.Team1_Captain && match.Team2_Captain) {
+                        // Get player names from Player_ID
+                        const team1Captain = getPlayerNameFromId(match.Team1_Captain, data.player_info);
+                        const team2Captain = getPlayerNameFromId(match.Team2_Captain, data.player_info);
+                        winningCaptain = match.Winning_Team === team1 ? team1Captain : team2Captain;
+                        losingCaptain = match.Losing_Team === team1 ? team1Captain : team2Captain;
+                    }
+                } else {
+                    // Legacy format
+                    winningCaptain = match.Winning_Captain || 'Unknown';
+                    losingCaptain = match.Losing_Captain || 'Unknown';
+                    winningTeamScore = match.Winning_Team_Score || 'N/A';
+                    losingTeamScore = match.Losing_Team_Score || 'N/A';
+                    manOfMatch = match.Man_of_the_Match || 'Unknown';
+                    
+                    // Calculate margin for legacy format
+                    const winningScoreParts = (winningTeamScore || '0/0').split('/');
+                    const losingScoreParts = (losingTeamScore || '0/0').split('/');
+                    const winningScore = parseInt(winningScoreParts[0]) || 0;
+                    const losingScore = parseInt(losingScoreParts[0]) || 0;
+                    const margin = winningScore - losingScore;
+                    matchResult = `${winningCaptain}'s Team won by ${margin} runs`;
+                }
+
+                debugLog(`✅ Match processed: ${winningCaptain} vs ${losingCaptain}`);
+
+                return `
+                    <div class="match-item">
+                        <div><strong>${match.Match_ID}</strong> - ${formattedDate}</div>
+                        <div>${winningCaptain} vs ${losingCaptain}</div>
+                        <div>${matchResult}</div>
+                        <div>Score: ${winningTeamScore} vs ${losingTeamScore}</div>
+                    </div>
+                `;
+            }).join('');
+
+            debugLog('✅ Match history display completed');
+        }
+
+        function loadMatchHistory() {
+            const historyContainer = document.getElementById('matchHistoryContainer');
+            debugLog(`🏏 Loading match history... Container found: ${!!historyContainer}`);
+            if (!historyContainer) {
+                debugLog('❌ No history container found!');
+                return;
+            }
+
+            debugLog('📡 Fetching cricket_stats.json...');
+
+            // Load directly from cricket_stats.json since that's where the history is
+            fetch('./cricket_stats.json')
+                .then(response => {
+                    debugLog(`📡 Response received: ${response.status}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    debugLog('📊 Data loaded successfully');
+                    displayMatchHistory(data, historyContainer);
+                    
+                    // Also store in localStorage for future use
+                    localStorage.setItem('cricket-stats', JSON.stringify(data));
+                })
+                .catch(error => {
+                    debugLog(`❌ Error loading cricket_stats.json: ${error.message}`);
+                    
+                    // Fallback: try to load from localStorage
+                    try {
+                        const localData = JSON.parse(localStorage.getItem('cricket-stats'));
+                        if (localData && (localData.matches || localData.history)) {
+                            debugLog('📦 Using localStorage fallback data');
+                            displayMatchHistory(localData, historyContainer);
+                        } else {
+                            historyContainer.innerHTML = '<div class="no-matches">No match history available</div>';
+                            debugLog('❌ No fallback data available');
+                        }
+                    } catch (localError) {
+                        debugLog(`❌ Error with localStorage: ${localError.message}`);
+                        historyContainer.innerHTML = '<div class="error">Error loading match history</div>';
+                    }
+                });
+        }
+
+        // Load when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            debugLog('🚀 DOM loaded, starting match history load...');
+            loadMatchHistory();
+        });
+    </script>
+</body>
+</html>

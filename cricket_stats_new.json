@@ -4,7 +4,7 @@
       "Player_ID": "P001",
       "Name": "Anuj",
       "Bowling_Style": "Fast",
-      "Batting_Style": "R",
+      "Batting_Style": "Reliable",
       "Is_Star": true,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -13,7 +13,7 @@
       "Player_ID": "P002",
       "Name": "Anil",
       "Bowling_Style": "Fast",
-      "Batting_Style": "R",
+      "Batting_Style": "Reliable",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -22,7 +22,7 @@
       "Player_ID": "P003",
       "Name": "Vivek",
       "Bowling_Style": "Medium",
-      "Batting_Style": "S",
+      "Batting_Style": "So-So",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -31,7 +31,7 @@
       "Player_ID": "P004",
       "Name": "Kiran",
       "Bowling_Style": "DNB",
-      "Batting_Style": "U",
+      "Batting_Style": "Tailend",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -40,7 +40,7 @@
       "Player_ID": "P005",
       "Name": "Ravi Nakka",
       "Bowling_Style": "Medium",
-      "Batting_Style": "S",
+      "Batting_Style": "So-So",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -49,7 +49,7 @@
       "Player_ID": "P006",
       "Name": "Chiru",
       "Bowling_Style": "Fast",
-      "Batting_Style": "S",
+      "Batting_Style": "So-So",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -58,7 +58,7 @@
       "Player_ID": "P007",
       "Name": "Rohit",
       "Bowling_Style": "Medium",
-      "Batting_Style": "R",
+      "Batting_Style": "Reliable",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -67,7 +67,7 @@
       "Player_ID": "P008",
       "Name": "Mani",
       "Bowling_Style": "Medium",
-      "Batting_Style": "U",
+      "Batting_Style": "Tailend",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -76,7 +76,7 @@
       "Player_ID": "P009",
       "Name": "Saurabh",
       "Bowling_Style": "Medium",
-      "Batting_Style": "S",
+      "Batting_Style": "So-So",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -85,7 +85,7 @@
       "Player_ID": "P010",
       "Name": "Dileep",
       "Bowling_Style": "Fast",
-      "Batting_Style": "R",
+      "Batting_Style": "Reliable",
       "Is_Star": true,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -94,7 +94,7 @@
       "Player_ID": "P011",
       "Name": "Harshak",
       "Bowling_Style": "Fast",
-      "Batting_Style": "U",
+      "Batting_Style": "Tailend",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -103,7 +103,7 @@
       "Player_ID": "P012",
       "Name": "Kasim",
       "Bowling_Style": "Fast",
-      "Batting_Style": "R",
+      "Batting_Style": "Reliable",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -112,7 +112,7 @@
       "Player_ID": "P013",
       "Name": "Omi",
       "Bowling_Style": "Medium",
-      "Batting_Style": "S",
+      "Batting_Style": "So-So",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -121,7 +121,7 @@
       "Player_ID": "P014",
       "Name": "TJ",
       "Bowling_Style": "Medium",
-      "Batting_Style": "S",
+      "Batting_Style": "So-So",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -130,7 +130,7 @@
       "Player_ID": "P015",
       "Name": "Himalaya",
       "Bowling_Style": "Fast",
-      "Batting_Style": "R",
+      "Batting_Style": "Reliable",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -139,7 +139,7 @@
       "Player_ID": "P016",
       "Name": "Roshan",
       "Bowling_Style": "Fast",
-      "Batting_Style": "R",
+      "Batting_Style": "Reliable",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"
@@ -148,7 +148,7 @@
       "Player_ID": "P017",
       "Name": "Roshan",
       "Bowling_Style": "Fast",
-      "Batting_Style": "R",
+      "Batting_Style": "Reliable",
       "Is_Star": false,
       "Last_Updated": "2025-08-29",
       "Last_Edit_Date": "2025-08-29"

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cricket Stats Diagnostic</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .info { background: #d1ecf1; border-color: #bee5eb; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; }
+        pre { 
+            background: #f8f9fa; 
+            padding: 10px; 
+            border-radius: 4px; 
+            overflow-x: auto;
+            max-height: 400px;
+        }
+        .debug-info {
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏏 Cricket Stats Diagnostic Tool</h1>
+        <div id="status">Loading...</div>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            console.log(message);
+            const resultsDiv = document.getElementById('results');
+            const sectionClass = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info';
+            resultsDiv.innerHTML += `<div class="section ${sectionClass}"><strong>${new Date().toLocaleTimeString()}:</strong> ${message}</div>`;
+        }
+
+        function getPlayerNameFromId(playerId, playerInfo) {
+            if (!playerId || !playerInfo) return 'Unknown';
+            
+            if (Array.isArray(playerInfo)) {
+                const player = playerInfo.find(p => p.Player_ID === playerId);
+                return player ? (player.Name || player.name) : playerId;
+            } else {
+                const player = playerInfo[playerId];
+                return player ? (player.Name || player.name) : playerId;
+            }
+        }
+
+        async function runDiagnostic() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = 'Running diagnostic...';
+
+            try {
+                // Test 1: Load cricket_stats.json
+                log('🔍 Testing cricket_stats.json loading...', 'info');
+                
+                const response = await fetch('./cricket_stats.json?' + Date.now(), {
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                log('✅ cricket_stats.json loaded successfully', 'success');
+
+                // Test 2: Analyze data structure
+                log('📊 Analyzing data structure...', 'info');
+                log(`<div class="debug-info">
+                    Available keys: ${Object.keys(data).join(', ')}<br>
+                    Player info type: ${Array.isArray(data.player_info) ? 'Array' : typeof data.player_info}<br>
+                    Player info count: ${data.player_info ? (Array.isArray(data.player_info) ? data.player_info.length : Object.keys(data.player_info).length) : 0}<br>
+                    Has matches: ${!!data.matches}<br>
+                    Matches count: ${data.matches ? data.matches.length : 0}<br>
+                    Has history: ${!!data.history}<br>
+                    History count: ${data.history ? data.history.length : 0}<br>
+                    Match batting performance: ${data.match_batting_performance ? data.match_batting_performance.length : 0}<br>
+                    Match bowling performance: ${data.match_bowling_performance ? data.match_bowling_performance.length : 0}
+                </div>`, 'info');
+
+                // Test 3: Check match data
+                const matchesData = data.matches || data.history || [];
+                if (matchesData.length === 0) {
+                    log('❌ No matches found in either matches or history arrays!', 'error');
+                    
+                    // Show full data structure for debugging
+                    log('Full data structure preview:', 'warning');
+                    log(`<pre>${JSON.stringify(data, null, 2).substring(0, 2000)}...</pre>`, 'warning');
+                } else {
+                    log(`✅ Found ${matchesData.length} matches`, 'success');
+                    
+                    // Test 4: Process first few matches
+                    matchesData.slice(0, 3).forEach((match, index) => {
+                        log(`📋 Match ${index + 1}: ${match.Match_ID}`, 'info');
+                        
+                        let winningCaptain, losingCaptain, matchResult;
+                        
+                        if (match.Team1 && match.Team2) {
+                            // New format
+                            const team1Captain = getPlayerNameFromId(match.Team1_Captain, data.player_info);
+                            const team2Captain = getPlayerNameFromId(match.Team2_Captain, data.player_info);
+                            winningCaptain = match.Winning_Team === match.Team1 ? team1Captain : team2Captain;
+                            losingCaptain = match.Losing_Team === match.Team1 ? team1Captain : team2Captain;
+                            matchResult = match.Result || `${match.Winning_Team} won`;
+                            
+                            log(`<div class="debug-info">
+                                Format: New<br>
+                                Team1: ${match.Team1} (Captain: ${team1Captain})<br>
+                                Team2: ${match.Team2} (Captain: ${team2Captain})<br>
+                                Winner: ${winningCaptain}<br>
+                                Result: ${matchResult}<br>
+                                Date: ${match.Date}<br>
+                                Score: ${match.Winning_Team_Score} vs ${match.Losing_Team_Score}
+                            </div>`, 'success');
+                        } else {
+                            // Legacy format
+                            winningCaptain = match.Winning_Captain || 'Unknown';
+                            losingCaptain = match.Losing_Captain || 'Unknown';
+                            
+                            log(`<div class="debug-info">
+                                Format: Legacy<br>
+                                Winning Captain: ${winningCaptain}<br>
+                                Losing Captain: ${losingCaptain}<br>
+                                Date: ${match.Date_Saved}<br>
+                                Score: ${match.Winning_Team_Score} vs ${match.Losing_Team_Score}
+                            </div>`, 'success');
+                        }
+                    });
+                }
+
+                // Test 5: Test DOM manipulation (simulate what the app does)
+                log('🧪 Testing DOM manipulation...', 'info');
+                const testContainer = document.createElement('div');
+                
+                if (matchesData.length > 0) {
+                    const sortedMatches = matchesData.sort((a, b) => {
+                        const dateA = new Date(a.Date || a.Date_Saved);
+                        const dateB = new Date(b.Date || b.Date_Saved);
+                        return dateB - dateA;
+                    });
+
+                    const htmlContent = sortedMatches.map((match, index) => {
+                        const matchDate = match.Date || match.Date_Saved;
+                        const date = new Date(matchDate);
+                        const formattedDate = date.toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        });
+
+                        let winningCaptain, losingCaptain, matchResult;
+                        
+                        if (match.Team1 && match.Team2) {
+                            const team1Captain = getPlayerNameFromId(match.Team1_Captain, data.player_info);
+                            const team2Captain = getPlayerNameFromId(match.Team2_Captain, data.player_info);
+                            winningCaptain = match.Winning_Team === match.Team1 ? team1Captain : team2Captain;
+                            losingCaptain = match.Losing_Team === match.Team1 ? team1Captain : team2Captain;
+                            matchResult = match.Result || `${match.Winning_Team} won`;
+                        } else {
+                            winningCaptain = match.Winning_Captain || 'Unknown';
+                            losingCaptain = match.Losing_Captain || 'Unknown';
+                            const winningScoreParts = (match.Winning_Team_Score || '0/0').split('/');
+                            const losingScoreParts = (match.Losing_Team_Score || '0/0').split('/');
+                            const winningScore = parseInt(winningScoreParts[0]) || 0;
+                            const losingScore = parseInt(losingScoreParts[0]) || 0;
+                            const margin = winningScore - losingScore;
+                            matchResult = `${winningCaptain}'s Team won by ${margin} runs`;
+                        }
+
+                        return `
+                            <div style="border: 1px solid #ddd; margin: 10px; padding: 15px; background: #f9f9f9;">
+                                <h4>${match.Match_ID} - ${formattedDate}</h4>
+                                <p><strong>Teams:</strong> ${winningCaptain} vs ${losingCaptain}</p>
+                                <p><strong>Result:</strong> ${matchResult}</p>
+                                <p><strong>Score:</strong> ${match.Winning_Team_Score || 'N/A'} vs ${match.Losing_Team_Score || 'N/A'}</p>
+                            </div>
+                        `;
+                    }).join('');
+
+                    log('✅ Successfully generated match history HTML', 'success');
+                    log('📋 Generated HTML preview:', 'info');
+                    log(htmlContent, 'success');
+                }
+
+                statusDiv.innerHTML = '✅ Diagnostic completed successfully';
+
+            } catch (error) {
+                log(`❌ Diagnostic failed: ${error.message}`, 'error');
+                log(`Stack trace: ${error.stack}`, 'error');
+                statusDiv.innerHTML = '❌ Diagnostic failed';
+            }
+        }
+
+        // Run diagnostic when page loads
+        document.addEventListener('DOMContentLoaded', runDiagnostic);
+    </script>
+</body>
+</html>

@@ -1,0 +1,416 @@
+{
+  "player_info": [
+    {
+      "Player_ID": "P001",
+      "Name": "Anuj",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": true,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P002",
+      "Name": "Anil",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P003",
+      "Name": "Vivek",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "So-So",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P004",
+      "Name": "Kiran",
+      "Bowling_Style": "DNB",
+      "Batting_Style": "Tailend",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P005",
+      "Name": "Ravi Nakka",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "So-So",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P006",
+      "Name": "Chiru",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": true,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P007",
+      "Name": "Aditya",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "So-So",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P008",
+      "Name": "Umesh",
+      "Bowling_Style": "DNB",
+      "Batting_Style": "Tailend",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P009",
+      "Name": "Sriram",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": true,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P010",
+      "Name": "Naveen",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "So-So",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P011",
+      "Name": "Yashwanth",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P012",
+      "Name": "Nani",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "So-So",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P013",
+      "Name": "Kasim",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P014",
+      "Name": "Omi",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "So-So",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P015",
+      "Name": "TJ",
+      "Bowling_Style": "Medium",
+      "Batting_Style": "So-So",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P016",
+      "Name": "Himalaya",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    },
+    {
+      "Player_ID": "P017",
+      "Name": "Roshan",
+      "Bowling_Style": "Fast",
+      "Batting_Style": "Reliable",
+      "Is_Star": false,
+      "Last_Updated": "2025-09-03",
+      "Last_Edit_Date": "2025-09-03"
+    }
+  ],
+  "match_history": [
+    {
+      "match_id": "MATCH_001",
+      "date": "2025-08-15",
+      "team1": "Thunderbolts",
+      "team2": "Lightning",
+      "teams": ["Thunderbolts", "Lightning"],
+      "result": "Thunderbolts won by 25 runs",
+      "scores": {
+        "Thunderbolts": {"runs": 145, "wickets": 6, "overs": 20},
+        "Lightning": {"runs": 120, "wickets": 8, "overs": 20}
+      },
+      "batting_performances": [
+        {"player": "Anuj", "team": "Thunderbolts", "runs": 42, "balls": 35, "fours": 4, "sixes": 1, "strike_rate": 120.0},
+        {"player": "Chiru", "team": "Thunderbolts", "runs": 38, "balls": 29, "fours": 5, "sixes": 0, "strike_rate": 131.0},
+        {"player": "Sriram", "team": "Lightning", "runs": 35, "balls": 28, "fours": 3, "sixes": 1, "strike_rate": 125.0},
+        {"player": "Anil", "team": "Lightning", "runs": 28, "balls": 25, "fours": 2, "sixes": 1, "strike_rate": 112.0}
+      ],
+      "bowling_performances": [
+        {"player": "Himalaya", "team": "Lightning", "overs": 4, "runs": 28, "wickets": 3, "economy": 7.0},
+        {"player": "Kasim", "team": "Lightning", "overs": 4, "runs": 32, "wickets": 2, "economy": 8.0},
+        {"player": "Anuj", "team": "Thunderbolts", "overs": 3, "runs": 22, "wickets": 2, "economy": 7.33},
+        {"player": "Roshan", "team": "Thunderbolts", "overs": 4, "runs": 25, "wickets": 1, "economy": 6.25}
+      ],
+      "overs": 20,
+      "venue": "BCCB Ground A",
+      "match_type": "Regular",
+      "completed": true,
+      "created_at": "2025-08-15T14:00:00Z",
+      "updated_at": "2025-08-15T17:30:00Z"
+    },
+    {
+      "match_id": "MATCH_002",
+      "date": "2025-08-22",
+      "team1": "Eagles",
+      "team2": "Hawks",
+      "teams": ["Eagles", "Hawks"],
+      "result": "Hawks won by 7 wickets",
+      "scores": {
+        "Eagles": {"runs": 128, "wickets": 9, "overs": 20},
+        "Hawks": {"runs": 129, "wickets": 3, "overs": 18.2}
+      },
+      "batting_performances": [
+        {"player": "Vivek", "team": "Eagles", "runs": 45, "balls": 38, "fours": 6, "sixes": 0, "strike_rate": 118.4},
+        {"player": "Ravi Nakka", "team": "Eagles", "runs": 32, "balls": 28, "fours": 3, "sixes": 1, "strike_rate": 114.3},
+        {"player": "Aditya", "team": "Hawks", "runs": 55, "balls": 42, "fours": 7, "sixes": 1, "strike_rate": 130.9},
+        {"player": "Naveen", "team": "Hawks", "runs": 38, "balls": 31, "fours": 4, "sixes": 1, "strike_rate": 122.6}
+      ],
+      "bowling_performances": [
+        {"player": "Omi", "team": "Hawks", "overs": 4, "runs": 24, "wickets": 4, "economy": 6.0},
+        {"player": "TJ", "team": "Hawks", "overs": 4, "runs": 26, "wickets": 3, "economy": 6.5},
+        {"player": "Yashwanth", "team": "Eagles", "overs": 4, "runs": 31, "wickets": 2, "economy": 7.75},
+        {"player": "Nani", "team": "Eagles", "overs": 3.2, "runs": 28, "wickets": 1, "economy": 8.4}
+      ],
+      "overs": 20,
+      "venue": "BCCB Ground B",
+      "match_type": "Regular",
+      "completed": true,
+      "created_at": "2025-08-22T14:00:00Z",
+      "updated_at": "2025-08-22T17:15:00Z"
+    },
+    {
+      "match_id": "MATCH_003",
+      "date": "2025-08-29",
+      "team1": "Thunderbolts",
+      "team2": "Eagles",
+      "teams": ["Thunderbolts", "Eagles"],
+      "result": "Eagles won by 15 runs",
+      "scores": {
+        "Eagles": {"runs": 152, "wickets": 7, "overs": 20},
+        "Thunderbolts": {"runs": 137, "wickets": 8, "overs": 20}
+      },
+      "batting_performances": [
+        {"player": "Vivek", "team": "Eagles", "runs": 48, "balls": 36, "fours": 5, "sixes": 2, "strike_rate": 133.3},
+        {"player": "Kiran", "team": "Eagles", "runs": 25, "balls": 22, "fours": 2, "sixes": 1, "strike_rate": 113.6},
+        {"player": "Chiru", "team": "Thunderbolts", "runs": 52, "balls": 41, "fours": 6, "sixes": 1, "strike_rate": 126.8},
+        {"player": "Anuj", "team": "Thunderbolts", "runs": 34, "balls": 28, "fours": 3, "sixes": 1, "strike_rate": 121.4}
+      ],
+      "bowling_performances": [
+        {"player": "Umesh", "team": "Eagles", "overs": 4, "runs": 27, "wickets": 3, "economy": 6.75},
+        {"player": "Ravi Nakka", "team": "Eagles", "overs": 4, "runs": 29, "wickets": 2, "economy": 7.25},
+        {"player": "Himalaya", "team": "Thunderbolts", "overs": 4, "runs": 33, "wickets": 3, "economy": 8.25},
+        {"player": "Anil", "team": "Thunderbolts", "overs": 4, "runs": 31, "wickets": 2, "economy": 7.75}
+      ],
+      "overs": 20,
+      "venue": "BCCB Ground A",
+      "match_type": "Regular",
+      "completed": true,
+      "created_at": "2025-08-29T14:00:00Z",
+      "updated_at": "2025-08-29T17:25:00Z"
+    },
+    {
+      "match_id": "MATCH_004",
+      "date": "2025-09-01",
+      "team1": "Lightning",
+      "team2": "Hawks",
+      "teams": ["Lightning", "Hawks"],
+      "result": "Lightning won by 32 runs",
+      "scores": {
+        "Lightning": {"runs": 168, "wickets": 5, "overs": 20},
+        "Hawks": {"runs": 136, "wickets": 9, "overs": 20}
+      },
+      "batting_performances": [
+        {"player": "Sriram", "team": "Lightning", "runs": 67, "balls": 48, "fours": 8, "sixes": 2, "strike_rate": 139.6},
+        {"player": "Anil", "team": "Lightning", "runs": 41, "balls": 32, "fours": 4, "sixes": 1, "strike_rate": 128.1},
+        {"player": "Aditya", "team": "Hawks", "runs": 43, "balls": 35, "fours": 5, "sixes": 1, "strike_rate": 122.9},
+        {"player": "Naveen", "team": "Hawks", "runs": 29, "balls": 26, "fours": 2, "sixes": 1, "strike_rate": 111.5}
+      ],
+      "bowling_performances": [
+        {"player": "Yashwanth", "team": "Lightning", "overs": 4, "runs": 26, "wickets": 4, "economy": 6.5},
+        {"player": "Kasim", "team": "Lightning", "overs": 4, "runs": 28, "wickets": 2, "economy": 7.0},
+        {"player": "TJ", "team": "Hawks", "overs": 4, "runs": 35, "wickets": 2, "economy": 8.75},
+        {"player": "Omi", "team": "Hawks", "overs": 4, "runs": 37, "wickets": 1, "economy": 9.25}
+      ],
+      "overs": 20,
+      "venue": "BCCB Ground B",
+      "match_type": "Regular",
+      "completed": true,
+      "created_at": "2025-09-01T14:00:00Z",
+      "updated_at": "2025-09-01T17:20:00Z"
+    },
+    {
+      "match_id": "MATCH_005",
+      "date": "2025-09-03",
+      "team1": "Thunderbolts",
+      "team2": "Hawks",
+      "teams": ["Thunderbolts", "Hawks"],
+      "result": "Match in progress",
+      "scores": {
+        "Thunderbolts": {"runs": 89, "wickets": 3, "overs": 12},
+        "Hawks": {"runs": 0, "wickets": 0, "overs": 0}
+      },
+      "batting_performances": [
+        {"player": "Anuj", "team": "Thunderbolts", "runs": 34, "balls": 28, "fours": 4, "sixes": 1, "strike_rate": 121.4},
+        {"player": "Chiru", "team": "Thunderbolts", "runs": 28, "balls": 22, "fours": 3, "sixes": 0, "strike_rate": 127.3}
+      ],
+      "bowling_performances": [
+        {"player": "TJ", "team": "Hawks", "overs": 3, "runs": 24, "wickets": 2, "economy": 8.0},
+        {"player": "Omi", "team": "Hawks", "overs": 3, "runs": 19, "wickets": 1, "economy": 6.33}
+      ],
+      "overs": 20,
+      "venue": "BCCB Ground A",
+      "match_type": "Regular",
+      "completed": false,
+      "created_at": "2025-09-03T14:00:00Z",
+      "updated_at": "2025-09-03T15:30:00Z"
+    }
+  ],
+  "teams": [
+    {
+      "team_id": "TEAM_001",
+      "name": "Thunderbolts",
+      "players": [
+        {"player_id": "P001", "name": "Anuj", "role": "Captain"},
+        {"player_id": "P002", "name": "Anil", "role": "Player"},
+        {"player_id": "P006", "name": "Chiru", "role": "Vice Captain"},
+        {"player_id": "P016", "name": "Himalaya", "role": "Player"},
+        {"player_id": "P017", "name": "Roshan", "role": "Player"}
+      ],
+      "captain": "Anuj",
+      "created_at": "2025-08-10T10:00:00Z",
+      "wins": 1,
+      "losses": 2,
+      "draws": 0
+    },
+    {
+      "team_id": "TEAM_002",
+      "name": "Lightning",
+      "players": [
+        {"player_id": "P009", "name": "Sriram", "role": "Captain"},
+        {"player_id": "P011", "name": "Yashwanth", "role": "Player"},
+        {"player_id": "P013", "name": "Kasim", "role": "Player"},
+        {"player_id": "P002", "name": "Anil", "role": "Player"}
+      ],
+      "captain": "Sriram",
+      "created_at": "2025-08-10T10:00:00Z",
+      "wins": 2,
+      "losses": 1,
+      "draws": 0
+    },
+    {
+      "team_id": "TEAM_003",
+      "name": "Eagles",
+      "players": [
+        {"player_id": "P003", "name": "Vivek", "role": "Captain"},
+        {"player_id": "P004", "name": "Kiran", "role": "Player"},
+        {"player_id": "P005", "name": "Ravi Nakka", "role": "Player"},
+        {"player_id": "P008", "name": "Umesh", "role": "Player"},
+        {"player_id": "P011", "name": "Yashwanth", "role": "Player"},
+        {"player_id": "P012", "name": "Nani", "role": "Player"}
+      ],
+      "captain": "Vivek",
+      "created_at": "2025-08-10T10:00:00Z",
+      "wins": 2,
+      "losses": 1,
+      "draws": 0
+    },
+    {
+      "team_id": "TEAM_004",
+      "name": "Hawks",
+      "players": [
+        {"player_id": "P007", "name": "Aditya", "role": "Captain"},
+        {"player_id": "P010", "name": "Naveen", "role": "Player"},
+        {"player_id": "P014", "name": "Omi", "role": "Player"},
+        {"player_id": "P015", "name": "TJ", "role": "Player"}
+      ],
+      "captain": "Aditya",
+      "created_at": "2025-08-10T10:00:00Z",
+      "wins": 1,
+      "losses": 2,
+      "draws": 0
+    }
+  ],
+  "player_statistics": {
+    "batting_stats": [
+      {"player_id": "P001", "name": "Anuj", "matches": 4, "runs": 110, "highest_score": 42, "average": 27.5, "strike_rate": 122.2},
+      {"player_id": "P002", "name": "Anil", "matches": 3, "runs": 69, "highest_score": 41, "average": 23.0, "strike_rate": 120.1},
+      {"player_id": "P003", "name": "Vivek", "matches": 3, "runs": 93, "highest_score": 48, "average": 31.0, "strike_rate": 127.4},
+      {"player_id": "P006", "name": "Chiru", "matches": 3, "runs": 118, "highest_score": 52, "average": 39.3, "strike_rate": 128.3},
+      {"player_id": "P007", "name": "Aditya", "matches": 3, "runs": 98, "highest_score": 55, "average": 32.7, "strike_rate": 125.6},
+      {"player_id": "P009", "name": "Sriram", "matches": 2, "runs": 102, "highest_score": 67, "average": 51.0, "strike_rate": 133.1},
+      {"player_id": "P010", "name": "Naveen", "matches": 3, "runs": 67, "highest_score": 38, "average": 22.3, "strike_rate": 117.5}
+    ],
+    "bowling_stats": [
+      {"player_id": "P001", "name": "Anuj", "matches": 4, "overs": 11, "runs": 79, "wickets": 4, "economy": 7.18, "average": 19.75},
+      {"player_id": "P014", "name": "Omi", "matches": 3, "overs": 11, "runs": 80, "wickets": 6, "economy": 7.27, "average": 13.33},
+      {"player_id": "P015", "name": "TJ", "matches": 3, "overs": 11.2, "runs": 89, "wickets": 6, "economy": 7.85, "average": 14.83},
+      {"player_id": "P016", "name": "Himalaya", "matches": 2, "overs": 8, "runs": 61, "wickets": 6, "economy": 7.63, "average": 10.17},
+      {"player_id": "P011", "name": "Yashwanth", "matches": 2, "overs": 8, "runs": 57, "wickets": 6, "economy": 7.13, "average": 9.5},
+      {"player_id": "P013", "name": "Kasim", "matches": 2, "overs": 8, "runs": 60, "wickets": 4, "economy": 7.5, "average": 15.0}
+    ]
+  },
+  "tournament_info": {
+    "name": "BCCB Cricket League 2025",
+    "start_date": "2025-08-15",
+    "end_date": "2025-09-30",
+    "total_teams": 4,
+    "total_players": 17,
+    "matches_played": 4,
+    "matches_scheduled": 12,
+    "venues": ["BCCB Ground A", "BCCB Ground B"],
+    "current_standings": [
+      {"team": "Lightning", "matches": 3, "wins": 2, "losses": 1, "points": 4},
+      {"team": "Eagles", "matches": 3, "wins": 2, "losses": 1, "points": 4},
+      {"team": "Thunderbolts", "matches": 3, "wins": 1, "losses": 2, "points": 2},
+      {"team": "Hawks", "matches": 3, "wins": 1, "losses": 2, "points": 2}
+    ]
+  },
+  "export_metadata": {
+    "total_players": 17,
+    "total_matches": 5,
+    "total_teams": 4,
+    "export_date": "2025-09-03T18:00:00Z",
+    "export_timestamp": "2025-09-03 6:00:00 PM",
+    "app_version": "1.0.0",
+    "data_format_version": "2.0",
+    "created_by": "Cricket PWA",
+    "data_integrity_check": true
+  }
+}
