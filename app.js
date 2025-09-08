@@ -895,8 +895,14 @@ class CricketApp {
             }
             
             // Try to load data directly from JSON files first
+            console.log('🔄 Loading data from JSON files...');
             const jsonData = await this.dataManager.loadJSONData();
             if (jsonData && jsonData.players && jsonData.players.length > 0) {
+                console.log('✅ Successfully loaded from JSON:', {
+                    players: jsonData.players.length,
+                    matches: jsonData.matches?.length || 0,
+                    teams: jsonData.teams?.length || 0
+                });
                 this.players = jsonData.players;
                 this.matches = jsonData.matches || [];
                 this.teams = jsonData.teams || [];
@@ -904,8 +910,11 @@ class CricketApp {
                 // Save to consolidated localStorage format
                 this.saveData(false);
                 
+                this.showDataSource('cricket_stats.json');
                 this.showNotification(`✅ Loaded ${this.players.length} players from JSON data`);
                 return;
+            } else {
+                console.log('⚠️ JSON data loading failed or returned empty data');
             }
             
             // Fallback: load from CSV and convert
@@ -918,22 +927,32 @@ class CricketApp {
                 // Save to consolidated localStorage format
                 this.saveData(false);
                 
+                this.showDataSource('CSV Files');
                 this.showNotification(`✅ Loaded ${this.players.length} players from CSV data`);
                 return;
             }
             
             // Final fallback: try to load from localStorage
+            console.log('🔄 Trying localStorage as final fallback...');
             const localData = await this.loadFromLocalStorage();
             if (localData) {
+                console.log('✅ Successfully loaded from localStorage:', {
+                    players: localData.players.length,
+                    matches: localData.matches?.length || 0,
+                    teams: localData.teams?.length || 0
+                });
                 this.players = localData.players;
                 this.matches = localData.matches || [];
                 this.teams = localData.teams || [];
+                this.showDataSource('Local Storage');
                 this.showNotification(`✅ Loaded ${this.players.length} players from local storage`);
             } else {
+                console.log('⚠️ No data found in localStorage either');
                 // No data found anywhere, will need to initialize sample data
                 this.players = [];
                 this.matches = [];
                 this.teams = [];
+                this.showDataSource('No Data Found');
             }
             
             this.currentMatch = JSON.parse(localStorage.getItem('cricket-current-match') || 'null');
@@ -8317,6 +8336,37 @@ class CricketApp {
     }
 
     // Utility Functions
+    showDataSource(source = null) {
+        const indicator = document.getElementById('data-source');
+        const sourceName = document.getElementById('source-name');
+        
+        if (indicator && sourceName) {
+            if (source) {
+                this.dataSource = source;
+            }
+            
+            // Determine data source based on current state
+            let displaySource = this.dataSource || 'Unknown';
+            if (!this.dataSource) {
+                if (this.players && this.players.length > 0) {
+                    displaySource = 'Local Storage';
+                } else {
+                    displaySource = 'No Data';
+                }
+            }
+            
+            sourceName.textContent = displaySource;
+            indicator.style.display = 'block';
+            
+            // Auto-hide after 5 seconds unless it's an error
+            if (!displaySource.includes('Error') && !displaySource.includes('Failed')) {
+                setTimeout(() => {
+                    if (indicator) indicator.style.display = 'none';
+                }, 5000);
+            }
+        }
+    }
+    
     showNotification(message) {
         // Create and show a toast notification
         const toast = document.createElement('div');

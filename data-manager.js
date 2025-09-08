@@ -116,20 +116,47 @@ class CricketDataManager {
 
     async loadJSONData() {
         try {
+            console.log('🔄 Attempting to load cricket_stats.json...');
             // Load from the cricket_stats.json file
             const statsResponse = await fetch(`./cricket_stats.json`);
+            console.log('📡 Fetch response status:', statsResponse.status, statsResponse.statusText);
+            console.log('📡 Fetch response URL:', statsResponse.url);
+            
             if (statsResponse.ok) {
                 const statsData = await statsResponse.json();
+                console.log('✅ Successfully loaded cricket_stats.json');
+                console.log('📊 Data structure:', {
+                    hasPlayerInfo: !!statsData.player_info,
+                    playerCount: statsData.player_info?.length || 0,
+                    hasMatches: !!statsData.matches,
+                    matchCount: statsData.matches?.length || 0
+                });
                 
                 // Convert the stats data to app format
                 if (statsData.player_info && Array.isArray(statsData.player_info)) {
                     const appData = this.convertStatsToAppData(statsData);
+                    console.log('🔄 Converted to app format:', {
+                        players: appData.players?.length || 0,
+                        matches: appData.matches?.length || 0,
+                        teams: appData.teams?.length || 0
+                    });
                     return appData;
+                } else {
+                    console.warn('⚠️ cricket_stats.json loaded but missing player_info array');
                 }
+            } else {
+                console.error('❌ Failed to fetch cricket_stats.json:', statsResponse.status, statsResponse.statusText);
             }
         } catch (error) {
-            console.error('Error loading JSON data:', error);
+            console.error('❌ Error loading cricket_stats.json:', error);
+            console.error('❌ Error details:', {
+                message: error.message,
+                name: error.name,
+                stack: error.stack
+            });
         }
+        
+        console.log('🔄 cricket_stats.json loading failed, will try fallback methods');
         return null;
     }
 

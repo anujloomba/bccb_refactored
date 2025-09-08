@@ -3331,6 +3331,11 @@
 <body>
     <!-- Removed base href to fix local file paths -->
     <div class="app-container" id="app">
+        <!-- Data source indicator -->
+        <div id="data-source" class="data-source-indicator" style="position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; z-index: 9999; display: none;">
+            Data: <span id="source-name">Loading...</span>
+        </div>
+        
         <!-- Top Navigation -->
         <div class="top-nav">
             <button class="back-btn" id="backBtn" style="display: none;" onclick="goBack()">← Back</button>
