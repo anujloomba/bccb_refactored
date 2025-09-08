@@ -3587,8 +3587,13 @@
                     <button class="btn btn-success" onclick="importCricketData()">
                         📥 Import Data
                     </button>
+                    <button class="btn btn-danger" onclick="confirmWipeAllData()" style="margin-top: 15px; background: #dc3545; border-color: #dc3545;">
+                        🗑️ Wipe All Data
+                    </button>
                     <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
                         Export creates a backup file in Downloads. Import automatically looks for cricket backup files (cricket-data-backup-*.json).
+                        <br><br>
+                        <strong style="color: #ff6b6b;">⚠️ Wipe All Data:</strong> Permanently deletes all players, matches, teams, and settings. A backup will be created before deletion.
                     </p>
                 </div>
                 <div class="tile-click-hint" onclick="toggleTile('dataManagementContent', this)" style="cursor: pointer; padding: 10px; text-align: center; color: #666;">
@@ -3754,6 +3759,45 @@
             <div class="modal-actions">
                 <button type="button" class="btn" onclick="closeModal('manualAdjustModal')">Cancel</button>
                 <button type="button" class="btn btn-primary" onclick="applyManualAdjustments()">Apply Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wipe All Data Confirmation Modal -->
+    <div class="modal" id="wipeDataModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header" style="background: #dc3545; color: white;">
+                <span class="modal-title">🗑️ Wipe All Data</span>
+                <span class="modal-close" onclick="closeModal('wipeDataModal')">&times;</span>
+            </div>
+            <div style="padding: 20px;">
+                <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <strong style="color: #856404;">⚠️ WARNING: This action cannot be undone!</strong>
+                </div>
+                <p style="margin-bottom: 15px;">This will permanently delete:</p>
+                <ul style="margin-bottom: 20px; padding-left: 20px;">
+                    <li>All players and their statistics</li>
+                    <li>All match history and scores</li>
+                    <li>All teams and team configurations</li>
+                    <li>All app settings and preferences</li>
+                    <li>Current match in progress (if any)</li>
+                </ul>
+                <p style="margin-bottom: 20px; color: #28a745;">
+                    <strong>✅ A complete backup will be created</strong> in your Downloads folder before deletion.
+                </p>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <p style="margin: 0; font-size: 14px; color: #6c757d;">
+                        The backup file will be named: <code>cricket-complete-backup-[timestamp].json</code>
+                        <br>You can import this file later to restore your data.
+                    </p>
+                </div>
+                <p style="font-weight: bold; color: #dc3545;">Are you absolutely sure you want to wipe all data?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('wipeDataModal')">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="executeWipeAllData()" style="background: #dc3545; border-color: #dc3545;">
+                    🗑️ Yes, Wipe Everything
+                </button>
             </div>
         </div>
     </div>
@@ -4117,6 +4161,135 @@
                 setTimeout(() => {
                     notification.remove();
                 }, 3000);
+            }
+        }
+        
+        // Wipe All Data Functions
+        function confirmWipeAllData() {
+            // Show the confirmation modal
+            const modal = document.getElementById('wipeDataModal');
+            if (modal) {
+                modal.classList.add('show');
+                modal.style.display = 'block';
+            }
+        }
+        
+        function executeWipeAllData() {
+            try {
+                console.log('🗑️ Starting complete data wipe process...');
+                
+                // Step 1: Create backup before wiping
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = `cricket-complete-backup-${timestamp}.json`;
+                
+                // Collect all data for backup
+                const completeBackup = {
+                    metadata: {
+                        backupType: 'complete-wipe-backup',
+                        createdAt: new Date().toISOString(),
+                        reason: 'Created before complete data wipe',
+                        appVersion: '1.0.0'
+                    },
+                    players: [],
+                    matches: [],
+                    teams: [],
+                    settings: {},
+                    currentMatch: null,
+                    localStorage: {}
+                };
+                
+                // Get app data if available
+                if (window.app || window.cricketApp) {
+                    const app = window.app || window.cricketApp;
+                    completeBackup.players = app.players || [];
+                    completeBackup.matches = app.matches || [];
+                    completeBackup.teams = app.teams || [];
+                    completeBackup.currentMatch = app.currentMatch || null;
+                }
+                
+                // Get all localStorage data
+                try {
+                    completeBackup.localStorage = {
+                        'cricket-stats': localStorage.getItem('cricket-stats'),
+                        'cricket-players': localStorage.getItem('cricket-players'),
+                        'cricket-matches': localStorage.getItem('cricket-matches'),
+                        'cricket-teams': localStorage.getItem('cricket-teams'),
+                        'cricket-current-match': localStorage.getItem('cricket-current-match'),
+                        'match-settings': localStorage.getItem('match-settings'),
+                        'cricket-metadata': localStorage.getItem('cricket-metadata')
+                    };
+                    
+                    // Remove null values
+                    Object.keys(completeBackup.localStorage).forEach(key => {
+                        if (completeBackup.localStorage[key] === null) {
+                            delete completeBackup.localStorage[key];
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error collecting localStorage data:', error);
+                }
+                
+                // Step 2: Download the backup file
+                const jsonStr = JSON.stringify(completeBackup, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                console.log('✅ Backup created:', filename);
+                
+                // Step 3: Clear all localStorage
+                const keysToRemove = [
+                    'cricket-stats',
+                    'cricket-players', 
+                    'cricket-matches',
+                    'cricket-teams',
+                    'cricket-current-match',
+                    'match-settings',
+                    'cricket-metadata'
+                ];
+                
+                keysToRemove.forEach(key => {
+                    localStorage.removeItem(key);
+                    console.log('🗑️ Removed localStorage key:', key);
+                });
+                
+                // Step 4: Reset app data if app is available
+                if (window.app || window.cricketApp) {
+                    const app = window.app || window.cricketApp;
+                    app.players = [];
+                    app.matches = [];
+                    app.teams = [];
+                    app.currentMatch = null;
+                    
+                    // Reset UI
+                    if (app.loadPlayers) app.loadPlayers();
+                    if (app.updateStats) app.updateStats();
+                }
+                
+                // Step 5: Close modal and show success message
+                closeModal('wipeDataModal');
+                
+                showNotification(`✅ All data wiped successfully! Backup saved as: ${filename}`);
+                
+                console.log('🎯 Data wipe completed successfully');
+                
+                // Step 6: Reload page after 3 seconds to ensure clean state
+                setTimeout(() => {
+                    console.log('🔄 Reloading page for clean state...');
+                    location.reload();
+                }, 3000);
+                
+            } catch (error) {
+                console.error('❌ Error during data wipe:', error);
+                showNotification('❌ Error occurred during data wipe. Check console for details.');
+                closeModal('wipeDataModal');
             }
         }
         
