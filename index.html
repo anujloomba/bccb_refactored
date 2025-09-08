@@ -36,6 +36,29 @@
             --gray-900: #111827;
         }
 
+        /* Animation keyframes for notifications */
+        @keyframes slideDown {
+            from {
+                transform: translateX(-50%) translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideUp {
+            from {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(-50%) translateY(-20px);
+                opacity: 0;
+            }
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -374,6 +397,37 @@
         }
 
         .close-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            gap: 12px;
+        }
+
+        .modal-footer button {
+            flex: 1;
+            min-width: 100px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
             background: rgba(255, 255, 255, 0.1);
             color: white;
         }
@@ -1216,6 +1270,24 @@
                 grid-template-columns: 1fr;
                 gap: 10px;
             }
+            
+            /* Tablet Modal Styles */
+            .modal-content {
+                max-width: 92%;
+                padding: 20px;
+            }
+            
+            .modal-overlay .modal-content {
+                max-width: 400px;
+                padding: 25px;
+            }
+            
+            /* Adjust form elements for tablet */
+            .modal select,
+            .modal input,
+            .modal button {
+                min-height: 40px;
+            }
         }
 
         .performance-grid {
@@ -1557,15 +1629,16 @@
             backdrop-filter: blur(5px);
         }
 
-        .modal-content {
-            background: rgba(255, 255, 255, 0.95);
+        .modal-overlay .modal-content {
+            background: rgba(26, 35, 126, 0.95);
             border-radius: 20px;
             padding: 30px;
             margin: 20px;
             max-width: 350px;
             width: 100%;
             backdrop-filter: blur(20px);
-            color: var(--gray-800);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
         /* Manual Adjustment Modal Styles */
@@ -1778,15 +1851,63 @@
             display: block;
             margin-bottom: 8px;
             font-weight: bold;
+            color: white;
         }
 
         .form-control {
             width: 100%;
             padding: 12px;
-            border: 1px solid var(--gray-300);
+            border: 2px solid rgba(255, 255, 255, 0.2);
             border-radius: 8px;
             font-size: 16px;
-            background: white;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: rgba(255, 255, 255, 0.4);
+            outline: none;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Edit Player Modal Specific Styles */
+        #editPlayerModal .modal-content {
+            background: rgba(26, 35, 126, 0.95);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        #editPlayerModal .form-group label {
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 600;
+        }
+
+        #editPlayerModal .form-input,
+        #editPlayerModal .form-select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        #editPlayerModal .form-input:focus,
+        #editPlayerModal .form-select:focus {
+            border-color: rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        #editPlayerModal .btn-danger {
+            background: #dc2626;
+            border: none;
+            color: white;
+        }
+
+        #editPlayerModal .btn-danger:hover {
+            background: #b91c1c;
         }
 
         /* Teams Result Modal Styles */
@@ -2219,6 +2340,137 @@
             
             .bottom-nav {
                 max-width: 100%;
+            }
+            
+            /* Mobile Modal Styles */
+            .modal-content {
+                max-width: 95%;
+                max-height: 85%;
+                padding: 16px;
+                margin: 20px 10px;
+                border-radius: 15px;
+            }
+            
+            .modal-overlay .modal-content {
+                max-width: 95%;
+                padding: 20px;
+                margin: 10px;
+                border-radius: 15px;
+            }
+            
+            .modal-header {
+                margin-bottom: 15px;
+                padding-bottom: 12px;
+            }
+            
+            .modal-title {
+                font-size: 1.1em;
+            }
+            
+            .close-btn {
+                font-size: 1.3em;
+                padding: 8px;
+            }
+            
+            /* Adjust modal content for mobile */
+            .modal .scorecard-content,
+            .modal .team-composition,
+            .modal .batting-performance,
+            .modal .bowling-performance {
+                font-size: 0.9em;
+            }
+            
+            /* Mobile-friendly form elements in modals */
+            .modal select,
+            .modal input,
+            .modal button {
+                min-height: 44px; /* Touch-friendly minimum */
+                font-size: 16px; /* Prevent zoom on iOS */
+            }
+            
+            /* Wicket modal mobile adjustments */
+            .wicket-content {
+                padding: 15px;
+            }
+            
+            .wicket-form-group {
+                margin-bottom: 15px;
+            }
+            
+            .wicket-form-group label {
+                font-size: 0.9em;
+                margin-bottom: 8px;
+            }
+            
+            /* Team adjustment modal mobile styles */
+            .manual-adjust-container {
+                grid-template-columns: 1fr;
+                gap: 15px;
+                min-height: auto;
+            }
+            
+            .team-column {
+                min-height: 200px;
+            }
+            
+            /* Modal actions for mobile */
+            .modal-actions {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .modal-actions button {
+                width: 100%;
+                padding: 12px;
+                font-size: 1em;
+            }
+            
+            /* Edit player modal mobile adjustments */
+            #editPlayerModal .modal-footer {
+                flex-direction: column-reverse;
+                gap: 10px;
+            }
+            
+            #editPlayerModal .modal-footer button {
+                width: 100%;
+                padding: 12px;
+                font-size: 1em;
+                margin: 0;
+            }
+            
+            #editPlayerModal .btn-danger {
+                order: 3; /* Put delete button at bottom */
+            }
+            
+            #editPlayerModal .btn-orange {
+                order: 2; /* Cancel in middle */
+            }
+            
+            #editPlayerModal .btn-primary {
+                order: 1; /* Save at top */
+            }
+            
+            /* Mobile notification adjustments */
+            .notification,
+            .toast {
+                max-width: 90%;
+                padding: 10px 16px;
+                font-size: 0.9em;
+                top: max(10px, env(safe-area-inset-top));
+                border-radius: 20px;
+            }
+            
+            /* Safe area adjustments for phones with notches */
+            .modal {
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: env(safe-area-inset-bottom);
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }
+            
+            .modal-content {
+                margin-top: max(20px, env(safe-area-inset-top));
+                margin-bottom: max(20px, env(safe-area-inset-bottom));
             }
         }
 
@@ -4245,6 +4497,7 @@
         function displayMatchHistory(data, historyContainer) {
             // Handle both new format (matches) and legacy format (history)
             const matchesData = data.matches || data.history || [];
+            const battingData = data.match_batting_performance || [];
             
             if (!data || matchesData.length === 0) {
                 historyContainer.innerHTML = '<div class="no-matches">No match history available</div>';
@@ -4259,8 +4512,8 @@
         });
 
         const matchHtmlArray = sortedMatches.map((match, index) => {
-            // Validate and normalize match data
-            const normalizedMatch = validateMatchDisplayData(match, data.player_info);
+            // Validate and normalize match data with batting data for score calculation
+            const normalizedMatch = validateMatchDisplayData(match, data.player_info, battingData);
             
             return `
                 <div class="match-history-item" onclick="showMatchScorecard('${normalizedMatch.matchId}')">
@@ -4278,8 +4531,10 @@
         historyContainer.innerHTML = matchHtmlArray.join('');
     }
 
-    // Robust match data validation for display
-    function validateMatchDisplayData(match, playerInfo) {
+    // Robust match data validation for display - enhanced version
+    function validateMatchDisplayData(match, playerInfo, battingData) {
+        console.log('🔍 Validating match display data for:', match.Match_ID || match.id);
+        
         // Normalize team names - handle all possible formats
         const normalizeTeamName = (teamData, fallback) => {
             if (!teamData) return fallback;
@@ -4288,20 +4543,40 @@
             return fallback;
         };
         
-        // Normalize scores - handle all possible formats
-        const normalizeScore = (score) => {
-            if (!score && score !== 0) return 'N/A';
-            if (typeof score === 'number') return score.toString();
-            if (typeof score === 'string' && score.trim() !== '') return score.trim();
+        // Normalize scores - handle all possible formats with calculation fallback
+        const normalizeScore = (score, teamPosition, matchId) => {
+            // First try direct score fields
+            if (score && score !== 'N/A' && score !== '' && typeof score === 'string' && score.includes('/')) {
+                return score.trim();
+            }
+            
+            // Fallback: Calculate from batting data if available
+            if (battingData && matchId) {
+                const teamRuns = battingData
+                    .filter(b => (b.Match_ID == matchId || b.id == matchId) && b.Position == teamPosition)
+                    .reduce((sum, player) => sum + (parseInt(player.Runs) || 0), 0);
+                
+                const teamWickets = battingData
+                    .filter(b => (b.Match_ID == matchId || b.id == matchId) && b.Position == teamPosition && b.Out)
+                    .length;
+                
+                if (teamRuns > 0) {
+                    return `${teamRuns}/${teamWickets}`;
+                }
+            }
+            
             return 'N/A';
         };
         
-        // Extract team names
+        // Extract match ID
+        const matchId = match.Match_ID || match.id || 'unknown';
+        
+        // Extract team names with enhanced fallback
         const team1Name = normalizeTeamName(match.Team1 || match.team1, 'Team 1');
         const team2Name = normalizeTeamName(match.Team2 || match.team2, 'Team 2');
         
-        // Handle date formatting
-        const matchDate = match.Date || match.Date_Saved || match.date || new Date().toISOString();
+        // Handle date formatting with multiple fallbacks
+        const matchDate = match.Date || match.Date_Saved || match.date || match.created || new Date().toISOString();
         const date = new Date(matchDate);
         const formattedDate = isNaN(date.getTime()) ? 
             'Unknown Date' : 
@@ -4312,45 +4587,90 @@
                 minute: '2-digit' 
             });
         
-        // Handle result and scores
-        let result = match.Result || match.result || 'Match completed';
-        let team1Score = normalizeScore(match.Winning_Team_Score || match.winningTeamScore);
-        let team2Score = normalizeScore(match.Losing_Team_Score || match.losingTeamScore);
-        
-        // If we have winner/loser info, organize scores properly
+        // Determine winning/losing teams and scores with enhanced logic
         const winningTeam = match.Winning_Team || match.winningTeam || match.winner;
-        if (winningTeam) {
+        const losingTeam = match.Losing_Team || match.losingTeam || match.loser;
+        
+        let team1Score, team2Score, result;
+        
+        // Method 1: Use existing score fields if available
+        let winningScore = match.Winning_Team_Score || match.winningTeamScore;
+        let losingScore = match.Losing_Team_Score || match.losingTeamScore;
+        
+        // Method 2: If scores are missing, try to calculate from batting data
+        if ((!winningScore || winningScore === '' || winningScore === 'N/A') && battingData) {
+            const team1Calculated = normalizeScore(null, 1, matchId);
+            const team2Calculated = normalizeScore(null, 2, matchId);
+            
+            if (team1Calculated !== 'N/A' || team2Calculated !== 'N/A') {
+                // Determine winner based on calculated scores
+                const team1Runs = parseInt(team1Calculated.split('/')[0]) || 0;
+                const team2Runs = parseInt(team2Calculated.split('/')[0]) || 0;
+                
+                if (team1Runs > team2Runs) {
+                    winningScore = team1Calculated;
+                    losingScore = team2Calculated;
+                    team1Score = winningScore;
+                    team2Score = losingScore;
+                } else {
+                    winningScore = team2Calculated;
+                    losingScore = team1Calculated;
+                    team1Score = losingScore;
+                    team2Score = winningScore;
+                }
+            }
+        }
+        
+        // Method 3: Organize scores based on known winner
+        if (!team1Score || !team2Score) {
             if (winningTeam === team1Name) {
-                // Team 1 won
-                team1Score = normalizeScore(match.Winning_Team_Score || match.winningTeamScore);
-                team2Score = normalizeScore(match.Losing_Team_Score || match.losingTeamScore);
+                team1Score = normalizeScore(winningScore, 1, matchId);
+                team2Score = normalizeScore(losingScore, 2, matchId);
             } else if (winningTeam === team2Name) {
-                // Team 2 won
-                team1Score = normalizeScore(match.Losing_Team_Score || match.losingTeamScore);
-                team2Score = normalizeScore(match.Winning_Team_Score || match.winningTeamScore);
+                team1Score = normalizeScore(losingScore, 1, matchId);
+                team2Score = normalizeScore(winningScore, 2, matchId);
+            } else {
+                // No clear winner info, use position-based calculation
+                team1Score = normalizeScore(null, 1, matchId);
+                team2Score = normalizeScore(null, 2, matchId);
             }
         }
         
-        // Validate result string
-        if (!result || result === 'Match completed') {
+        // Handle result string with enhanced logic
+        result = match.Result || match.result;
+        if (!result || result === 'Match completed' || result.includes('NaN') || result === '') {
             if (winningTeam) {
-                result = `${winningTeam} won`;
+                // Try to create a better result string
+                if (team1Score !== 'N/A' && team2Score !== 'N/A') {
+                    const winScore = parseInt((winningTeam === team1Name ? team1Score : team2Score).split('/')[0]) || 0;
+                    const loseScore = parseInt((winningTeam === team1Name ? team2Score : team1Score).split('/')[0]) || 0;
+                    const margin = winScore - loseScore;
+                    if (margin > 0) {
+                        result = `${winningTeam} won by ${margin} runs`;
+                    } else {
+                        result = `${winningTeam} won`;
+                    }
+                } else {
+                    result = `${winningTeam} won`;
+                }
             } else {
                 result = 'Match completed';
             }
         }
         
-        // Clean up result string - fix any NaN issues
-        if (result.includes('NaN')) {
-            if (winningTeam) {
-                result = `${winningTeam} won`;
-            } else {
-                result = 'Match completed';
-            }
-        }
+        // Final validation
+        team1Score = team1Score || 'N/A';
+        team2Score = team2Score || 'N/A';
+        
+        console.log('✅ Normalized match data:', {
+            matchId,
+            teams: `${team1Name} vs ${team2Name}`,
+            scores: `${team1Score} vs ${team2Score}`,
+            result
+        });
         
         return {
-            matchId: match.Match_ID || match.id || 'unknown',
+            matchId,
             team1Name,
             team2Name,
             formattedDate,
@@ -4499,27 +4819,109 @@
             const matchDate = match.Date || match.date || match.Date_Saved;
             const date = matchDate ? new Date(matchDate) : new Date();
             
+            // Get team names properly - handle both object and string formats
+            const team1Name = match.Team1?.name || match.Team1 || match.team1?.name || match.team1 || 'Team 1';
+            const team2Name = match.Team2?.name || match.Team2 || match.team2?.name || match.team2 || 'Team 2';
+            
             // Get captain names properly
-            const team1Captain = match.Team1_Captain || match.team1Captain || 'Unknown';
-            const team2Captain = match.Team2_Captain || match.team2Captain || 'Unknown';
+            const team1Captain = match.Team1_Captain || match.team1Captain || match.Team1?.captain || 'Unknown';
+            const team2Captain = match.Team2_Captain || match.team2Captain || match.Team2?.captain || 'Unknown';
             
             // Determine winning/losing team captains
             const winningTeam = match.Winning_Team || match.winningTeam;
-            const team1Name = match.Team1 || match.team1?.name || `${team1Captain}'s Team`;
-            const team2Name = match.Team2 || match.team2?.name || `${team2Captain}'s Team`;
             
-            let winningCaptain, losingCaptain;
-            if (winningTeam === team1Name || winningTeam === match.Team1) {
+            let winningCaptain, losingCaptain, winningTeamName, losingTeamName;
+            if (winningTeam === team1Name || winningTeam === match.Team1?.name) {
                 winningCaptain = team1Captain;
                 losingCaptain = team2Captain;
+                winningTeamName = team1Name;
+                losingTeamName = team2Name;
             } else {
                 winningCaptain = team2Captain;
                 losingCaptain = team1Captain;
+                winningTeamName = team2Name;
+                losingTeamName = team1Name;
             }
             
-            const winningScore = parseInt((match.Winning_Team_Score || '0/0').split('/')[0]) || 0;
-            const losingScore = parseInt((match.Losing_Team_Score || '0/0').split('/')[0]) || 0;
-            const margin = winningScore - losingScore;
+            // Get scores with better fallback handling
+            let winningTeamScore = match.Winning_Team_Score || match.winningTeamScore || '';
+            let losingTeamScore = match.Losing_Team_Score || match.losingTeamScore || '';
+            
+            // If scores are empty, try to calculate from batting data
+            if (!winningTeamScore || winningTeamScore === '' || winningTeamScore === 'N/A') {
+                // Calculate team totals from batting data
+                const team1Total = battingData
+                    .filter(b => b.Match_ID == matchId && b.Position === 1)
+                    .reduce((sum, player) => sum + (parseInt(player.Runs) || 0), 0);
+                const team1Wickets = battingData
+                    .filter(b => b.Match_ID == matchId && b.Position === 1 && b.Out)
+                    .length;
+                
+                const team2Total = battingData
+                    .filter(b => b.Match_ID == matchId && b.Position === 2)
+                    .reduce((sum, player) => sum + (parseInt(player.Runs) || 0), 0);
+                const team2Wickets = battingData
+                    .filter(b => b.Match_ID == matchId && b.Position === 2 && b.Out)
+                    .length;
+                
+                if (team1Total > 0 || team2Total > 0) {
+                    const team1Score = team1Total > 0 ? `${team1Total}/${team1Wickets}` : '0/0';
+                    const team2Score = team2Total > 0 ? `${team2Total}/${team2Wickets}` : '0/0';
+                    
+                    // Determine which is winning/losing based on scores
+                    if (team1Total > team2Total) {
+                        winningTeamScore = team1Score;
+                        losingTeamScore = team2Score;
+                    } else {
+                        winningTeamScore = team2Score;
+                        losingTeamScore = team1Score;
+                    }
+                }
+            }
+            
+            // Fallback to N/A if still empty
+            winningTeamScore = winningTeamScore || 'N/A';
+            losingTeamScore = losingTeamScore || 'N/A';
+            
+            // Get overs information with better fallback
+            let winningTeamOvers = match.Winning_Team_Overs_Played || match.winningTeamOvers || '';
+            let losingTeamOvers = match.Losing_Team_Overs_Played || match.losingTeamOvers || '';
+            
+            // If overs not available, try to calculate from bowling data or use match overs
+            if (!winningTeamOvers || winningTeamOvers === '') {
+                const matchOvers = match.Overs || match.overs;
+                if (matchOvers) {
+                    winningTeamOvers = matchOvers;
+                    losingTeamOvers = matchOvers;
+                } else {
+                    // Try to calculate from bowling data
+                    const totalBalls = bowlingData
+                        .filter(b => b.Match_ID == matchId)
+                        .reduce((sum, bowler) => sum + (parseInt(bowler.Balls) || 0), 0);
+                    if (totalBalls > 0) {
+                        const overs = Math.floor(totalBalls / 6);
+                        const remainingBalls = totalBalls % 6;
+                        const oversText = remainingBalls > 0 ? `${overs}.${remainingBalls}` : overs;
+                        winningTeamOvers = oversText;
+                        losingTeamOvers = oversText;
+                    }
+                }
+            }
+            
+            winningTeamOvers = winningTeamOvers || 'N/A';
+            losingTeamOvers = losingTeamOvers || 'N/A';
+
+            let margin = 0;
+            let marginText = 'Unknown margin';
+            if (winningTeamScore !== 'N/A' && losingTeamScore !== 'N/A') {
+                const winScore = parseInt(winningTeamScore.split('/')[0]) || 0;
+                const loseScore = parseInt(losingTeamScore.split('/')[0]) || 0;
+                margin = winScore - loseScore;
+                marginText = `${margin} runs`;
+            }
+            
+            // Handle result text
+            const resultText = match.Result || `${winningTeamName} won by ${marginText}`;
 
             const modalHtml = `
                 <div class="modal show" id="scorecardModal">
@@ -4533,10 +4935,10 @@
                             <div class="scorecard-header">🏆 Match Summary</div>
                             <p><strong>Date:</strong> ${date.toLocaleDateString()} ${date.toLocaleTimeString()}</p>
                             <p><strong>Teams:</strong> ${team1Name} vs ${team2Name}</p>
-                            <p><strong>Result:</strong> ${winningCaptain}'s Team won by ${margin} runs</p>
-                            <p><strong>Final Scores:</strong> ${match.Winning_Team_Score || 'N/A'} vs ${match.Losing_Team_Score || 'N/A'}</p>
-                            <p><strong>Overs Played:</strong> ${match.Winning_Team_Overs_Played || 'N/A'} vs ${match.Losing_Team_Overs_Played || 'N/A'}</p>
-                            <p><strong>Man of the Match:</strong> ${match.Man_of_the_Match || 'Unknown'}</p>
+                            <p><strong>Result:</strong> ${resultText}</p>
+                            <p><strong>Final Scores:</strong> ${winningTeamScore} vs ${losingTeamScore}</p>
+                            <p><strong>Overs Played:</strong> ${winningTeamOvers} vs ${losingTeamOvers}</p>
+                            <p><strong>Man of the Match:</strong> ${match.Man_of_the_Match || match.Man_Of_The_Match || match.manOfTheMatch || 'Unknown'}</p>
                         </div>
 
                         <div class="scorecard-section">

@@ -901,10 +901,8 @@ class CricketApp {
                 this.matches = jsonData.matches || [];
                 this.teams = jsonData.teams || [];
                 
-                // Also save to localStorage for backup
-                localStorage.setItem('cricket-players', JSON.stringify(this.players));
-                localStorage.setItem('cricket-matches', JSON.stringify(this.matches));
-                localStorage.setItem('cricket-teams', JSON.stringify(this.teams));
+                // Save to consolidated localStorage format
+                this.saveData(false);
                 
                 this.showNotification(`✅ Loaded ${this.players.length} players from JSON data`);
                 return;
@@ -917,31 +915,42 @@ class CricketApp {
                 this.matches = csvData.matches || [];
                 this.teams = csvData.teams || [];
                 
-                // Save to localStorage
-                localStorage.setItem('cricket-players', JSON.stringify(this.players));
-                localStorage.setItem('cricket-matches', JSON.stringify(this.matches));
-                localStorage.setItem('cricket-teams', JSON.stringify(this.teams));
+                // Save to consolidated localStorage format
+                this.saveData(false);
                 
                 this.showNotification(`✅ Loaded ${this.players.length} players from CSV data`);
                 return;
             }
             
-            // Final fallback: load from localStorage
-            this.players = JSON.parse(localStorage.getItem('cricket-players') || '[]');
-            this.matches = JSON.parse(localStorage.getItem('cricket-matches') || '[]');
-            this.teams = JSON.parse(localStorage.getItem('cricket-teams') || '[]');
-            this.currentMatch = JSON.parse(localStorage.getItem('cricket-current-match') || 'null');
-            
-            if (this.players.length > 0) {
+            // Final fallback: try to load from localStorage
+            const localData = await this.loadFromLocalStorage();
+            if (localData) {
+                this.players = localData.players;
+                this.matches = localData.matches || [];
+                this.teams = localData.teams || [];
                 this.showNotification(`✅ Loaded ${this.players.length} players from local storage`);
+            } else {
+                // No data found anywhere, will need to initialize sample data
+                this.players = [];
+                this.matches = [];
+                this.teams = [];
             }
+            
+            this.currentMatch = JSON.parse(localStorage.getItem('cricket-current-match') || 'null');
             
         } catch (error) {
             console.error('Error loading data from manager:', error);
-            // Fallback to regular localStorage
-            this.players = JSON.parse(localStorage.getItem('cricket-players') || '[]');
-            this.teams = JSON.parse(localStorage.getItem('cricket-teams') || '[]');
-            this.matches = JSON.parse(localStorage.getItem('cricket-matches') || '[]');
+            // Fallback to loadFromLocalStorage method
+            const localData = await this.loadFromLocalStorage();
+            if (localData) {
+                this.players = localData.players;
+                this.matches = localData.matches || [];
+                this.teams = localData.teams || [];
+            } else {
+                this.players = [];
+                this.matches = [];
+                this.teams = [];
+            }
             this.currentMatch = JSON.parse(localStorage.getItem('cricket-current-match') || 'null');
         }
     }
@@ -949,7 +958,17 @@ class CricketApp {
     // Load data from localStorage (for APK/offline version)
     async loadFromLocalStorage() {
         try {
-            // Try to load from saved cricket_stats.json format first
+            // Try to load from consolidated cricket-stats format first
+            const consolidatedStats = localStorage.getItem('cricket-stats');
+            if (consolidatedStats) {
+                const data = JSON.parse(consolidatedStats);
+                if (data.players && data.players.length > 0) {
+                    console.log(`✅ Loaded ${data.players.length} players and ${data.matches.length} matches from consolidated cricket-stats`);
+                    return data;
+                }
+            }
+
+            // Try to load from saved cricket_stats.json format
             const cricketStatsJson = localStorage.getItem('cricket_stats_json');
             if (cricketStatsJson) {
                 const data = JSON.parse(cricketStatsJson);
@@ -1021,12 +1040,10 @@ class CricketApp {
                             }))
                     }));
                     
+                    const teams = JSON.parse(localStorage.getItem('cricket-teams') || '[]');
+                    
                     console.log(`✅ Loaded ${players.length} players and ${matches.length} matches from saved cricket_stats.json`);
-                    return {
-                        players,
-                        matches,
-                        teams: JSON.parse(localStorage.getItem('cricket-teams') || '[]')
-                    };
+                    return { players, matches, teams };
                 }
             }
             
@@ -1247,22 +1264,54 @@ class CricketApp {
     // saveToJSON: true for permanent saves (player/team creation, match completion, imports)
     // saveToJSON: false for temporary saves during match play
     saveData(saveToJSON = true) {
-        // Save to regular localStorage
-        localStorage.setItem('cricket-players', JSON.stringify(this.players));
-        localStorage.setItem('cricket-teams', JSON.stringify(this.teams));
-        localStorage.setItem('cricket-matches', JSON.stringify(this.matches));
+        // Create consolidated data structure
+        const consolidatedData = {
+            player_info: this.players.map(player => ({
+                Player_ID: player.id || `P${Date.now()}`,
+                Name: player.name,
+                Bowling_Style: player.bowlingStyle || 'Medium',
+                Batting_Style: player.battingStyle || 'Reliable',
+                Is_Star: player.isStar || false,
+                Last_Updated: new Date().toISOString().split('T')[0],
+                Last_Edit_Date: new Date().toISOString().split('T')[0]
+            })),
+            matches: this.matches.map(match => {
+                // Ensure consistent match format
+                return {
+                    Match_ID: match.id || match.Match_ID || Date.now(),
+                    Date: match.date || match.Date || new Date().toISOString().split('T')[0],
+                    Venue: match.venue || match.Venue || 'Not specified',
+                    Team1: match.team1?.name || match.Team1 || 'Team 1',
+                    Team2: match.team2?.name || match.Team2 || 'Team 2',
+                    Team1_Captain: match.team1Captain || match.Team1_Captain || '',
+                    Team2_Captain: match.team2Captain || match.Team2_Captain || '',
+                    Team1_Composition: match.team1Composition || match.Team1_Composition || [],
+                    Team2_Composition: match.team2Composition || match.Team2_Composition || [],
+                    Winning_Team: match.winningTeam || match.Winning_Team || match.winner?.name || '',
+                    Losing_Team: match.losingTeam || match.Losing_Team || match.loser?.name || '',
+                    Game_Start_Time: match.gameStartTime || match.Game_Start_Time || '',
+                    Game_Finish_Time: match.gameFinishTime || match.Game_Finish_Time || '',
+                    Winning_Team_Score: match.winningTeamScore || match.Winning_Team_Score || match.finalScore?.team1 || '',
+                    Losing_Team_Score: match.losingTeamScore || match.Losing_Team_Score || match.finalScore?.team2 || '',
+                    Result: match.result || match.Result || 'Match completed',
+                    Overs: match.overs || match.Overs || 20,
+                    Match_Type: match.matchType || match.Match_Type || 'Regular',
+                    Status: match.status || match.Status || 'Completed',
+                    Man_Of_The_Match: match.manOfTheMatch || match.Man_Of_The_Match || match.Man_of_the_Match || ''
+                };
+            }),
+            match_batting_performance: this.extractAllBattingPerformance(),
+            match_bowling_performance: this.extractAllBowlingPerformance(),
+            index: []
+        };
+        
+        // Save to consolidated localStorage
+        localStorage.setItem('cricket-stats', JSON.stringify(consolidatedData));
         localStorage.setItem('cricket-current-match', JSON.stringify(this.currentMatch));
         
         // Only save to JSON format if explicitly requested (for match completion)
         if (saveToJSON && this.dataManager) {
-            this.dataManager.saveJSONData({
-                players: this.players,
-                matches: this.matches,
-                teams: this.teams
-            });
-            
-            // Also save to cricket_stats.json format
-            this.dataManager.saveCricketStatsJSON(this.players, this.matches, this.teams);
+            this.dataManager.editCricketStatsJSON(consolidatedData);
         }
     }
 
@@ -1331,6 +1380,32 @@ class CricketApp {
             console.error('Import error:', error);
             this.showNotification('❌ Import failed');
         }
+    }
+
+    // Extract all batting performance data from all matches
+    extractAllBattingPerformance() {
+        const allBattingData = [];
+        
+        this.matches.forEach(match => {
+            if (match.battingPerformance && Array.isArray(match.battingPerformance)) {
+                allBattingData.push(...match.battingPerformance);
+            }
+        });
+        
+        return allBattingData;
+    }
+
+    // Extract all bowling performance data from all matches
+    extractAllBowlingPerformance() {
+        const allBowlingData = [];
+        
+        this.matches.forEach(match => {
+            if (match.bowlingPerformance && Array.isArray(match.bowlingPerformance)) {
+                allBowlingData.push(...match.bowlingPerformance);
+            }
+        });
+        
+        return allBowlingData;
     }
 
     // Player Management
@@ -8869,6 +8944,7 @@ function openEditPlayerModal(playerId) {
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button class="btn btn-danger" onclick="deletePlayer(${playerId})">Delete Player</button>
                     <button class="btn btn-orange" onclick="closeEditPlayerModal()">Cancel</button>
                     <button class="btn btn-primary" onclick="savePlayerChanges(${playerId})">Save Changes</button>
                 </div>
@@ -8919,6 +8995,82 @@ function openEditPlayerModal(playerId) {
             nameInput.select();
         }
     }, 100);
+}
+
+function deletePlayer(playerId) {
+    const appInstance = window.cricketApp || window.app;
+    if (!appInstance) {
+        console.error('Cricket app not initialized');
+        alert('App not ready, please try again');
+        return;
+    }
+    
+    // Find the player
+    const player = appInstance.players.find(p => p.id === playerId || p.id == playerId || p.id === parseInt(playerId));
+    if (!player) {
+        console.error('❌ Player not found with ID:', playerId);
+        alert('Player not found');
+        return;
+    }
+    
+    // Check if player has match data
+    const hasMatchData = appInstance.matches.some(match => {
+        // Check batting performances
+        const inBatting = (match.battingPerformances || []).some(perf => 
+            perf.playerId === playerId || perf.playerId == playerId || perf.playerId === parseInt(playerId)
+        );
+        
+        // Check bowling performances
+        const inBowling = (match.bowlingPerformances || []).some(perf => 
+            perf.playerId === playerId || perf.playerId == playerId || perf.playerId === parseInt(playerId)
+        );
+        
+        // Check team compositions
+        const inTeam1 = (match.team1Composition || []).some(p => 
+            p.id === playerId || p.id == playerId || p.id === parseInt(playerId)
+        );
+        
+        const inTeam2 = (match.team2Composition || []).some(p => 
+            p.id === playerId || p.id == playerId || p.id === parseInt(playerId)
+        );
+        
+        return inBatting || inBowling || inTeam1 || inTeam2;
+    });
+    
+    if (hasMatchData) {
+        appInstance.showNotification(`❌ Cannot delete ${player.name} - player has match data. Remove from all matches first.`);
+        return;
+    }
+    
+    // Confirm deletion
+    const confirmDelete = confirm(`Are you sure you want to delete ${player.name}? This action cannot be undone.`);
+    if (!confirmDelete) {
+        return;
+    }
+    
+    // Remove player from the array
+    const playerIndex = appInstance.players.findIndex(p => p.id === playerId || p.id == playerId || p.id === parseInt(playerId));
+    if (playerIndex === -1) {
+        console.error('❌ Player index not found');
+        alert('Error deleting player');
+        return;
+    }
+    
+    appInstance.players.splice(playerIndex, 1);
+    
+    // Update localStorage and JSON
+    appInstance.saveData(true);
+    
+    // Refresh the player list
+    appInstance.updateStats();
+    
+    // Close modal
+    closeEditPlayerModal();
+    
+    // Show success message
+    appInstance.showNotification(`✅ ${player.name} deleted successfully!`);
+    
+    console.log('✅ Player deletion completed');
 }
 
 function closeEditPlayerModal(event) {
