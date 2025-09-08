@@ -917,22 +917,7 @@ class CricketApp {
                 console.log('⚠️ JSON data loading failed or returned empty data');
             }
             
-            // Fallback: load from CSV and convert
-            const csvData = await this.dataManager.loadCSVData();
-            if (csvData && csvData.players && csvData.players.length > 0) {
-                this.players = csvData.players;
-                this.matches = csvData.matches || [];
-                this.teams = csvData.teams || [];
-                
-                // Save to consolidated localStorage format
-                this.saveData(false);
-                
-                this.showDataSource('CSV Files');
-                this.showNotification(`✅ Loaded ${this.players.length} players from CSV data`);
-                return;
-            }
-            
-            // Final fallback: try to load from localStorage
+            // Fallback: try to load from localStorage
             console.log('🔄 Trying localStorage as final fallback...');
             const localData = await this.loadFromLocalStorage();
             if (localData) {
@@ -8068,97 +8053,29 @@ class CricketApp {
         document.body.appendChild(modal);
     }
 
-    // Data Export/Import functionality inspired by AndroidSafeDataManager
+    // Data Export functionality - JSON only
     exportDataToCSV() {
         try {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             
-            // Export Players CSV
-            const playersCSV = this.generatePlayersCSV();
-            this.downloadCSV(playersCSV, `cricket_players_${timestamp}.csv`);
+            // Export as JSON only (removed CSV export as we're using cricket_stats.json only)
+            const jsonData = {
+                players: this.players,
+                matches: this.matches,
+                teams: this.teams,
+                exportDate: new Date().toISOString(),
+                source: 'Cricket PWA Export'
+            };
             
-            // Export Matches CSV
-            const matchesCSV = this.generateMatchesCSV();
-            this.downloadCSV(matchesCSV, `cricket_matches_${timestamp}.csv`);
-            
-            // Export Teams CSV
-            const teamsCSV = this.generateTeamsCSV();
-            this.downloadCSV(teamsCSV, `cricket_teams_${timestamp}.csv`);
-            
-            this.showNotification('📁 Data exported successfully!');
+            this.downloadJSON(jsonData, `cricket-data-backup-${timestamp}.json`);
+            this.showNotification('📁 Data exported to JSON successfully!');
         } catch (error) {
             this.showNotification('❌ Export failed: ' + error.message);
         }
     }
 
-    generatePlayersCSV() {
-        const headers = ['ID', 'Name', 'Skill', 'Role', 'Matches', 'Runs', 'Wickets', 'Average', 'Strike Rate', 'Economy', 'Created'];
-        const rows = this.players.map(player => [
-            player.id,
-            player.name,
-            player.skill,
-            player.role,
-            player.matches,
-            player.runs,
-            player.wickets,
-            player.matches > 0 ? (player.runs / player.matches).toFixed(2) : '0.00',
-            this.calculateStrikeRate(player),
-            this.calculateBowlerEconomy(player),
-            player.created
-        ]);
-        
-        return this.arrayToCSV([headers, ...rows]);
-    }
-
-    generateMatchesCSV() {
-        const headers = ['Match ID', 'Team 1', 'Team 1 Score', 'Team 1 Wickets', 'Team 1 Overs', 
-                        'Team 2', 'Team 2 Score', 'Team 2 Wickets', 'Team 2 Overs', 'Status', 'Started', 'Ended'];
-        const rows = this.matches.map(match => [
-            match.id,
-            match.team1.name,
-            match.team1Score.runs,
-            match.team1Score.wickets,
-            `${match.team1Score.overs}.${match.team1Score.balls}`,
-            match.team2.name,
-            match.team2Score.runs,
-            match.team2Score.wickets,
-            `${match.team2Score.overs}.${match.team2Score.balls}`,
-            match.status,
-            match.started,
-            match.ended || ''
-        ]);
-        
-        return this.arrayToCSV([headers, ...rows]);
-    }
-
-    generateTeamsCSV() {
-        const headers = ['Team ID', 'Team Name', 'Captain', 'Players', 'Strength', 'Created'];
-        const rows = this.teams.map(team => [
-            team.id,
-            team.name,
-            team.captain || 'N/A',
-            team.players.map(p => p.name).join('; '),
-            team.strength,
-            team.created
-        ]);
-        
-        return this.arrayToCSV([headers, ...rows]);
-    }
-
-    arrayToCSV(array) {
-        return array.map(row => 
-            row.map(field => {
-                // Escape fields containing commas, quotes, or newlines
-                if (typeof field === 'string' && (field.includes(',') || field.includes('"') || field.includes('\n'))) {
-                    return '"' + field.replace(/"/g, '""') + '"';
-                }
-                return field;
-            }).join(',')
-        ).join('\n');
-    }
-
-    downloadCSV(csvContent, filename) {
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    downloadJSON(data, filename) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8;' });
         const link = document.createElement('a');
         
         if (link.download !== undefined) {
