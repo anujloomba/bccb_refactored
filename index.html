@@ -516,6 +516,29 @@
             cursor: pointer;
         }
 
+        .form-select option {
+            background: #1a237e;
+            color: white;
+            padding: 8px;
+        }
+
+        .form-select option:hover,
+        .form-select option:focus {
+            background: #303f9f;
+            color: white;
+        }
+
+        /* Additional cross-browser option styling */
+        select.form-select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 16 16'%3e%3cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+        }
+
         /* List Styles */
         .player-list, .team-list {
             margin: 20px 0;
@@ -1892,12 +1915,33 @@
             background: rgba(255, 255, 255, 0.1);
             border: 2px solid rgba(255, 255, 255, 0.2);
             color: white;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 16 16'%3e%3cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
         }
 
         #editPlayerModal .form-input:focus,
         #editPlayerModal .form-select:focus {
             border-color: rgba(255, 255, 255, 0.4);
             background: rgba(255, 255, 255, 0.15);
+        }
+
+        #editPlayerModal .form-select option {
+            background: #1a237e;
+            color: white;
+            padding: 8px;
+            border: none;
+        }
+
+        #editPlayerModal .form-select option:hover,
+        #editPlayerModal .form-select option:focus,
+        #editPlayerModal .form-select option:checked {
+            background: #303f9f;
+            color: white;
         }
 
         #editPlayerModal .btn-danger {
