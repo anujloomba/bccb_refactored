@@ -859,18 +859,6 @@ class CricketApp {
         window.testMergeData = () => this.testMergeData();
         window.previewExportData = () => this.previewExportData();
         
-        console.log('🔧 Debug functions registered globally:');
-        console.log('  - debugBowlerSelection() - Comprehensive bowler selection debug');
-        console.log('  - debugTestButton() - Test button click simulation');
-        console.log('  - debugForceReset() - Force reset bowler selection state');
-        console.log('  - debugAppState() - Basic app state check');
-        console.log('  - debugPlayerData() - Check player data structure');
-        console.log('  - debugEditModal(playerId) - Debug edit modal for specific player');
-        console.log('  - importCricketData() - Import cricket_stats.json file');
-        console.log('  - showStorageInfo() - Show where data is stored in APK');
-        console.log('  - testMergeData() - Test merge functionality with sample data');
-        console.log('  - previewExportData() - Preview what will be exported');
-        
         // Update greeting every minute
         setInterval(() => this.updateGreeting(), 60000);
         
