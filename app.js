@@ -1176,13 +1176,30 @@ class CricketApp {
         })}`;
     }
 
+    getUniqueCaptainsCount() {
+        const captains = new Set();
+        
+        this.matches.forEach(match => {
+            // Extract captain names from different possible formats
+            const team1Captain = match.Team1_Captain || match.team1Captain || match.captain1 || 
+                               (match.team1 && match.team1.captain);
+            const team2Captain = match.Team2_Captain || match.team2Captain || match.captain2 || 
+                               (match.team2 && match.team2.captain);
+            
+            if (team1Captain) captains.add(team1Captain);
+            if (team2Captain) captains.add(team2Captain);
+        });
+        
+        return captains.size;
+    }
+
     updateStats() {
         const playerCountEl = document.getElementById('playerCount');
         const teamCountEl = document.getElementById('teamCount');
         const matchCountEl = document.getElementById('matchCount');
         
         if (playerCountEl) playerCountEl.textContent = this.players.length;
-        if (teamCountEl) teamCountEl.textContent = this.teams.length;
+        if (teamCountEl) teamCountEl.textContent = this.getUniqueCaptainsCount();
         if (matchCountEl) matchCountEl.textContent = this.matches.length;
         
         // Update match format display
