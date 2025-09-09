@@ -3,9 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.anujloomba.bccb_refactored",
+      "package_name": "io.github.anujloomba.twa",
       "sha256_cert_fingerprints": [
-        "8D:A1:A7:E0:03:80:0B:E5:24:64:0A:5A:04:78:07:2C:56:C9:B6:4F:8C:DE:0A:B7:4C:5C:EF:D2:96:B8:4D:7E"
+        "56:6E:28:91:33:8E:48:61:8C:58:85:24:7F:CD:D9:AE:D2:78:1F:63:19:CF:3D:BF:EE:B9:0D:79:79:49:F8:54"
       ]
     }
   }
