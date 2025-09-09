@@ -1813,53 +1813,97 @@ class CricketApp {
 
     // Player Management
     addPlayer(name, bowlingType = 'Medium', battingStyle = 'So-So', playerType = 'Regular') {
-        const newPlayer = {
-            id: Date.now(),
-            name: name,
-            bowling: bowlingType,
-            batting: battingStyle,
-            is_star: playerType === 'Star',
-            matches: 0,
-            innings: 0,
-            notOuts: 0,
-            runs: 0,
-            highestScore: 0,
-            battingAverage: 0,
-            ballsFaced: 0,
-            strikeRate: 0,
-            centuries: 0,
-            halfCenturies: 0,
-            ducks: 0,
-            fours: 0,
-            sixes: 0,
-            bowlingMatches: 0,
-            bowlingInnings: 0,
-            ballsBowled: 0,
-            runsConceded: 0,
-            wickets: 0,
-            bestBowling: "0/0",
-            bowlingAverage: 0,
-            economy: 0,
-            bowlingStrikeRate: 0,
-            maidens: 0,
-            fiveWickets: 0,
-            catches: 0,
-            runOuts: 0,
-            stumpings: 0,
-            created: new Date().toISOString()
-        };
-        
-        this.players.push(newPlayer);
-        this.saveData(true); // Create JSON backup when adding new player
-        this.updateStats();
-        this.loadPlayers();
-        
-        // Also save to the data manager if available
-        if (this.dataManager) {
-            this.dataManager.addPlayer(newPlayer);
+        try {
+            console.log('addPlayer method called with:', { name, bowlingType, battingStyle, playerType });
+            
+            // Validate input
+            if (!name || typeof name !== 'string' || name.trim() === '') {
+                throw new Error('Invalid player name');
+            }
+            
+            const newPlayer = {
+                id: Date.now(),
+                name: name.trim(),
+                bowling: bowlingType,
+                batting: battingStyle,
+                is_star: playerType === 'Star',
+                matches: 0,
+                innings: 0,
+                notOuts: 0,
+                runs: 0,
+                highestScore: 0,
+                battingAverage: 0,
+                ballsFaced: 0,
+                strikeRate: 0,
+                centuries: 0,
+                halfCenturies: 0,
+                ducks: 0,
+                fours: 0,
+                sixes: 0,
+                bowlingMatches: 0,
+                bowlingInnings: 0,
+                ballsBowled: 0,
+                runsConceded: 0,
+                wickets: 0,
+                bestBowling: "0/0",
+                bowlingAverage: 0,
+                economy: 0,
+                bowlingStrikeRate: 0,
+                maidens: 0,
+                fiveWickets: 0,
+                catches: 0,
+                runOuts: 0,
+                stumpings: 0,
+                created: new Date().toISOString()
+            };
+            
+            console.log('Created new player object:', newPlayer);
+            
+            this.players.push(newPlayer);
+            console.log('Player added to array, total players:', this.players.length);
+            
+            // Save data with error handling
+            try {
+                this.saveData(true); // Create JSON backup when adding new player
+                console.log('Data saved successfully');
+            } catch (saveError) {
+                console.error('Error saving data:', saveError);
+            }
+            
+            // Update stats with error handling
+            try {
+                this.updateStats();
+                console.log('Stats updated');
+            } catch (statsError) {
+                console.error('Error updating stats:', statsError);
+            }
+            
+            // Load players with error handling
+            try {
+                this.loadPlayers();
+                console.log('Players list reloaded');
+            } catch (loadError) {
+                console.error('Error loading players:', loadError);
+            }
+            
+            // Also save to the data manager if available
+            if (this.dataManager) {
+                try {
+                    this.dataManager.addPlayer(newPlayer);
+                    console.log('Player added to data manager');
+                } catch (dmError) {
+                    console.error('Error adding to data manager:', dmError);
+                }
+            }
+            
+            this.showNotification(`✅ ${name.trim()} added successfully!`);
+            console.log('addPlayer method completed successfully');
+            
+        } catch (error) {
+            console.error('Error in addPlayer method:', error);
+            this.showNotification(`❌ Error adding player: ${error.message}`);
+            throw error; // Re-throw to be caught by calling function
         }
-        
-        this.showNotification(`✅ ${name} added successfully!`);
     }
 
     showAddPlayerModal() {
@@ -9200,23 +9244,73 @@ function showCreateTeamModal() {
 }
 
 function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('active');
+    try {
+        console.log('Attempting to close modal:', modalId);
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+            console.log('Modal closed successfully:', modalId);
+        } else {
+            console.error('Modal not found:', modalId);
+        }
+    } catch (error) {
+        console.error('Error closing modal:', error);
+    }
 }
 
 // Form Handlers
 function addPlayer(event) {
     event.preventDefault();
     
-    const name = document.getElementById('playerName').value;
-    const bowlingType = document.getElementById('bowlingType').value;
-    const battingStyle = document.getElementById('battingStyle').value;
-    const playerType = document.getElementById('playerType').value;
-    
-    app.addPlayer(name, bowlingType, battingStyle, playerType);
-    
-    // Reset form and close modal
-    event.target.reset();
-    closeModal('addPlayerModal');
+    try {
+        console.log('addPlayer function called');
+        
+        const name = document.getElementById('playerName').value;
+        const bowlingType = document.getElementById('bowlingType').value;
+        const battingStyle = document.getElementById('battingStyle').value;
+        const playerType = document.getElementById('playerType').value;
+        
+        console.log('Form values:', { name, bowlingType, battingStyle, playerType });
+        
+        // Validate required fields
+        if (!name || name.trim() === '') {
+            if (window.cricketApp && window.cricketApp.showNotification) {
+                window.cricketApp.showNotification('❌ Player name is required');
+            } else {
+                alert('Player name is required');
+            }
+            return;
+        }
+        
+        console.log('Calling app.addPlayer...');
+        app.addPlayer(name.trim(), bowlingType, battingStyle, playerType);
+        console.log('app.addPlayer completed');
+        
+        // Reset form
+        const form = event.target;
+        if (form && typeof form.reset === 'function') {
+            form.reset();
+            console.log('Form reset completed');
+        }
+        
+        // Close modal with delay to ensure DOM operations complete
+        setTimeout(() => {
+            try {
+                closeModal('addPlayerModal');
+                console.log('Modal closed');
+            } catch (modalError) {
+                console.error('Error closing modal:', modalError);
+            }
+        }, 100);
+        
+    } catch (error) {
+        console.error('Error in addPlayer function:', error);
+        if (window.cricketApp && window.cricketApp.showNotification) {
+            window.cricketApp.showNotification('❌ Error adding player: ' + error.message);
+        } else {
+            alert('Error adding player: ' + error.message);
+        }
+    }
 }
 
 function createCustomTeam(event) {

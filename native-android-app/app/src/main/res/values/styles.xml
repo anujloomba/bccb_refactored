@@ -1,0 +1,18 @@
+<resources>
+    <!-- Base application theme -->
+    <style name="AppTheme" parent="android:Theme.Holo.Light.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+    <!-- Fullscreen theme for complete immersion -->
+    <style name="FullscreenTheme" parent="android:Theme.Holo.NoActionBar.Fullscreen">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+        <item name="android:fitsSystemWindows">false</item>
+    </style>
+</resources>

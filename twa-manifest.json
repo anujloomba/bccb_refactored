@@ -20,27 +20,39 @@
     "path": "C:\\Users\\anujl\\PycharmProjects\\cricket-pwa-standalone\\android.keystore",
     "alias": "android"
   },
-  "appVersionName": "2",
-  "appVersionCode": 2,
+  "appVersionName": "3",
+  "appVersionCode": 3,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://anujloomba.github.io/bccb_refactored/manifest.json",
-  "fallbackType": "customtabs",
-  "features": {},
+  "fallbackType": "webview",
+  "features": {
+    "locationDelegation": {
+      "enabled": false
+    },
+    "playBilling": {
+      "enabled": false
+    }
+  },
   "alphaDependencies": {
     "enabled": false
   },
-  "enableSiteSettingsShortcut": true,
+  "enableSiteSettingsShortcut": false,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
   "fullScopeUrl": "https://anujloomba.github.io/",
   "minSdkVersion": 21,
   "orientation": "portrait",
-  "fingerprints": [],
+  "fingerprints": [
+    {
+      "name": "SHA-256",
+      "value": "56:6E:28:91:33:8E:48:61:8C:58:85:24:7F:CD:D9:AE:D2:78:1F:63:19:CF:3D:BF:EE:B9:0D:79:79:49:F8:54"
+    }
+  ],
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "protocolHandlers": [],
   "fileHandlers": [],
   "launchHandlerClientMode": "",
-  "appVersion": "2"
+  "appVersion": "3"
 }
