@@ -7829,8 +7829,57 @@ class CricketApp {
     // Import cricket data from file (for APK/PWA version)
     async importCricketData() {
         try {
-            // Check if File System Access API is available
-            if ('showOpenFilePicker' in window) {
+            console.log('ImportCricketData: Starting import process');
+            
+            // Check if we're in a mobile WebView environment
+            const isAndroidWebView = /Android.*wv\)|; wv\)/i.test(navigator.userAgent);
+            const hasFileSystemAccess = 'showOpenFilePicker' in window;
+            
+            console.log('ImportCricketData: Environment check', { isAndroidWebView, hasFileSystemAccess });
+            
+            // For Android WebView or if File System Access API is not available, use traditional file input
+            if (isAndroidWebView || !hasFileSystemAccess) {
+                console.log('ImportCricketData: Using traditional file input method');
+                
+                // Create file input
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.style.display = 'none';
+                
+                // Add to document temporarily
+                document.body.appendChild(input);
+                
+                // Set up change handler
+                input.onchange = async (event) => {
+                    try {
+                        console.log('ImportCricketData: File selected');
+                        const file = event.target.files[0];
+                        if (file) {
+                            console.log('ImportCricketData: Processing file:', file.name);
+                            const text = await file.text();
+                            const data = JSON.parse(text);
+                            await this.processImportedData(data, file.name);
+                        } else {
+                            console.log('ImportCricketData: No file selected');
+                            this.showNotification('ℹ️ No file selected');
+                        }
+                    } catch (error) {
+                        console.error('ImportCricketData: File processing error:', error);
+                        this.showNotification('❌ Error processing file: ' + error.message);
+                    } finally {
+                        // Clean up
+                        document.body.removeChild(input);
+                    }
+                };
+                
+                // Trigger file selection
+                input.click();
+                
+            } else {
+                console.log('ImportCricketData: Using modern File System Access API');
+                
+                // Use modern API for desktop browsers
                 const [fileHandle] = await window.showOpenFilePicker({
                     types: [{
                         description: 'JSON files',
@@ -7843,24 +7892,17 @@ class CricketApp {
                 const data = JSON.parse(text);
                 
                 await this.processImportedData(data, file.name);
-            } else {
-                // Fallback: create file input
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = '.json';
-                input.onchange = async (event) => {
-                    const file = event.target.files[0];
-                    if (file) {
-                        const text = await file.text();
-                        const data = JSON.parse(text);
-                        await this.processImportedData(data, file.name);
-                    }
-                };
-                input.click();
             }
         } catch (error) {
-            console.error('❌ Import error:', error);
-            this.showNotification('❌ Import failed: ' + error.message);
+            console.error('❌ ImportCricketData: Import error:', error);
+            
+            // Handle user cancellation gracefully
+            if (error.name === 'AbortError' || error.message.includes('aborted')) {
+                console.log('ImportCricketData: User cancelled file selection');
+                this.showNotification('ℹ️ Import cancelled');
+            } else {
+                this.showNotification('❌ Import failed: ' + error.message);
+            }
         }
     }
 
@@ -8044,8 +8086,55 @@ class CricketApp {
             console.log('🔄 Starting import and merge process...');
             this.showNotification('🔄 Starting import and merge...');
 
-            // Check if File System Access API is available
-            if ('showOpenFilePicker' in window) {
+            // Check if we're in a mobile WebView environment
+            const isAndroidWebView = /Android.*wv\)|; wv\)/i.test(navigator.userAgent);
+            const hasFileSystemAccess = 'showOpenFilePicker' in window;
+            
+            console.log('ImportAndMergeData: Environment check', { isAndroidWebView, hasFileSystemAccess });
+
+            // For Android WebView or if File System Access API is not available, use traditional file input
+            if (isAndroidWebView || !hasFileSystemAccess) {
+                console.log('ImportAndMergeData: Using traditional file input method');
+                
+                // Create file input
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.style.display = 'none';
+                
+                // Add to document temporarily
+                document.body.appendChild(input);
+                
+                // Set up change handler
+                input.onchange = async (event) => {
+                    try {
+                        console.log('ImportAndMergeData: File selected');
+                        const file = event.target.files[0];
+                        if (file) {
+                            console.log('ImportAndMergeData: Processing file:', file.name);
+                            const text = await file.text();
+                            const data = JSON.parse(text);
+                            await this.performSmartMerge(data, file.name);
+                        } else {
+                            console.log('ImportAndMergeData: No file selected');
+                            this.showNotification('ℹ️ No file selected');
+                        }
+                    } catch (error) {
+                        console.error('ImportAndMergeData: File processing error:', error);
+                        this.showNotification('❌ Error processing file: ' + error.message);
+                    } finally {
+                        // Clean up
+                        document.body.removeChild(input);
+                    }
+                };
+                
+                // Trigger file selection
+                input.click();
+                
+            } else {
+                console.log('ImportAndMergeData: Using modern File System Access API');
+                
+                // Use modern API for desktop browsers
                 const [fileHandle] = await window.showOpenFilePicker({
                     types: [{
                         description: 'JSON files',
@@ -8059,24 +8148,17 @@ class CricketApp {
                 const data = JSON.parse(text);
                 
                 await this.performSmartMerge(data, file.name);
-            } else {
-                // Fallback: create file input
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = '.json';
-                input.onchange = async (event) => {
-                    const file = event.target.files[0];
-                    if (file) {
-                        const text = await file.text();
-                        const data = JSON.parse(text);
-                        await this.performSmartMerge(data, file.name);
-                    }
-                };
-                input.click();
             }
         } catch (error) {
             console.error('❌ Import and merge error:', error);
-            this.showNotification('❌ Import failed: ' + error.message);
+            
+            // Handle user cancellation gracefully
+            if (error.name === 'AbortError' || error.message.includes('aborted')) {
+                console.log('ImportAndMergeData: User cancelled file selection');
+                this.showNotification('ℹ️ Import cancelled');
+            } else {
+                this.showNotification('❌ Import and merge failed: ' + error.message);
+            }
         }
     }
 

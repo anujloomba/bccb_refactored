@@ -48,7 +48,8 @@ public class MainActivity extends Activity {
         setupWebView();
         
         // Load the cricket app
-        webView.loadUrl(URL);
+        // Load the web app from GitHub Pages (auto-updates with repo changes)
+        webView.loadUrl("https://anujloomba.github.io/bccb_refactored/");
     }
     
     private void setupWebView() {
