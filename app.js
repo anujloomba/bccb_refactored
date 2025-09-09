@@ -1254,7 +1254,6 @@ class CricketApp {
         window.debugEditModal = (playerId) => this.debugEditModal(playerId);
         window.importCricketData = () => this.importCricketData();
         window.showStorageInfo = () => this.showStorageInfo();
-        window.testMergeData = () => this.testMergeData();
         window.previewExportData = () => this.previewExportData();
         
         // Update greeting every minute
@@ -8423,45 +8422,6 @@ class CricketApp {
     getNextPlayerId(players) {
         const existingIds = players.map(p => p.id || 0).filter(id => id > 0);
         return existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
-    }
-
-    // Test merge functionality with sample data
-    testMergeData() {
-        console.log('🧪 Testing merge functionality...');
-        
-        // Create sample import data
-        const sampleImportData = {
-            player_info: [
-                {
-                    Player_ID: "P001",
-                    Name: "Anuj", // Existing player - should update
-                    Bowling_Style: "Fast",
-                    Batting_Style: "Reliable",
-                    Is_Star: true,
-                    Last_Updated: "2025-09-04" // Newer date
-                },
-                {
-                    Player_ID: "P999",
-                    Name: "Test Player", // New player - should add
-                    Bowling_Style: "Medium",
-                    Batting_Style: "So-So", 
-                    Is_Star: false,
-                    Last_Updated: "2025-09-03"
-                }
-            ],
-            matches: [
-                {
-                    id: "test_match_1",
-                    date: "2025-09-03",
-                    team1: "Team A",
-                    team2: "Team B",
-                    result: "Team A won"
-                }
-            ]
-        };
-        
-        console.log('🧪 Sample data created:', sampleImportData);
-        this.performSmartMerge(sampleImportData, 'test_data.json');
     }
 
     // Preview what will be exported
