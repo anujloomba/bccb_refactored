@@ -38,14 +38,361 @@ class TeamBalancer {
      * Calculates a numerical skill score for a player.
      */
     skillScore(player) {
-        // Updated to use full words instead of abbreviations
+        // Use performance-based scoring if enough data is available
+        if (this.hasEnoughData(player)) {
+            return this.calculatePerformanceScore(player);
+        }
+        
+        // Fallback to manual categories
         const battingScoreMap = { 'Reliable': 6, 'So-So': 3, 'Tailend': 1, 'R': 6, 'S': 3, 'U': 1 };
         const bowlingScoreMap = { 'Fast': 5, 'Medium': 3, 'DNB': 1 };
 
-        const battingScore = battingScoreMap[player.battingStyle] || 0;
-        const bowlingScore = bowlingScoreMap[player.bowlingStyle] || 0;
+        const battingScore = battingScoreMap[player.battingStyle || player.batting] || 0;
+        const bowlingScore = bowlingScoreMap[player.bowlingStyle || player.bowling] || 0;
 
         return battingScore + bowlingScore;
+    }
+
+    /**
+     * Determines if a player has enough match data for performance-based evaluation
+     */
+    hasEnoughData(player) {
+        return (player.matches || 0) >= 2;
+    }
+
+    /**
+     * Calculates performance score based on actual match statistics
+     */
+    calculatePerformanceScore(player) {
+        const matches = player.matches || 0;
+        if (matches === 0) return 0;
+        
+        // Batting performance (0-10 scale)
+        const battingScore = this.calculateBattingPerformanceScore(player);
+        
+        // Bowling performance (0-10 scale) 
+        const bowlingScore = this.calculateBowlingPerformanceScore(player);
+        
+        // Combine with role weighting
+        const role = this.getPlayerRole(player);
+        let weightedScore;
+        
+        switch(role) {
+            case 'batsman':
+                weightedScore = battingScore * 0.8 + bowlingScore * 0.2;
+                break;
+            case 'bowler':
+                weightedScore = battingScore * 0.2 + bowlingScore * 0.8;
+                break;
+            case 'allrounder':
+                weightedScore = battingScore * 0.5 + bowlingScore * 0.5;
+                break;
+            default:
+                weightedScore = battingScore * 0.6 + bowlingScore * 0.4;
+        }
+        
+        return Math.round(weightedScore);
+    }
+
+    /**
+     * Calculates batting performance score (0-10)
+     */
+    calculateBattingPerformanceScore(player) {
+        const matches = player.matches || 0;
+        const runs = player.runs || 0;
+        const average = matches > 0 ? runs / matches : 0;
+        const strikeRate = player.strikeRate || 0;
+        
+        // Scoring based on runs per match and strike rate
+        let battingScore = 0;
+        
+        // Runs per match scoring (0-6 points)
+        if (average >= 40) battingScore += 6;
+        else if (average >= 30) battingScore += 5;
+        else if (average >= 20) battingScore += 4;
+        else if (average >= 15) battingScore += 3;
+        else if (average >= 10) battingScore += 2;
+        else if (average >= 5) battingScore += 1;
+        
+        // Strike rate bonus (0-4 points)
+        if (strikeRate >= 150) battingScore += 4;
+        else if (strikeRate >= 130) battingScore += 3;
+        else if (strikeRate >= 110) battingScore += 2;
+        else if (strikeRate >= 90) battingScore += 1;
+        
+        return Math.min(battingScore, 10);
+    }
+
+    /**
+     * Calculates bowling performance score (0-10)  
+     */
+    calculateBowlingPerformanceScore(player) {
+        const matches = player.matches || 0;
+        const wickets = player.wickets || 0;
+        const economy = player.economy || 999;
+        const wicketsPerMatch = matches > 0 ? wickets / matches : 0;
+        
+        // If player doesn't bowl
+        if ((player.bowling || player.bowlingStyle) === 'DNB' || wickets === 0) {
+            return 1; // Minimal bowling contribution
+        }
+        
+        let bowlingScore = 0;
+        
+        // Wickets per match scoring (0-6 points)
+        if (wicketsPerMatch >= 3) bowlingScore += 6;
+        else if (wicketsPerMatch >= 2.5) bowlingScore += 5;
+        else if (wicketsPerMatch >= 2) bowlingScore += 4;
+        else if (wicketsPerMatch >= 1.5) bowlingScore += 3;
+        else if (wicketsPerMatch >= 1) bowlingScore += 2;
+        else if (wicketsPerMatch >= 0.5) bowlingScore += 1;
+        
+        // Economy rate bonus (0-4 points) - lower is better
+        if (economy <= 5) bowlingScore += 4;
+        else if (economy <= 6) bowlingScore += 3;
+        else if (economy <= 7) bowlingScore += 2;
+        else if (economy <= 8) bowlingScore += 1;
+        
+        return Math.min(bowlingScore, 10);
+    }
+
+    /**
+     * Determines player role based on batting and bowling styles
+     */
+    getPlayerRole(player) {
+        const battingScore = { 'Reliable': 6, 'So-So': 3, 'Tailend': 1 }[player.batting] || 0;
+        const bowlingScore = { 'Fast': 5, 'Medium': 3, 'DNB': 1 }[player.bowling] || 0;
+        
+        // If player doesn't bowl (DNB), they're likely a batsman
+        if (player.bowling === 'DNB') {
+            return 'batsman';
+        }
+        
+        // If tailend batsman but good bowler, they're a bowler
+        if (player.batting === 'Tailend' && bowlingScore >= 3) {
+            return 'bowler';
+        }
+        
+        // If both batting and bowling are decent, they're an allrounder
+        if (battingScore >= 3 && bowlingScore >= 3) {
+            return 'allrounder';
+        }
+        
+        // If primarily good at batting
+        if (battingScore > bowlingScore) {
+            return 'batsman';
+        }
+        
+        // Default to bowler if primarily good at bowling
+        return 'bowler';
+    }
+
+    /**
+     * Enhanced team balancing that uses mixed data approach
+     */
+    balanceTeamsWithStats(selectedPlayers, captain1, captain2, shouldShuffle = false) {
+        // Calculate average performance for each category to help players without enough data
+        const categoryAverages = this.calculateCategoryAverages(selectedPlayers);
+        
+        // Enhance players without enough data with category averages
+        const enhancedPlayers = selectedPlayers.map(player => ({
+            ...player,
+            enhancedScore: this.getEnhancedPlayerScore(player, categoryAverages)
+        }));
+        
+        return this.balanceTeamsWithEnhancedScores(enhancedPlayers, captain1, captain2, shouldShuffle);
+    }
+
+    /**
+     * Calculate average performance for each batting/bowling category
+     */
+    calculateCategoryAverages(players) {
+        const playersWithData = players.filter(p => this.hasEnoughData(p));
+        
+        if (playersWithData.length === 0) {
+            // No players have enough data, return default values
+            return {
+                batting: { 'Reliable': 6, 'So-So': 3, 'Tailend': 1 },
+                bowling: { 'Fast': 5, 'Medium': 3, 'DNB': 1 }
+            };
+        }
+        
+        const battingAverages = {};
+        const bowlingAverages = {};
+        
+        // Group players by their categories and calculate averages
+        ['Reliable', 'So-So', 'Tailend'].forEach(battingStyle => {
+            const playersInCategory = playersWithData.filter(p => 
+                (p.batting || p.battingStyle) === battingStyle
+            );
+            
+            if (playersInCategory.length > 0) {
+                const avgScore = playersInCategory.reduce((sum, p) => 
+                    sum + this.calculateBattingPerformanceScore(p), 0
+                ) / playersInCategory.length;
+                battingAverages[battingStyle] = avgScore;
+            } else {
+                // Use default if no players in this category have data
+                battingAverages[battingStyle] = { 'Reliable': 6, 'So-So': 3, 'Tailend': 1 }[battingStyle];
+            }
+        });
+        
+        ['Fast', 'Medium', 'DNB'].forEach(bowlingStyle => {
+            const playersInCategory = playersWithData.filter(p => 
+                (p.bowling || p.bowlingStyle) === bowlingStyle
+            );
+            
+            if (playersInCategory.length > 0) {
+                const avgScore = playersInCategory.reduce((sum, p) => 
+                    sum + this.calculateBowlingPerformanceScore(p), 0
+                ) / playersInCategory.length;
+                bowlingAverages[bowlingStyle] = avgScore;
+            } else {
+                // Use default if no players in this category have data
+                bowlingAverages[bowlingStyle] = { 'Fast': 5, 'Medium': 3, 'DNB': 1 }[bowlingStyle];
+            }
+        });
+        
+        return {
+            batting: battingAverages,
+            bowling: bowlingAverages
+        };
+    }
+
+    /**
+     * Get enhanced player score using mix of actual stats and category averages
+     */
+    getEnhancedPlayerScore(player, categoryAverages) {
+        if (this.hasEnoughData(player)) {
+            return this.calculatePerformanceScore(player);
+        }
+        
+        // Use category averages for players without enough data
+        const battingStyle = player.batting || player.battingStyle;
+        const bowlingStyle = player.bowling || player.bowlingStyle;
+        
+        const battingScore = categoryAverages.batting[battingStyle] || 3;
+        const bowlingScore = categoryAverages.bowling[bowlingStyle] || 3;
+        
+        // Apply same role weighting as performance-based scoring
+        const role = this.getPlayerRole(player);
+        let weightedScore;
+        
+        switch(role) {
+            case 'batsman':
+                weightedScore = battingScore * 0.8 + bowlingScore * 0.2;
+                break;
+            case 'bowler':
+                weightedScore = battingScore * 0.2 + bowlingScore * 0.8;
+                break;
+            case 'allrounder':
+                weightedScore = battingScore * 0.5 + bowlingScore * 0.5;
+                break;
+            default:
+                weightedScore = battingScore * 0.6 + bowlingScore * 0.4;
+        }
+        
+        return Math.round(weightedScore);
+    }
+
+    /**
+     * Balance teams using enhanced scores (mix of stats and category averages)
+     */
+    balanceTeamsWithEnhancedScores(enhancedPlayers, captain1, captain2, shouldShuffle = false) {
+        const teamA = [captain1];
+        const teamB = [captain2];
+
+        const otherPlayers = enhancedPlayers.filter(p => p.id !== captain1.id && p.id !== captain2.id);
+
+        // Separate players into star and regular
+        const starPlayers = otherPlayers.filter(p => p.is_star || p.isStar || false);
+        const regularPlayers = otherPlayers.filter(p => !(p.is_star || p.isStar));
+
+        // Sort by enhanced score
+        starPlayers.sort((a, b) => b.enhancedScore - a.enhancedScore);
+        regularPlayers.sort((a, b) => b.enhancedScore - a.enhancedScore);
+
+        // Add shuffling for variety
+        if (shouldShuffle) {
+            this.shufflePlayersWithSameScore(starPlayers);
+            this.shufflePlayersWithSameScore(regularPlayers);
+        }
+
+        // Determine starting turn based on captain strength
+        const captain1Score = this.getEnhancedPlayerScore(captain1, {
+            batting: { 'Reliable': 6, 'So-So': 3, 'Tailend': 1 },
+            bowling: { 'Fast': 5, 'Medium': 3, 'DNB': 1 }
+        });
+        const captain2Score = this.getEnhancedPlayerScore(captain2, {
+            batting: { 'Reliable': 6, 'So-So': 3, 'Tailend': 1 },
+            bowling: { 'Fast': 5, 'Medium': 3, 'DNB': 1 }
+        });
+        
+        let turn = captain1Score <= captain2Score ? 0 : 1;
+
+        // Distribute star players
+        for (const player of starPlayers) {
+            if (turn === 0) {
+                teamA.push(player);
+                turn = 1;
+            } else {
+                teamB.push(player);
+                turn = 0;
+            }
+        }
+
+        // Distribute regular players
+        for (const player of regularPlayers) {
+            if (turn === 0) {
+                teamA.push(player);
+                turn = 1;
+            } else {
+                teamB.push(player);
+                turn = 0;
+            }
+        }
+
+        // Balance team sizes
+        while (Math.abs(teamA.length - teamB.length) > 1) {
+            if (teamA.length > teamB.length) {
+                const playerToMove = teamA.pop();
+                teamB.push(playerToMove);
+            } else {
+                const playerToMove = teamB.pop();
+                teamA.push(playerToMove);
+            }
+        }
+
+        return { teamA, teamB };
+    }
+
+    /**
+     * Shuffle players with same enhanced score
+     */
+    shufflePlayersWithSameScore(players) {
+        let i = 0;
+        while (i < players.length) {
+            const currentScore = players[i].enhancedScore;
+            let j = i + 1;
+            
+            while (j < players.length && players[j].enhancedScore === currentScore) {
+                j++;
+            }
+            
+            if (j - i > 1) {
+                const sameScorePlayers = players.slice(i, j);
+                for (let k = sameScorePlayers.length - 1; k > 0; k--) {
+                    const randomIndex = Math.floor(Math.random() * (k + 1));
+                    [sameScorePlayers[k], sameScorePlayers[randomIndex]] = [sameScorePlayers[randomIndex], sameScorePlayers[k]];
+                }
+                
+                for (let k = 0; k < sameScorePlayers.length; k++) {
+                    players[i + k] = sameScorePlayers[k];
+                }
+            }
+            
+            i = j;
+        }
     }
 
     /**
@@ -145,7 +492,7 @@ class TeamBalancer {
     }
 
     /**
-     * Generate balanced teams with the BCCB algorithm
+     * Generate balanced teams with the enhanced statistics-based algorithm
      */
     generateBalancedTeams(players) {
         if (players.length < 4) {
@@ -155,24 +502,78 @@ class TeamBalancer {
         // Get available players
         const availablePlayers = [...players];
         
-        // Sort players by skill score
-        const sortedPlayers = availablePlayers.sort((a, b) => this.skillScore(b) - this.skillScore(a));
+        // Check if we have players with enough data for enhanced balancing
+        const playersWithData = availablePlayers.filter(p => this.hasEnoughData(p));
+        const useEnhancedBalancing = playersWithData.length > 0;
         
-        // Separate star players and regular players
-        const starPlayers = sortedPlayers.filter(p => p.isStar);
-        const regularPlayers = sortedPlayers.filter(p => !p.isStar);
+        console.log(`🎯 Team Generation: Using ${useEnhancedBalancing ? 'Enhanced Statistics-Based' : 'Category-Based'} Balancing`);
+        console.log(`📊 Players with enough data (≥2 matches): ${playersWithData.length}/${availablePlayers.length}`);
         
-        // Select captains (best players)
-        const captain1 = starPlayers.length > 0 ? starPlayers[0] : regularPlayers[0];
-        const captain2 = starPlayers.length > 1 ? starPlayers[1] : 
-                         (regularPlayers[0] !== captain1 ? regularPlayers[0] : regularPlayers[1]);
+        let captain1, captain2, balancedResult;
         
-        // Balance the teams using the BCCB algorithm
-        const { teamA, teamB } = this.balanceTeams(availablePlayers, captain1, captain2);
+        if (useEnhancedBalancing) {
+            // Use enhanced balancing with statistics
+            const categoryAverages = this.calculateCategoryAverages(availablePlayers);
+            
+            // Sort players by enhanced score to select captains
+            const enhancedPlayers = availablePlayers.map(player => ({
+                ...player,
+                enhancedScore: this.getEnhancedPlayerScore(player, categoryAverages)
+            }));
+            
+            // Sort by enhanced score and star status
+            const sortedPlayers = enhancedPlayers.sort((a, b) => {
+                // Stars first, then by enhanced score
+                if ((a.is_star || a.isStar) && !(b.is_star || b.isStar)) return -1;
+                if (!(a.is_star || a.isStar) && (b.is_star || b.isStar)) return 1;
+                return b.enhancedScore - a.enhancedScore;
+            });
+            
+            captain1 = sortedPlayers[0];
+            captain2 = sortedPlayers[1];
+            
+            // Use enhanced balancing
+            balancedResult = this.balanceTeamsWithStats(availablePlayers, captain1, captain2);
+            
+            console.log(`👑 Captain 1: ${captain1.name} (Enhanced Score: ${captain1.enhancedScore || 'N/A'})`);
+            console.log(`👑 Captain 2: ${captain2.name} (Enhanced Score: ${captain2.enhancedScore || 'N/A'})`);
+            
+        } else {
+            // Fallback to original category-based balancing
+            const sortedPlayers = availablePlayers.sort((a, b) => this.skillScore(b) - this.skillScore(a));
+            
+            // Separate star players and regular players
+            const starPlayers = sortedPlayers.filter(p => p.is_star || p.isStar);
+            const regularPlayers = sortedPlayers.filter(p => !(p.is_star || p.isStar));
+            
+            captain1 = starPlayers.length > 0 ? starPlayers[0] : regularPlayers[0];
+            captain2 = starPlayers.length > 1 ? starPlayers[1] : 
+                      (regularPlayers[0] !== captain1 ? regularPlayers[0] : regularPlayers[1]);
+            
+            // Use original balancing
+            balancedResult = this.balanceTeams(availablePlayers, captain1, captain2);
+            
+            console.log(`👑 Captain 1: ${captain1.name} (Skill Score: ${this.skillScore(captain1)})`);
+            console.log(`👑 Captain 2: ${captain2.name} (Skill Score: ${this.skillScore(captain2)})`);
+        }
         
-        // Calculate team strengths
-        const teamAStrength = teamA.reduce((sum, p) => sum + this.skillScore(p), 0);
-        const teamBStrength = teamB.reduce((sum, p) => sum + this.skillScore(p), 0);
+        const { teamA, teamB } = balancedResult;
+        
+        // Calculate team strengths using appropriate method
+        let teamAStrength, teamBStrength;
+        
+        if (useEnhancedBalancing) {
+            const categoryAverages = this.calculateCategoryAverages(availablePlayers);
+            teamAStrength = teamA.reduce((sum, p) => sum + this.getEnhancedPlayerScore(p, categoryAverages), 0);
+            teamBStrength = teamB.reduce((sum, p) => sum + this.getEnhancedPlayerScore(p, categoryAverages), 0);
+        } else {
+            teamAStrength = teamA.reduce((sum, p) => sum + this.skillScore(p), 0);
+            teamBStrength = teamB.reduce((sum, p) => sum + this.skillScore(p), 0);
+        }
+        
+        console.log(`⚡ Team Lightning Strength: ${teamAStrength.toFixed(1)}`);
+        console.log(`🌩️ Team Thunder Strength: ${teamBStrength.toFixed(1)}`);
+        console.log(`📊 Balance Difference: ${Math.abs(teamAStrength - teamBStrength).toFixed(1)}`);
 
         return {
             teamA: {
@@ -181,6 +582,7 @@ class TeamBalancer {
                 captain: captain1.name,
                 players: teamA,
                 strength: teamAStrength,
+                balancingMethod: useEnhancedBalancing ? 'statistics-based' : 'category-based',
                 created: new Date().toISOString()
             },
             teamB: {
@@ -189,6 +591,7 @@ class TeamBalancer {
                 captain: captain2.name,
                 players: teamB,
                 strength: teamBStrength,
+                balancingMethod: useEnhancedBalancing ? 'statistics-based' : 'category-based',
                 created: new Date().toISOString()
             }
         };
@@ -289,7 +692,7 @@ class AnalyticsEngine {
         return {
             topBatsman: this.sortPlayersByStat(activePlayersWithStats, 'runs')[0],
             topBowler: this.sortPlayersByStat(activePlayersWithStats.filter(p => (p.wickets || 0) > 0), 'wickets')[0],
-            topAllrounder: activePlayersWithStats.find(p => p.role === 'allrounder' && (p.runs || 0) > 0 && (p.wickets || 0) > 0),
+            topAllrounder: activePlayersWithStats.find(p => this.teamBalancer.getPlayerRole(p) === 'allrounder' && (p.runs || 0) > 0 && (p.wickets || 0) > 0),
             mostMatches: this.sortPlayersByStat(activePlayersWithStats, 'matches')[0]
         };
     }
@@ -410,10 +813,11 @@ class AnalyticsEngine {
         const bowling = this.calculateBowlingRating(player);
         const fielding = this.calculateFieldingRating(player);
         
-        // Weight based on player role
+        // Weight based on calculated player role
         let weights = { batting: 0.4, bowling: 0.4, fielding: 0.2 };
+        const calculatedRole = this.teamBalancer.getPlayerRole(player);
         
-        switch(player.role) {
+        switch(calculatedRole) {
             case 'batsman':
                 weights = { batting: 0.7, bowling: 0.1, fielding: 0.2 };
                 break;
@@ -422,9 +826,6 @@ class AnalyticsEngine {
                 break;
             case 'allrounder':
                 weights = { batting: 0.45, bowling: 0.45, fielding: 0.1 };
-                break;
-            case 'wicket-keeper':
-                weights = { batting: 0.5, bowling: 0.1, fielding: 0.4 };
                 break;
         }
         
@@ -497,10 +898,8 @@ class AnalyticsEngine {
         const catchesPerMatch = catches / matches;
         const dismissalsPerMatch = (catches + runOuts + stumpings) / matches;
         
-        // Role-based expectations
-        let expectedCatches = 0.3; // General fielder
-        if (player.role === 'wicket-keeper') expectedCatches = 1.5;
-        if (player.role === 'bowler') expectedCatches = 0.2;
+        // Simplified fielding expectations - all players get general fielder expectations
+        let expectedCatches = 0.3; // General fielder baseline
         
         const fieldingScore = Math.min((dismissalsPerMatch / expectedCatches) * 100, 100);
         return fieldingScore || 50; // Default average fielding
@@ -545,8 +944,9 @@ class AnalyticsEngine {
         const battingConsistency = this.calculateBattingConsistency(player);
         const bowlingConsistency = this.calculateBowlingConsistency(player);
         
-        // Weight based on role
-        switch(player.role) {
+        // Weight based on calculated role
+        const calculatedRole = this.teamBalancer.getPlayerRole(player);
+        switch(calculatedRole) {
             case 'batsman':
                 return battingConsistency;
             case 'bowler':
@@ -592,7 +992,7 @@ class AnalyticsEngine {
         // Impact factors
         const runImpact = runs / matches / 30; // 30 runs per match = significant impact
         const wicketImpact = wickets / matches / 2; // 2 wickets per match = significant impact
-        const roleMultiplier = this.getRoleMultiplier(player.role);
+        const roleMultiplier = this.getRoleMultiplier(this.teamBalancer.getPlayerRole(player));
         
         const impact = (runImpact + wicketImpact) * roleMultiplier;
         return Math.min(impact * 100, 100);
@@ -616,7 +1016,7 @@ class AnalyticsEngine {
     calculateRoleEffectiveness(player) {
         // How well player performs in their designated role
         const rating = this.calculatePerformanceRating(player);
-        const roleExpectation = this.getRoleExpectedPerformance(player.role);
+        const roleExpectation = this.getRoleExpectedPerformance(this.teamBalancer.getPlayerRole(player));
         
         return Math.min((rating / roleExpectation) * 100, 100);
     }
@@ -665,8 +1065,7 @@ class AnalyticsEngine {
         const multipliers = {
             'batsman': 1.2,
             'bowler': 1.2,
-            'allrounder': 1.0,
-            'wicket-keeper': 1.1
+            'allrounder': 1.0
         };
         return multipliers[role] || 1.0;
     }
@@ -675,8 +1074,7 @@ class AnalyticsEngine {
         const expectations = {
             'batsman': 60,
             'bowler': 60,
-            'allrounder': 55,
-            'wicket-keeper': 50
+            'allrounder': 55
         };
         return expectations[role] || 50;
     }
@@ -757,15 +1155,15 @@ class AnalyticsEngine {
     analyzeTeamBalance(players) {
         const roleCount = {};
         players.forEach(p => {
-            roleCount[p.role] = (roleCount[p.role] || 0) + 1;
+            const role = this.teamBalancer.getPlayerRole(p);
+            roleCount[role] = (roleCount[role] || 0) + 1;
         });
         
-        // Ideal team composition
+        // Ideal team composition - simplified without wicket-keeper
         const ideal = {
-            batsman: 5,
+            batsman: 6,
             bowler: 4,
-            allrounder: 2,
-            'wicket-keeper': 1
+            allrounder: 2
         };
         
         const balance = {};
@@ -1414,12 +1812,10 @@ class CricketApp {
     }
 
     // Player Management
-    addPlayer(name, skill, role, bowlingType = 'Medium', battingStyle = 'So-So', playerType = 'Regular') {
+    addPlayer(name, bowlingType = 'Medium', battingStyle = 'So-So', playerType = 'Regular') {
         const newPlayer = {
             id: Date.now(),
             name: name,
-            skill: parseInt(skill),
-            role: role,
             bowling: bowlingType,
             batting: battingStyle,
             is_star: playerType === 'Star',
@@ -2310,8 +2706,11 @@ class CricketApp {
         }
         
         // Team balance insights
-        const allrounders = this.players.filter(p => p.role === 'allrounder').length;
-        const specialists = this.players.filter(p => p.role === 'batsman' || p.role === 'bowler').length;
+        const allrounders = this.players.filter(p => this.teamBalancer.getPlayerRole(p) === 'allrounder').length;
+        const specialists = this.players.filter(p => {
+            const role = this.teamBalancer.getPlayerRole(p);
+            return role === 'batsman' || role === 'bowler';
+        }).length;
         
         insights.push({
             title: `⚖️ Squad Balance`,
@@ -2823,12 +3222,35 @@ class CricketApp {
             // Add toss button if we have exactly 2 teams
             if (this.teams.length === 2) {
                 teamList.innerHTML += `
-                    <div style="text-align: center; margin: 30px 0;">
-                        <button class="toss-btn" onclick="startToss()">
+                    <div style="text-align: center; margin: 30px 0;" id="toss-button-container">
+                        <button id="main-toss-btn" class="toss-btn" style="touch-action: manipulation;">
                             🎯 TOSS
                         </button>
                     </div>
                 `;
+                
+                // Add mobile-friendly event listeners after DOM is ready
+                setTimeout(() => {
+                    const tossBtn = document.getElementById('main-toss-btn');
+                    if (tossBtn) {
+                        console.log('Adding toss button event listeners');
+                        
+                        // Remove any existing onclick attribute
+                        tossBtn.removeAttribute('onclick');
+                        
+                        // Add both click and touchend events for better mobile support
+                        ['click', 'touchend'].forEach(eventType => {
+                            tossBtn.addEventListener(eventType, (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('Toss button triggered via:', eventType);
+                                startToss();
+                            }, { passive: false });
+                        });
+                    } else {
+                        console.error('❌ Could not find toss button to add event listeners');
+                    }
+                }, 100);
             }
         }
         
@@ -7973,16 +8395,16 @@ class CricketApp {
                     <div class="player-profile">
                         <div class="profile-info">
                             <div class="info-item">
-                                <span class="label">Role:</span>
-                                <span class="value">${player.role}</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="label">Skill Level:</span>
-                                <span class="value">${player.skill}/10</span>
-                            </div>
-                            <div class="info-item">
                                 <span class="label">Matches Played:</span>
                                 <span class="value">${player.matches || 0}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Batting Style:</span>
+                                <span class="value">${player.batting}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Bowling Type:</span>
+                                <span class="value">${player.bowling}</span>
                             </div>
                         </div>
                         
@@ -8786,13 +9208,11 @@ function addPlayer(event) {
     event.preventDefault();
     
     const name = document.getElementById('playerName').value;
-    const skill = document.getElementById('playerSkill').value;
-    const role = document.getElementById('playerRole').value;
     const bowlingType = document.getElementById('bowlingType').value;
     const battingStyle = document.getElementById('battingStyle').value;
     const playerType = document.getElementById('playerType').value;
     
-    app.addPlayer(name, skill, role, bowlingType, battingStyle, playerType);
+    app.addPlayer(name, bowlingType, battingStyle, playerType);
     
     // Reset form and close modal
     event.target.reset();
@@ -10169,89 +10589,145 @@ Example workflow:
 
 // Toss Functionality - Inline Display
 function startToss() {
-    const teams = getCurrentTeams();
-    if (teams.length !== 2) {
-        showMessage('Need exactly 2 teams for toss!', 'error');
-        return;
-    }
-
-    // Find the toss button container and create inline toss display
-    const tossButton = document.querySelector('.toss-btn');
-    const tossContainer = tossButton.parentElement;
+    console.log('🎯 startToss() called');
     
-    // Remove existing toss result if any
-    const existingTossResult = document.getElementById('toss-result-container');
-    if (existingTossResult) {
-        existingTossResult.remove();
-    }
+    try {
+        const teams = getCurrentTeams();
+        console.log('Teams found:', teams.length);
+        
+        if (teams.length !== 2) {
+            console.log('❌ Not exactly 2 teams');
+            showMessage('Need exactly 2 teams for toss!', 'error');
+            return;
+        }
 
-    // Create inline toss display similar to team box
-    const tossResultContainer = document.createElement('div');
-    tossResultContainer.id = 'toss-result-container';
-    tossResultContainer.className = 'simple-team-box';
-    tossResultContainer.style.marginTop = '20px';
-    tossResultContainer.innerHTML = `
-        <div style="text-align: center;">
-            <h3 style="color: #ff6b35; margin-bottom: 20px; font-size: 1.3em;">🪙 Toss Time!</h3>
-            <div id="coin-animation" style="font-size: 80px; margin: 20px 0; transition: all 0.5s ease;">🪙</div>
-            <div id="toss-status" style="font-size: 1.1em; margin: 15px 0; color: #fff;">Flipping coin...</div>
-            <div id="toss-result" style="display: none;">
-                <h4 id="winning-team" style="color: #ff6b35; margin: 15px 0; font-size: 1.2em;"></h4>
-                <p style="margin: 15px 0; color: #fff;">Choose your option:</p>
-                <div style="display: flex; gap: 15px; justify-content: center; margin: 20px 0;">
-                    <button id="bat-first" class="choice-btn" style="background: #22c55e; border: none; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">🏏 Bat First</button>
-                    <button id="bowl-first" class="choice-btn" style="background: #3b82f6; border: none; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">⚾ Bowl First</button>
-                </div>
-                <div style="margin-top: 15px;">
-                    <button onclick="backToToss()" style="background: #6b7280; border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">
-                        ← Back to Teams
-                    </button>
+        // Find the toss button container and create inline toss display
+        const tossButton = document.getElementById('main-toss-btn') || document.querySelector('.toss-btn');
+        console.log('Toss button found:', !!tossButton);
+        
+        if (!tossButton) {
+            console.error('❌ Toss button not found!');
+            showMessage('Toss button not found!', 'error');
+            return;
+        }
+        
+        const tossContainer = tossButton.parentElement;
+        console.log('Toss container found:', !!tossContainer);
+        
+        // Remove existing toss result if any
+        const existingTossResult = document.getElementById('toss-result-container');
+        if (existingTossResult) {
+            existingTossResult.remove();
+            console.log('Removed existing toss result');
+        }
+
+        // Create inline toss display similar to team box
+        const tossResultContainer = document.createElement('div');
+        tossResultContainer.id = 'toss-result-container';
+        tossResultContainer.className = 'simple-team-box';
+        tossResultContainer.style.marginTop = '20px';
+        tossResultContainer.innerHTML = `
+            <div style="text-align: center;">
+                <h3 style="color: #ff6b35; margin-bottom: 20px; font-size: 1.3em;">🪙 Toss Time!</h3>
+                <div id="coin-animation" style="font-size: 80px; margin: 20px 0; transition: all 0.5s ease;">🪙</div>
+                <div id="toss-status" style="font-size: 1.1em; margin: 15px 0; color: #fff;">Flipping coin...</div>
+                <div id="toss-result" style="display: none;">
+                    <h4 id="winning-team" style="color: #ff6b35; margin: 15px 0; font-size: 1.2em;"></h4>
+                    <p style="margin: 15px 0; color: #fff;">Choose your option:</p>
+                    <div style="display: flex; gap: 15px; justify-content: center; margin: 20px 0;">
+                        <button id="bat-first" class="choice-btn" style="background: #22c55e; border: none; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; touch-action: manipulation;">🏏 Bat First</button>
+                        <button id="bowl-first" class="choice-btn" style="background: #3b82f6; border: none; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; touch-action: manipulation;">⚾ Bowl First</button>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <button id="back-to-toss" style="background: #6b7280; border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em; touch-action: manipulation;">
+                            ← Back to Teams
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
+        `;
 
-    // Insert after toss button container
-    tossContainer.parentNode.insertBefore(tossResultContainer, tossContainer.nextSibling);
+        // Insert after toss button container
+        tossContainer.parentNode.insertBefore(tossResultContainer, tossContainer.nextSibling);
+        console.log('Toss result container inserted');
 
-    // Hide the toss button
-    tossButton.style.display = 'none';
+        // Hide the toss button
+        tossButton.style.display = 'none';
 
-    // Animate coin flip
-    const coinAnimation = document.getElementById('coin-animation');
-    const tossStatus = document.getElementById('toss-status');
-    const tossResult = document.getElementById('toss-result');
-    const winningTeamEl = document.getElementById('winning-team');
-
-    // Spin the coin
-    let rotations = 0;
-    const spinInterval = setInterval(() => {
-        rotations += 180;
-        coinAnimation.style.transform = `rotateY(${rotations}deg)`;
-    }, 100);
-
-    // After 2 seconds, show result
-    setTimeout(() => {
-        clearInterval(spinInterval);
+        // Animate coin flip
+        const coinAnimation = document.getElementById('coin-animation');
+        const tossStatus = document.getElementById('toss-status');
+        const tossResult = document.getElementById('toss-result');
         
-        // Randomly select winning team
-        const winningTeam = teams[Math.floor(Math.random() * 2)];
+        console.log('Starting coin animation');
         
-        tossStatus.style.display = 'none';
-        winningTeamEl.textContent = `${winningTeam.name} wins the toss!`;
-        tossResult.style.display = 'block';
+        // Spin the coin
+        let rotations = 0;
+        const spinInterval = setInterval(() => {
+            rotations += 180;
+            coinAnimation.style.transform = `rotateY(${rotations}deg)`;
+        }, 100);
 
-        // Handle choice buttons with highlighting
-        document.getElementById('bat-first').onclick = () => {
-            highlightChoice('bat-first');
-            startMatchWithChoice(winningTeam, 'bat');
-        };
+        // After 2 seconds, show result
+        setTimeout(() => {
+            console.log('Showing toss result');
+            clearInterval(spinInterval);
+            
+            // Randomly select winning team
+            const winningTeam = teams[Math.floor(Math.random() * 2)];
+            console.log('Winning team:', winningTeam.name);
+            
+            tossStatus.style.display = 'none';
+            document.getElementById('winning-team').textContent = `${winningTeam.name} wins the toss!`;
+            tossResult.style.display = 'block';
 
-        document.getElementById('bowl-first').onclick = () => {
-            highlightChoice('bowl-first');
-            startMatchWithChoice(winningTeam, 'bowl');
-        };
-    }, 2000);
+            // Add event listeners instead of inline onclick (better for mobile)
+            const batButton = document.getElementById('bat-first');
+            const bowlButton = document.getElementById('bowl-first');
+            const backButton = document.getElementById('back-to-toss');
+            
+            // Remove any existing event listeners
+            batButton.replaceWith(batButton.cloneNode(true));
+            bowlButton.replaceWith(bowlButton.cloneNode(true));
+            backButton.replaceWith(backButton.cloneNode(true));
+            
+            // Get fresh references after cloning
+            const newBatButton = document.getElementById('bat-first');
+            const newBowlButton = document.getElementById('bowl-first');
+            const newBackButton = document.getElementById('back-to-toss');
+
+            // Add mobile-friendly event listeners
+            ['click', 'touchend'].forEach(eventType => {
+                newBatButton.addEventListener(eventType, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Bat first chosen');
+                    highlightChoice('bat-first');
+                    startMatchWithChoice(winningTeam, 'bat');
+                }, { passive: false });
+
+                newBowlButton.addEventListener(eventType, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Bowl first chosen');
+                    highlightChoice('bowl-first');
+                    startMatchWithChoice(winningTeam, 'bowl');
+                }, { passive: false });
+
+                newBackButton.addEventListener(eventType, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Back to toss chosen');
+                    backToToss();
+                }, { passive: false });
+            });
+            
+        }, 2000);
+        
+    } catch (error) {
+        console.error('❌ Error in startToss():', error);
+        showMessage('Error starting toss: ' + error.message, 'error');
+    }
 }
 
 function highlightChoice(chosenButtonId) {
@@ -10296,8 +10772,33 @@ function startMatchWithChoice(winningTeam, choice) {
 }
 
 function getCurrentTeams() {
-    const teamsData = localStorage.getItem('cricket-teams');
-    return teamsData ? JSON.parse(teamsData) : [];
+    try {
+        // First try localStorage
+        const teamsData = localStorage.getItem('cricket-teams');
+        if (teamsData) {
+            const teams = JSON.parse(teamsData);
+            console.log('Teams from localStorage:', teams.length);
+            return teams;
+        }
+        
+        // Fallback to app teams if available
+        if (window.cricketApp && window.cricketApp.teams) {
+            console.log('Teams from app:', window.cricketApp.teams.length);
+            return window.cricketApp.teams;
+        }
+        
+        // Last resort - try app global
+        if (window.app && window.app.teams) {
+            console.log('Teams from global app:', window.app.teams.length);
+            return window.app.teams;
+        }
+        
+        console.log('No teams found anywhere');
+        return [];
+    } catch (error) {
+        console.error('Error getting current teams:', error);
+        return [];
+    }
 }
 
 // Player Selection Functions
@@ -11752,8 +12253,14 @@ function quickMatchSetup(overs = 5) {
         console.log(`Selected ${selectedPlayers.length} players (${playersPerTeam} per team):`, 
                    selectedPlayers.map(p => p.name));
 
-        // Step 2: Generate balanced teams using the exact same method as normal flow
+        // Step 2: Generate balanced teams using enhanced statistics-based method
         console.log('Step 2: Generating balanced teams...');
+        console.log('📊 Player Statistics Summary:');
+        selectedPlayers.forEach(player => {
+            const matches = player.matches || 0;
+            const hasData = matches >= 2;
+            console.log(`  ${player.name}: ${matches} matches played ${hasData ? '✅' : '❌'} (${hasData ? 'stats-based' : 'category-based'})`);
+        });
         
         const balancedTeams = window.cricketApp.teamBalancer.generateBalancedTeams(selectedPlayers);
         console.log('TeamBalancer result:', balancedTeams);
@@ -11860,13 +12367,27 @@ function quickMatchSetup(overs = 5) {
             showPage('scoring');
         }
         
-        // Step 9: Success notification (like normal flow)
+        // Step 9: Success notification with balancing method info
         const battingTeamName = window.cricketApp.teams[battingFirst - 1].name;
         const bowlingTeamName = window.cricketApp.teams[bowlingFirst - 1].name;
         
+        // Get balancing method used
+        const balancingMethod = balancedTeams.teamA.balancingMethod || 'category-based';
+        const balancingEmoji = balancingMethod === 'statistics-based' ? '📊' : '🎯';
+        const balancingText = balancingMethod === 'statistics-based' ? 
+            'Teams balanced using performance statistics!' : 
+            'Teams balanced using player categories!';
+        
         window.cricketApp.showNotification(
-            `🚀 Quick Match Ready! ${battingTeamName} batting vs ${bowlingTeamName}. ${overs} overs. Play ball!`
+            `🚀 Quick Match Ready! ${battingTeamName} vs ${bowlingTeamName} (${overs} overs)`
         );
+        
+        // Show balancing method in a follow-up notification
+        setTimeout(() => {
+            window.cricketApp.showNotification(
+                `${balancingEmoji} ${balancingText}`
+            );
+        }, 2000);
 
         console.log('🎯 Quick Match Setup completed successfully!');
         console.log('Match state:', {

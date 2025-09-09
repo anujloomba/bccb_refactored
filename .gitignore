@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Capacitor
+android/
+ios/
+
+# Build outputs
+www/
+dist/
+build/
+
+# Debug and test files
+*.log
+debug-*.html
+test-*.html
+*-test.html
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Cache
+.cache/
+
+# Temporary files
+*.tmp
+*.temp
