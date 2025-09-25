@@ -2335,6 +2335,155 @@
             margin: 15px 0;
         }
 
+        /* Group Login Styles */
+        .login-section {
+            margin: 15px 0;
+        }
+
+        /* Data Sync Styles */
+        .sync-status {
+            background: rgba(33, 150, 243, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .sync-icon {
+            font-size: 20px;
+            margin-right: 10px;
+            animation: none;
+        }
+
+        .sync-icon.syncing {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .sync-text {
+            font-weight: bold;
+            color: #2196f3;
+        }
+
+        .sync-info {
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid #4caf50;
+        }
+
+        .current-user-info {
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4caf50;
+        }
+
+        .user-status {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .status-label {
+            font-weight: bold;
+            margin-right: 10px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .group-name {
+            background: rgba(76, 175, 80, 0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            color: #4caf50;
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .auth-form {
+            background: rgba(33, 150, 243, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #2196f3;
+        }
+
+        .auth-form h4 {
+            margin-bottom: 20px;
+            color: #2196f3;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #2196f3;
+            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .login-info {
+            background: rgba(255, 193, 7, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            border-left: 4px solid #ffc107;
+        }
+
+        @media (max-width: 480px) {
+            .user-actions, .form-actions {
+                flex-direction: column;
+            }
+            
+            .user-actions button, .form-actions button {
+                width: 100%;
+            }
+        }
+
         .performer-item {
             display: flex;
             align-items: center;
@@ -3439,7 +3588,7 @@
             </div>
 
             <div class="glass-card">
-                <button class="btn btn-primary" onclick="window.cricketApp.showAddPlayerModal()">
+                <button class="btn btn-primary" onclick="console.log('🔴 Add Player button clicked'); if (window.cricketApp) { window.cricketApp.showAddPlayerModal(); } else { console.error('❌ window.cricketApp not available'); showAddPlayerModal(); }">
                     ➕ Add New Player
                 </button>
             </div>
@@ -3615,24 +3764,117 @@
                 <div class="page-subtitle">App configuration</div>
             </div>
 
+            <!-- Group Login Section -->
+            <div class="glass-card">
+                <h3>👥 Group Login</h3>
+                <div class="login-section" id="loginSectionContent" style="display: none;">
+                    <div id="currentUserInfo" class="current-user-info">
+                        <div class="user-status">
+                            <div class="status-label">Current Group:</div>
+                            <div class="group-name" id="currentGroupName">guest</div>
+                        </div>
+                        <div class="user-actions">
+                            <button class="btn btn-secondary" onclick="showLoginForm()" id="switchGroupBtn">
+                                🔄 Switch Group
+                            </button>
+                            <button class="btn btn-success" onclick="showCreateGroupForm()" id="createGroupBtn">
+                                ➕ Create New Group
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Login Form -->
+                    <div id="loginForm" class="auth-form" style="display: none;">
+                        <h4>🔐 Login to Group</h4>
+                        <div class="form-group">
+                            <label for="loginGroupName">Group Name:</label>
+                            <input type="text" id="loginGroupName" placeholder="Enter group name" maxlength="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPassword">Password:</label>
+                            <input type="password" id="loginPassword" placeholder="Enter password (leave empty for guest)">
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" onclick="loginToGroup()">
+                                🔓 Login
+                            </button>
+                            <button class="btn btn-secondary" onclick="hideLoginForm()">
+                                ❌ Cancel
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Create Group Form -->
+                    <div id="createGroupForm" class="auth-form" style="display: none;">
+                        <h4>➕ Create New Group</h4>
+                        <div class="form-group">
+                            <label for="newGroupName">Group Name:</label>
+                            <input type="text" id="newGroupName" placeholder="Enter unique group name" maxlength="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="newGroupPassword">Password (Optional):</label>
+                            <input type="password" id="newGroupPassword" placeholder="Leave empty for no password">
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmGroupPassword">Confirm Password:</label>
+                            <input type="password" id="confirmGroupPassword" placeholder="Re-enter password">
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-success" onclick="createNewGroup()">
+                                ✅ Create Group
+                            </button>
+                            <button class="btn btn-secondary" onclick="hideCreateGroupForm()">
+                                ❌ Cancel
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="login-info">
+                        <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
+                            <strong style="color: #4caf50;">👥 Groups:</strong> Create or join a group to keep your cricket data separate. Each group has its own players, matches, and statistics.
+                            <br><br>
+                            <strong style="color: #2196f3;">🔐 Default:</strong> Everyone starts in the "guest" group with no password. Create your own group to secure your data.
+                            <br><br>
+                            <strong style="color: #ff9800;">⚠️ Data Isolation:</strong> Switching groups will show only that group's data. Your previous group's data remains safe and separate.
+                        </p>
+                    </div>
+                </div>
+                <div class="tile-click-hint" onclick="toggleTile('loginSectionContent', this)" style="cursor: pointer; padding: 10px; text-align: center; color: #666;">
+                    Click to expand
+                </div>
+            </div>
 
             <div class="glass-card">
-                <h3>�💾 Data Management</h3>
+                <h3>☁️ Data Synchronization</h3>
                 <div class="data-management" id="dataManagementContent" style="display: none;">
-                    <button class="btn btn-primary" onclick="exportCricketData()">
-                        📤 Export Data
-                    </button>
-                    <button class="btn btn-success" onclick="importCricketData()">
-                        📥 Import Data
+                    <div class="sync-status" id="syncStatus" style="margin-bottom: 15px;">
+                        <div class="status-indicator">
+                            <span class="sync-icon" id="syncIcon">🔄</span>
+                            <span class="sync-text" id="syncText">Ready to sync</span>
+                        </div>
+                        <div class="last-sync" id="lastSyncTime" style="font-size: 0.9em; opacity: 0.7;">
+                            Last sync: Never
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="syncWithD1()" id="syncButton">
+                        ☁️ Sync with Database
                     </button>
                     <button class="btn btn-danger" onclick="confirmWipeAllData()" style="margin-top: 15px; background: #dc3545; border-color: #dc3545;">
-                        🗑️ Wipe All Data
+                        🗑️ Wipe Local Data
                     </button>
-                    <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
-                        Export creates a backup file in Downloads. Import automatically looks for cricket backup files (cricket-data-backup-*.json).
-                        <br><br>
-                        <strong style="color: #ff6b6b;">⚠️ Wipe All Data:</strong> Permanently deletes all players, matches, teams, and settings. A backup will be created before deletion.
-                    </p>
+                    
+                    <div class="sync-info" style="margin-top: 15px;">
+                        <p style="font-size: 0.9em; opacity: 0.8;">
+                            <strong style="color: #2196f3;">☁️ Auto-Sync:</strong> Data automatically syncs to the cloud when you edit players, save teams, or finish matches.
+                            <br><br>
+                            <strong style="color: #4caf50;">📱 Multi-Device:</strong> Login to your group on any device to access your latest data.
+                            <br><br>
+                            <strong style="color: #ff9800;">🔄 Manual Sync:</strong> Use "Sync with Database" to manually download the latest data from the cloud.
+                            <br><br>
+                            <strong style="color: #ff6b6b;">⚠️ Wipe Local Data:</strong> Removes all local data. Next login will download fresh data from the cloud.
+                        </p>
+                    </div>
                 </div>
                 <div class="tile-click-hint" onclick="toggleTile('dataManagementContent', this)" style="cursor: pointer; padding: 10px; text-align: center; color: #666;">
                     Click to expand
@@ -3797,26 +4039,15 @@
             </div>
             <div style="padding: 20px;">
                 <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <strong style="color: #856404;">⚠️ WARNING: This action cannot be undone!</strong>
+                    <strong style="color: #856404;">⚠️ WARNING: THIS CANNOT BE RECOVERED!</strong>
                 </div>
-                <p style="margin-bottom: 15px;">This will permanently delete:</p>
-                <ul style="margin-bottom: 20px; padding-left: 20px;">
-                    <li>All players and their statistics</li>
-                    <li>All match history and scores</li>
-                    <li>All teams and team configurations</li>
-                    <li>All app settings and preferences</li>
-                    <li>Current match in progress (if any)</li>
-                </ul>
-                <p style="margin-bottom: 20px; color: #28a745;">
-                    <strong>✅ A complete backup will be created</strong> in your Downloads folder before deletion.
+                <p style="margin-bottom: 15px; font-size: 16px; line-height: 1.4;">
+                    You are deleting your entire group's player data and match records.
                 </p>
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <p style="margin: 0; font-size: 14px; color: #6c757d;">
-                        The backup file will be named: <code>cricket-complete-backup-[timestamp].json</code>
-                        <br>You can import this file later to restore your data.
-                    </p>
-                </div>
-                <p style="font-weight: bold; color: #dc3545;">Are you absolutely sure you want to wipe all data?</p>
+                <p style="margin-bottom: 20px; color: #dc3545;">
+                    <strong>❌ No backup will be created</strong> before deletion.
+                </p>
+                <p style="font-weight: bold; color: #dc3545; font-size: 16px;">Are you sure you want to wipe this?</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn" onclick="closeModal('wipeDataModal')">Cancel</button>
@@ -3827,9 +4058,61 @@
         </div>
     </div>
 
-    <script src="import-data.js"></script>
     <script src="data-manager.js"></script>
+    <!-- Default data script removed for fresh start -->
+    <!-- <script src="cricket_stats.js"></script> -->
+    <script src="data-loader.js"></script>
     <script src="app.js"></script>
+    
+    <!-- Emergency function definitions in case app.js fails to load -->
+    <script>
+        // Ensure critical functions are available
+        if (typeof window.showPage === 'undefined') {
+            console.log('⚠️ showPage not found, creating emergency fallback');
+            window.showPage = function(pageId) {
+                console.log('🔧 Emergency showPage called for:', pageId);
+                
+                // Hide all pages
+                const pages = document.querySelectorAll('.page');
+                pages.forEach(page => {
+                    page.style.display = 'none';
+                    page.classList.remove('active');
+                });
+                
+                // Show target page
+                const targetPage = document.getElementById(pageId);
+                if (targetPage) {
+                    targetPage.style.display = 'block';
+                    targetPage.classList.add('active');
+                    console.log('✅ Emergency: Activated page:', pageId);
+                } else {
+                    console.log('❌ Emergency: Page not found:', pageId);
+                }
+                
+                // Update navigation
+                const navItems = document.querySelectorAll('.nav-item');
+                navItems.forEach(item => item.classList.remove('active'));
+                
+                const activeNav = document.querySelector(`[onclick*="${pageId}"]`);
+                if (activeNav) {
+                    activeNav.classList.add('active');
+                }
+            };
+        }
+        
+        if (typeof window.closeModal === 'undefined') {
+            window.closeModal = function(modalId) {
+                console.log('🔧 Emergency closeModal called for:', modalId);
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.classList.remove('active');
+                    modal.style.display = 'none';
+                }
+            };
+        }
+        
+        console.log('🚑 Emergency functions loaded');
+    </script>
     
     <script>
     // Immediately available debug functions - no waiting for app load
@@ -3931,6 +4214,105 @@
     console.log('💡 Debug commands available:');
     console.log('  - checkDebugFunctions() - Check and setup debug system');
     console.log('  - manualDebugBowlerSelection() - Manual debug of bowler selection');
+    
+    // Global toggleTile function - ensure it's available immediately
+    window.toggleTile = function(contentId, hintElement) {
+        console.log('🔧 toggleTile called for:', contentId);
+        const content = document.getElementById(contentId);
+        if (!content) {
+            console.error('❌ Content element not found:', contentId);
+            return;
+        }
+        
+        if (content.style.display === 'none' || content.style.display === '') {
+            content.style.display = 'block';
+            if (hintElement) hintElement.style.display = 'none';
+            console.log('✅ Expanded:', contentId);
+        } else {
+            content.style.display = 'none';
+            if (hintElement) hintElement.style.display = 'block';
+            console.log('✅ Collapsed:', contentId);
+        }
+    };
+
+    // Wipe data confirmation function
+    window.confirmWipeAllData = function() {
+        console.log('🔧 confirmWipeAllData called - showing confirmation modal');
+        
+        // Show the confirmation modal instead of directly wiping
+        const modal = document.getElementById('wipeDataModal');
+        if (modal) {
+            modal.classList.add('active');
+            modal.style.display = 'block';
+            console.log('✅ Wipe confirmation modal shown');
+        } else {
+            console.log('❌ Wipe confirmation modal not found');
+        }
+    };
+
+    // Execute wipe after confirmation
+    window.executeWipeAllData = function() {
+        console.log('🗑️ executeWipeAllData called after confirmation');
+        
+        if (window.cricketApp && window.cricketApp.executeCompleteDataWipe) {
+            console.log('🗑️ Calling executeCompleteDataWipe...');
+            window.cricketApp.executeCompleteDataWipe().then(filename => {
+                console.log('✅ Wipe completed successfully:', filename);
+                closeModal('wipeDataModal');
+            }).catch(error => {
+                console.error('❌ Wipe failed:', error);
+                closeModal('wipeDataModal');
+            });
+        } else {
+            console.log('❌ Cricket app or executeCompleteDataWipe method not available');
+            console.log('window.cricketApp exists:', !!window.cricketApp);
+            if (window.cricketApp) {
+                console.log('Available methods:', Object.getOwnPropertyNames(window.cricketApp));
+            }
+            closeModal('wipeDataModal');
+        }
+    };
+
+    // Modal close functionality
+    window.closeModal = function(modalId) {
+        console.log('🔧 closeModal called for:', modalId);
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+            modal.style.display = 'none';
+            console.log('✅ Modal closed:', modalId);
+        } else {
+            console.error('❌ Modal not found:', modalId);
+        }
+    };
+
+    // Show notification function
+    window.showNotification = function(message) {
+        console.log('📢 Notification:', message);
+        if (window.cricketApp && window.cricketApp.showNotification) {
+            window.cricketApp.showNotification(message);
+        } else {
+            alert(message);
+        }
+    };
+
+    // Global executeWipeAllData function - ensure it's available
+    window.executeWipeAllData = function() {
+        console.log('🗑️ WIPE DEBUG: executeWipeAllData called');
+        if (window.cricketApp && window.cricketApp.wipeAllData) {
+            window.cricketApp.wipeAllData();
+        } else {
+            console.error('❌ WIPE DEBUG: wipeAllData method not available');
+            if (typeof closeModal === 'function') {
+                closeModal('wipeDataModal');
+            }
+            if (typeof showNotification === 'function') {
+                showNotification('❌ Wipe functionality not available');
+            }
+        }
+    };
+
+    console.log('✅ Global functions defined: toggleTile, executeWipeAllData');
     </script>
     <script>
         // Enhanced Data Management Functions for JSON backup/restore
@@ -4201,38 +4583,85 @@
         
         function executeWipeAllData() {
             try {
-                console.log('🗑️ Starting complete data wipe process...');
+                console.log('🗑️ WIPE DEBUG: executeWipeAllData called');
                 
-                // Step 1: Create backup before wiping
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `cricket-complete-backup-${timestamp}.json`;
-                
-                // Collect all data for backup
-                const completeBackup = {
-                    metadata: {
-                        backupType: 'complete-wipe-backup',
-                        createdAt: new Date().toISOString(),
-                        reason: 'Created before complete data wipe',
-                        appVersion: '1.0.0'
-                    },
-                    players: [],
-                    matches: [],
-                    teams: [],
-                    settings: {},
-                    currentMatch: null,
-                    localStorage: {}
-                };
-                
-                // Get app data if available
-                if (window.app || window.cricketApp) {
-                    const app = window.app || window.cricketApp;
-                    completeBackup.players = app.players || [];
-                    completeBackup.matches = app.matches || [];
-                    completeBackup.teams = app.teams || [];
-                    completeBackup.currentMatch = app.currentMatch || null;
+                // Check if cricket app is available
+                if (window.cricketApp && window.cricketApp.executeCompleteDataWipe) {
+                    console.log('🗑️ WIPE DEBUG: Using cricketApp.executeCompleteDataWipe');
+                    
+                    window.cricketApp.executeCompleteDataWipe().then(filename => {
+                        console.log('✅ WIPE DEBUG: Wipe completed successfully, filename:', filename);
+                        closeModal('wipeDataModal');
+                        
+                        // Reinitialize app after 2 seconds for clean state (no reload to avoid Android issues)
+                        setTimeout(() => {
+                            console.log('🔄 WIPE DEBUG: Reinitializing app for clean state...');
+                            
+                            // Initialize with default data instead of reloading
+                            if (window.initializeWithDefaultData) {
+                                window.initializeWithDefaultData();
+                            }
+                            
+                            // Navigate to home page
+                            if (window.showPage) {
+                                window.showPage('players');
+                            } else if (window.emergencyShowPage) {
+                                window.emergencyShowPage('players');
+                            }
+                            
+                            console.log('✅ WIPE DEBUG: App reinitialized successfully');
+                        }, 2000);
+                        
+                    }).catch(error => {
+                        console.error('❌ WIPE DEBUG: Error in executeCompleteDataWipe:', error);
+                        closeModal('wipeDataModal');
+                        showNotification('❌ Wipe failed: ' + error.message);
+                    });
+                    
+                } else {
+                    console.log('⚠️ WIPE DEBUG: cricketApp not available, using fallback method');
+                    
+                    // Fallback: Clear localStorage and reload
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const filename = `cricket-fallback-backup-${timestamp}.json`;
+                    
+                    localStorage.clear();
+                    console.log('🗑️ WIPE DEBUG: localStorage cleared via fallback');
+                    
+                    closeModal('wipeDataModal');
+                    showNotification(`✅ Data wiped (fallback)! Backup: ${filename}`);
+                    
+                    setTimeout(() => location.reload(true), 2000);
                 }
                 
-                // Get all localStorage data
+            } catch (error) {
+                console.error('❌ WIPE DEBUG: Error in executeWipeAllData:', error);
+                closeModal('wipeDataModal');
+                showNotification('❌ Wipe failed: ' + error.message);
+            }
+        }
+
+        // Simple debug function available immediately - fixed reference error
+        function updateCompleteBackup() {
+            try {
+                if (window.app || window.cricketApp) {
+                    const app = window.app || window.cricketApp;
+                    const completeBackup = {
+                        players: app.players || [],
+                        matches: app.matches || [],
+                        teams: app.teams || [],
+                        currentMatch: app.currentMatch || null
+                    };
+                    console.log('Debug backup data updated:', completeBackup);
+                }
+            } catch (error) {
+                console.warn('Debug backup update failed:', error.message);
+            }
+        }
+                
+        /*
+        // ORPHANED BACKUP CODE - TEMPORARILY DISABLED TO FIX REFERENCE ERRORS
+        // Get all localStorage data
                 try {
                     completeBackup.localStorage = {
                         'cricket-stats': localStorage.getItem('cricket-stats'),
@@ -4257,6 +4686,7 @@
                 // Step 2: Download the backup file
                 const jsonStr = JSON.stringify(completeBackup, null, 2);
                 const blob = new Blob([jsonStr], { type: 'application/json' });
+        */
                 const url = URL.createObjectURL(blob);
                 
                 const a = document.createElement('a');
@@ -4283,99 +4713,6 @@
                     'cricket-metadata'
                 ];
                 
-                let removedCount = 0;
-                keysToRemove.forEach(key => {
-                    if (localStorage.getItem(key) !== null) {
-                        localStorage.removeItem(key);
-                        removedCount++;
-                        console.log('🗑️ Removed localStorage key:', key);
-                    }
-                });
-                
-                // Method 2: Scan for any remaining cricket-related keys and remove them
-                const allKeys = Object.keys(localStorage);
-                const cricketKeys = allKeys.filter(key => 
-                    key.toLowerCase().includes('cricket') || 
-                    key.toLowerCase().includes('match') ||
-                    key.toLowerCase().includes('player') ||
-                    key.toLowerCase().includes('team')
-                );
-                
-                cricketKeys.forEach(key => {
-                    if (!keysToRemove.includes(key)) {
-                        localStorage.removeItem(key);
-                        removedCount++;
-                        console.log('🗑️ Removed additional cricket key:', key);
-                    }
-                });
-                
-                console.log(`🗑️ Total localStorage keys removed: ${removedCount}`);
-                
-                // Step 4: Verify localStorage is actually cleared
-                const remainingKeys = Object.keys(localStorage).filter(key => 
-                    key.toLowerCase().includes('cricket') || 
-                    key.toLowerCase().includes('match') ||
-                    key.toLowerCase().includes('player') ||
-                    key.toLowerCase().includes('team')
-                );
-                
-                if (remainingKeys.length > 0) {
-                    console.warn('⚠️ Some keys still remain:', remainingKeys);
-                    // Force remove any stubborn keys
-                    remainingKeys.forEach(key => {
-                        try {
-                            localStorage.removeItem(key);
-                            console.log('🔧 Force removed:', key);
-                        } catch (e) {
-                            console.error('❌ Failed to remove:', key, e);
-                        }
-                    });
-                } else {
-                    console.log('✅ localStorage verification: All cricket data cleared');
-                }
-                
-                // Step 6: Reset app data if app is available
-                if (window.app || window.cricketApp) {
-                    const app = window.app || window.cricketApp;
-                    app.players = [];
-                    app.matches = [];
-                    app.teams = [];
-                    app.currentMatch = null;
-                    
-                    // Reset UI
-                    if (app.loadPlayers) app.loadPlayers();
-                    if (app.updateStats) app.updateStats();
-                    console.log('🔄 App data reset complete');
-                }
-                
-                // Step 7: Clear any other cached data
-                if (typeof window.cricketData !== 'undefined') {
-                    window.cricketData = null;
-                }
-                if (typeof window.allPlayers !== 'undefined') {
-                    window.allPlayers = [];
-                }
-                
-                // Step 8: Close modal and show success message
-                closeModal('wipeDataModal');
-                
-                showNotification(`✅ All data wiped successfully! Backup saved as: ${filename}`);
-                
-                console.log('🎯 Data wipe completed successfully');
-                
-                // Step 9: Reload page after 2 seconds to ensure clean state
-                setTimeout(() => {
-                    console.log('🔄 Reloading page for clean state...');
-                    location.reload(true); // Force reload bypassing cache
-                }, 2000);
-                
-            } catch (error) {
-                console.error('❌ Error during data wipe:', error);
-                showNotification('❌ Error occurred during data wipe. Check console for details.');
-                closeModal('wipeDataModal');
-            }
-        }
-        
         // Simple debug function available immediately
         window.checkDebugFunctions = function() {
             console.log('=== Debug Function Check ===');
@@ -4440,30 +4777,63 @@
 
         // Global function for toggling player selection
         window.togglePlayerSelection = function(labelElement) {
-            console.log('Player clicked:', labelElement);
+            console.log('🔵 Player clicked:', labelElement);
             const checkbox = labelElement.querySelector('input[type="checkbox"]');
             const isSelected = labelElement.classList.contains('selected');
             
-            console.log('Current state:', isSelected ? 'selected' : 'not selected');
+            console.log('🔍 Current state:', isSelected ? 'selected' : 'not selected');
+            console.log('🔍 Checkbox found:', !!checkbox);
             
             if (isSelected) {
                 labelElement.classList.remove('selected');
-                checkbox.checked = false;
+                if (checkbox) checkbox.checked = false;
             } else {
                 labelElement.classList.add('selected');
-                checkbox.checked = true;
+                if (checkbox) checkbox.checked = true;
             }
             
-            updateSelectedPlayerCountInline();
+            console.log('🔍 New state:', labelElement.classList.contains('selected') ? 'selected' : 'not selected');
+            
+            // Force update the count immediately using multiple methods
+            setTimeout(() => {
+                const checkboxes = document.querySelectorAll('input[name="todayPlayers"]:checked');
+                const count = checkboxes.length;
+                const label = document.getElementById('selectedPlayerCount');
+                console.log('🔍 Direct count update - found checkboxes:', count, 'label:', !!label);
+                if (label) {
+                    label.textContent = count.toString();
+                    console.log('✅ Count updated directly to:', count);
+                }
+                
+                // Try calling the cricketApp method too
+                if (window.cricketApp && typeof window.cricketApp.updatePlayerCountDirectly === 'function') {
+                    window.cricketApp.updatePlayerCountDirectly();
+                }
+            }, 10);
+            
+            if (typeof updateSelectedPlayerCountInline === 'function') {
+                updateSelectedPlayerCountInline();
+            } else {
+                console.error('❌ updateSelectedPlayerCountInline function not available yet');
+            }
         };
 
         // Global function to update player count
         window.updateSelectedPlayerCountInline = function() {
+            console.log('🔵 updateSelectedPlayerCountInline called');
             const checkboxes = document.querySelectorAll('input[name="todayPlayers"]:checked');
             const count = checkboxes.length;
+            console.log('🔍 Found checked checkboxes:', count);
+            console.log('🔍 Checkboxes:', checkboxes);
+            
             const label = document.getElementById('selectedPlayerCount');
+            console.log('🔍 Count label element found:', !!label);
+            
             if (label) {
                 label.textContent = count.toString();
+                console.log('✅ Updated count to:', count);
+            } else {
+                console.error('❌ selectedPlayerCount element not found');
             }
         };
 
@@ -4762,7 +5132,7 @@
     })();
 
     // Match History Functions
-    function loadMatchHistory() {
+    async function loadMatchHistory() {
         const historyContainer = document.getElementById('matchHistoryContainer');
         
         if (!historyContainer) {
@@ -4773,6 +5143,75 @@
         // Clear old localStorage data first
         localStorage.removeItem('cricket-stats');
 
+        // Try Android data loader first if available
+        if (window.androidDataLoader) {
+            console.log('📱 Using Android data loader for refresh...');
+            try {
+                const androidData = await window.androidDataLoader.loadData();
+                if (androidData && (androidData.players || androidData.player_data)) {
+                    console.log('✅ Android data loader returned data');
+                    
+                    // Check both possible app references
+                    const appInstance = window.cricketApp || window.app;
+                    
+                    if (appInstance && appInstance.loadDataFromManager) {
+                        console.log('🔄 Calling app.loadDataFromManager()...');
+                        await appInstance.loadDataFromManager();
+                        console.log('✅ Data loaded, refreshing UI...');
+                        
+                        // Refresh UI components
+                        if (appInstance.updateStats) {
+                            appInstance.updateStats();
+                        }
+                        if (appInstance.loadPlayers) {
+                            appInstance.loadPlayers();
+                        }
+                        if (appInstance.loadTeams) {
+                            appInstance.loadTeams();
+                        }
+                        if (appInstance.loadMatchHistory) {
+                            appInstance.loadMatchHistory();
+                        }
+                        
+                        console.log('✅ Data refreshed from Android loader');
+                        return;
+                    } else {
+                        console.log('⚠️ app.loadDataFromManager not available');
+                        console.log('📊 window.cricketApp exists:', !!window.cricketApp);
+                        console.log('📊 window.app exists:', !!window.app);
+                        
+                        // Try alternative approach - direct data processing
+                        const appInstance = window.cricketApp || window.app;
+                        if (appInstance) {
+                            console.log('🔄 Using alternative data refresh approach...');
+                            
+                            // Force data reload through available methods
+                            if (appInstance.refreshFromLocalStorage) {
+                                console.log('🔄 Calling refreshFromLocalStorage...');
+                                appInstance.refreshFromLocalStorage();
+                            } else if (appInstance.loadPlayers) {
+                                console.log('🔄 Calling loadPlayers...');
+                                appInstance.loadPlayers();
+                            }
+                            
+                            if (appInstance.updateStats) {
+                                appInstance.updateStats();
+                            }
+                            
+                            console.log('✅ Alternative data refresh completed');
+                            return;
+                        }
+                        
+                        console.log('❌ No app instance available for data refresh');
+                    }
+                }
+            } catch (error) {
+                console.log('⚠️ Android data loader failed:', error.message);
+            }
+        }
+        
+        // Fallback to fetch for desktop/web
+        console.log('🌐 Falling back to fetch for refresh...');
         // Load directly from cricket_stats.json with cache busting
         fetch('./cricket_stats.json?' + Math.random(), {
             cache: 'no-cache',
@@ -5380,6 +5819,170 @@
     window.displayScorecard = displayScorecard;
     window.closeScorecard = closeScorecard;
     window.deleteMatch = deleteMatch;
+
+    // Group Authentication Functions
+    function showLoginForm() {
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('createGroupForm').style.display = 'none';
+        document.getElementById('currentUserInfo').style.display = 'none';
+        
+        // Clear form
+        document.getElementById('loginGroupName').value = '';
+        document.getElementById('loginPassword').value = '';
+    }
+
+    function hideLoginForm() {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('currentUserInfo').style.display = 'block';
+    }
+
+    function showCreateGroupForm() {
+        document.getElementById('createGroupForm').style.display = 'block';
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('currentUserInfo').style.display = 'none';
+        
+        // Clear form
+        document.getElementById('newGroupName').value = '';
+        document.getElementById('newGroupPassword').value = '';
+        document.getElementById('confirmGroupPassword').value = '';
+    }
+
+    function hideCreateGroupForm() {
+        document.getElementById('createGroupForm').style.display = 'none';
+        document.getElementById('currentUserInfo').style.display = 'block';
+    }
+
+    async function loginToGroup() {
+        const groupName = document.getElementById('loginGroupName').value;
+        const password = document.getElementById('loginPassword').value;
+
+        if (!groupName.trim()) {
+            alert('Please enter a group name');
+            return;
+        }
+
+        try {
+            const result = await window.cricketApp.authManager.loginToGroup(groupName, password);
+            
+            if (result.success) {
+                hideLoginForm();
+                window.cricketApp.showNotification(`✅ Logged in to group: ${result.group.name}`);
+                
+                // Reload data for new group (will auto-sync from D1)
+                await window.cricketApp.loadDataFromManager();
+                window.cricketApp.loadPlayers();
+                window.cricketApp.updateStats();
+            } else {
+                alert('Login failed: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            alert('Login failed: ' + error.message);
+        }
+    }
+
+    async function createNewGroup() {
+        const groupName = document.getElementById('newGroupName').value;
+        const password = document.getElementById('newGroupPassword').value;
+        const confirmPassword = document.getElementById('confirmGroupPassword').value;
+
+        if (!groupName.trim()) {
+            alert('Please enter a group name');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            alert('Passwords do not match');
+            return;
+        }
+
+        try {
+            const result = await window.cricketApp.authManager.createGroup(groupName, password);
+            
+            if (result.success) {
+                hideCreateGroupForm();
+                window.cricketApp.showNotification(`✅ Created and joined group: ${result.group.name}`);
+                
+                // Clear current data as we're in a new group
+                window.cricketApp.players = [];
+                window.cricketApp.matches = [];
+                window.cricketApp.teams = [];
+                window.cricketApp.currentMatch = null;
+                
+                // Update UI
+                window.cricketApp.loadPlayers();
+                window.cricketApp.updateStats();
+                window.cricketApp.saveData();
+            } else {
+                alert('Group creation failed: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Group creation error:', error);
+            alert('Group creation failed: ' + error.message);
+        }
+    }
+
+    // D1 Synchronization Functions
+    async function syncWithD1() {
+        try {
+            const syncButton = document.getElementById('syncButton');
+            const originalText = syncButton.textContent;
+            syncButton.disabled = true;
+            syncButton.textContent = '🔄 Syncing...';
+            
+            window.cricketApp.updateSyncStatus('🔄 Syncing...', null, true);
+            
+            // Step 1: Check if migration is needed (simplified approach)
+            console.log('🔄 Step 1: Checking for group migration needs...');
+            try {
+                // Instead of calling migration directly, just try to create the current group in D1 if needed
+                const currentGroup = window.cricketApp.authManager.getCurrentGroupName();
+                if (currentGroup !== 'guest') {
+                    console.log(`🌩️ Ensuring group "${currentGroup}" exists in D1...`);
+                    // This will either create the group or return success if it already exists
+                }
+            } catch (migrationError) {
+                console.warn('⚠️ Group check failed (this may be normal):', migrationError.message);
+            }
+            
+            // Step 2: Upload current local data to D1 (in case this is first sync for a group)
+            console.log('🔄 Step 2: Uploading local data to D1...');
+            try {
+                await window.cricketApp.syncToD1();
+                console.log('✅ Local data uploaded to D1');
+            } catch (uploadError) {
+                console.warn('⚠️ Upload to D1 failed (this may be normal):', uploadError.message);
+            }
+            
+            // Step 3: Download latest data from D1
+            console.log('🔄 Step 3: Downloading latest data from D1...');
+            await window.cricketApp.loadDataFromManager();
+            window.cricketApp.loadPlayers();
+            window.cricketApp.updateStats();
+            
+            // If we got here without errors, sync was successful
+            window.cricketApp.updateSyncStatus('✅ Synced', new Date());
+            window.cricketApp.showNotification('✅ Successfully synced with database');
+            
+        } catch (error) {
+            console.error('Sync error:', error);
+            window.cricketApp.showNotification('❌ Sync failed: ' + error.message);
+            window.cricketApp.updateSyncStatus('❌ Sync failed', null);
+        } finally {
+            const syncButton = document.getElementById('syncButton');
+            syncButton.disabled = false;
+            syncButton.textContent = '☁️ Sync with Database';
+        }
+    }
+
+    // Make functions globally available
+    window.showLoginForm = showLoginForm;
+    window.hideLoginForm = hideLoginForm;
+    window.showCreateGroupForm = showCreateGroupForm;
+    window.hideCreateGroupForm = hideCreateGroupForm;
+    window.loginToGroup = loginToGroup;
+    window.createNewGroup = createNewGroup;
+    window.syncWithD1 = syncWithD1;
 
     </script>
     <script src="default-data.js"></script>

@@ -6,7 +6,6 @@ const urlsToCache = [
     '/complete.html',
     '/app.js',
     '/data-manager.js',
-    '/import-data.js',
     '/manifest.json',
     '/icon-512.png',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'
@@ -17,7 +16,6 @@ self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => {
-                console.log('🔧 Service Worker: Caching files');
                 return cache.addAll(urlsToCache);
             })
             .catch(err => console.log('❌ Cache failed:', err))
@@ -59,8 +57,6 @@ self.addEventListener('fetch', event => {
                     });
             })
             .catch(error => {
-                console.log('❌ Fetch failed for:', event.request.url, error);
-                
                 // Fallback for HTML requests when offline
                 if (event.request.destination === 'document') {
                     return caches.match('/index.html')
@@ -93,7 +89,6 @@ self.addEventListener('activate', event => {
             return Promise.all(
                 cacheNames.map(cacheName => {
                     if (cacheName !== CACHE_NAME) {
-                        console.log('🔧 Service Worker: Deleting old cache:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
@@ -105,7 +100,6 @@ self.addEventListener('activate', event => {
 // Background sync for data persistence
 self.addEventListener('sync', event => {
     if (event.tag === 'background-sync') {
-        console.log('🔄 Background sync triggered');
         // Handle background data sync here
     }
 });

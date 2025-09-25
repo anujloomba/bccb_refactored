@@ -18,9 +18,7 @@ class CricketDataManager {
                 this.deviceId = this.generateDeviceId();
             }
             
-            console.log('🔧 Data Manager initialized with device ID:', this.deviceId);
-        } catch (error) {
-            console.error('Error initializing data manager:', error);
+            } catch (error) {
             this.deviceId = this.generateDeviceId();
         }
     }
@@ -33,8 +31,7 @@ class CricketDataManager {
                 return deviceId.trim();
             }
         } catch (error) {
-            console.error('Error loading device ID:', error);
-        }
+            }
         return null;
     }
 
@@ -53,19 +50,14 @@ class CricketDataManager {
             // If no JSON data exists, return empty structure
             return this.createEmptyDataStructure();
         } catch (error) {
-            console.error('Error loading/creating data:', error);
             return this.createEmptyDataStructure();
         }
     }
 
     async loadJSONData() {
         try {
-            console.log('🔄 Attempting to load cricket_stats.json...');
             // Load from the cricket_stats.json file
             const statsResponse = await fetch(`./cricket_stats.json`);
-            console.log('📡 Fetch response status:', statsResponse.status, statsResponse.statusText);
-            console.log('📡 Fetch response URL:', statsResponse.url);
-            
             if (statsResponse.ok) {
                 const statsData = await statsResponse.json();
                 console.log('📊 Raw cricket_stats.json structure:', {
@@ -77,41 +69,24 @@ class CricketDataManager {
                 });
 
                 if (statsData && (statsData.players || statsData.player_info)) {
-                    console.log('✅ cricket_stats.json loaded successfully');
                     return this.convertStatsToAppData(statsData);
                 } else {
-                    console.log('⚠️ cricket_stats.json exists but has unexpected structure');
-                }
+                    }
             } else {
-                console.log('❌ Failed to fetch cricket_stats.json:', {
-                    status: statsResponse.status,
-                    statusText: statsResponse.statusText,
-                    url: statsResponse.url
-                });
-            }
+                }
         } catch (error) {
-            console.error('💥 Error loading cricket_stats.json:', {
-                message: error.message,
-                stack: error.stack,
-                name: error.name
-            });
-        }
+            }
         
-        console.log('🔄 cricket_stats.json loading failed, will try fallback methods');
         return null;
     }
 
     convertStatsToAppData(statsData) {
-        console.log('🔄 Converting cricket_stats data to app format...');
-        
         const players = [];
         const matches = [];
         const teams = [];
 
         // Convert player_info to players
         if (statsData.player_info && Array.isArray(statsData.player_info)) {
-            console.log(`📊 Processing ${statsData.player_info.length} players...`);
-            
             statsData.player_info.forEach(playerInfo => {
                 const player = {
                     playerId: playerInfo['Player ID'] || this.generatePlayerId(),
@@ -150,8 +125,6 @@ class CricketDataManager {
 
         // Convert matches if available
         if (statsData.matches && Array.isArray(statsData.matches)) {
-            console.log(`📊 Processing ${statsData.matches.length} matches...`);
-            
             statsData.matches.forEach(match => {
                 const normalizedMatch = this.validateAndNormalizeLoadedMatch(match);
                 if (normalizedMatch) {
@@ -162,7 +135,6 @@ class CricketDataManager {
 
         // Convert teams if available
         if (statsData.teams && Array.isArray(statsData.teams)) {
-            console.log(`📊 Processing ${statsData.teams.length} teams...`);
             teams.push(...statsData.teams);
         }
 
@@ -171,12 +143,6 @@ class CricketDataManager {
             matches: matches,
             teams: teams
         };
-
-        console.log('✅ Conversion complete:', {
-            players: result.players.length,
-            matches: result.matches.length,
-            teams: result.teams.length
-        });
 
         return result;
     }
@@ -357,7 +323,6 @@ class CricketDataManager {
             localStorage.setItem('cricket-stats', JSON.stringify(jsonData));
             return true;
         } catch (error) {
-            console.error('Error saving JSON data:', error);
             return false;
         }
     }
@@ -368,7 +333,6 @@ class CricketDataManager {
             const deviceId = await response.text();
             return deviceId.trim();
         } catch (error) {
-            console.error('Error reading device ID:', error);
             return ''; // Return empty string if file not found
         }
     }
@@ -385,8 +349,7 @@ class CricketDataManager {
         if (typeof app !== 'undefined' && app.showNotification) {
             app.showNotification(message);
         } else {
-            console.log('📢 Notification:', message);
-        }
+            }
     }
 }
 
