@@ -1,0 +1,36 @@
+-- ============================================================================
+-- ONE-TIME DATABASE REPAIR COMMANDS
+-- Run each command separately using: wrangler d1 execute cricket_mgr --remote --command="<SQL>"
+-- ============================================================================
+
+-- STEP 1: Check corrupted matches
+-- =================================
+wrangler d1 execute cricket_mgr --remote --command="SELECT Match_ID, Team1, Team2, Team1_Captain, Team2_Captain, Winning_Team, Losing_Team, Result FROM match_data WHERE Group_ID = 3"
+
+-- STEP 2: Check performance data exists
+-- ======================================
+wrangler d1 execute cricket_mgr --remote --command="SELECT Match_ID, COUNT(*) as player_count FROM performance_data WHERE Match_ID IN (SELECT Match_ID FROM match_data WHERE Group_ID = 3) GROUP BY Match_ID"
+
+-- STEP 3: Fix Winning_Team and Losing_Team from Result string
+-- ============================================================
+wrangler d1 execute cricket_mgr --remote --command="UPDATE match_data SET Winning_Team = CASE WHEN Result LIKE '%Team Dileep wins%' THEN 'Team Dileep' WHEN Result LIKE '%Team Roshan wins%' THEN 'Team Roshan' WHEN Result LIKE '%Team Himalaya wins%' THEN 'Team Himalaya' WHEN Result LIKE '%Team Anuj wins%' THEN 'Team Anuj' WHEN Result LIKE '%Team Anil wins%' THEN 'Team Anil' WHEN Result LIKE '%Team Omi wins%' THEN 'Team Omi' WHEN Result LIKE '%Team Chiru wins%' THEN 'Team Chiru' WHEN Result LIKE '%Team Ashish wins%' THEN 'Team Ashish' ELSE Winning_Team END, Losing_Team = CASE WHEN Result LIKE '%' || Team1 || ' wins%' THEN Team2 WHEN Result LIKE '%' || Team2 || ' wins%' THEN Team1 ELSE Losing_Team END WHERE Group_ID = 3 AND (Winning_Team IS NULL OR Winning_Team = '' OR Losing_Team IS NULL OR Losing_Team = '')"
+
+-- STEP 4: Fix missing captains from team compositions (first player)
+-- ===================================================================
+wrangler d1 execute cricket_mgr --remote --command="UPDATE match_data SET Team1_Captain = json_extract(Team1_Composition, '$[0]'), Team2_Captain = json_extract(Team2_Composition, '$[0]') WHERE Group_ID = 3 AND (Team1_Captain IS NULL OR Team1_Captain = '' OR Team2_Captain IS NULL OR Team2_Captain = '') AND Team1_Composition IS NOT NULL AND Team1_Composition != '' AND Team1_Composition != '[]' AND Team2_Composition IS NOT NULL AND Team2_Composition != '' AND Team2_Composition != '[]'"
+
+-- STEP 5: Fix Winning_Captain and Losing_Captain from team captains
+-- ==================================================================
+wrangler d1 execute cricket_mgr --remote --command="UPDATE match_data SET Winning_Captain = CASE WHEN Winning_Team = Team1 THEN Team1_Captain WHEN Winning_Team = Team2 THEN Team2_Captain ELSE Winning_Captain END, Losing_Captain = CASE WHEN Losing_Team = Team1 THEN Team1_Captain WHEN Losing_Team = Team2 THEN Team2_Captain ELSE Losing_Captain END WHERE Group_ID = 3 AND (Winning_Captain IS NULL OR Winning_Captain = '' OR Losing_Captain IS NULL OR Losing_Captain = '')"
+
+-- STEP 6: Verify repairs
+-- =======================
+wrangler d1 execute cricket_mgr --remote --command="SELECT Match_ID, Team1, Team2, Team1_Captain, Team2_Captain, Winning_Team, Losing_Team, Winning_Captain, Losing_Captain, SUBSTR(Result, 1, 40) as Result FROM match_data WHERE Group_ID = 3 ORDER BY Match_ID DESC"
+
+-- STEP 7: Check for remaining NULL values
+-- ========================================
+wrangler d1 execute cricket_mgr --remote --command="SELECT Match_ID, CASE WHEN Team1_Captain IS NULL OR Team1_Captain = '' THEN 'Team1_Captain' WHEN Team2_Captain IS NULL OR Team2_Captain = '' THEN 'Team2_Captain' WHEN Winning_Team IS NULL OR Winning_Team = '' THEN 'Winning_Team' WHEN Losing_Team IS NULL OR Losing_Team = '' THEN 'Losing_Team' WHEN Winning_Captain IS NULL OR Winning_Captain = '' THEN 'Winning_Captain' WHEN Losing_Captain IS NULL OR Losing_Captain = '' THEN 'Losing_Captain' END as missing_field FROM match_data WHERE Group_ID = 3 AND (Team1_Captain IS NULL OR Team1_Captain = '' OR Team2_Captain IS NULL OR Team2_Captain = '' OR Winning_Team IS NULL OR Winning_Team = '' OR Losing_Team IS NULL OR Losing_Team = '' OR Winning_Captain IS NULL OR Winning_Captain = '' OR Losing_Captain IS NULL OR Losing_Captain = '')"
+
+-- STEP 8: Check performance data completeness
+-- ============================================
+wrangler d1 execute cricket_mgr --remote --command="SELECT m.Match_ID, m.Team1, m.Team2, COUNT(p.Player_ID) as players_recorded, SUM(CASE WHEN p.runs > 0 OR p.ballsFaced > 0 THEN 1 ELSE 0 END) as batting_players, SUM(CASE WHEN p.wickets > 0 OR p.ballsBowled > 0 THEN 1 ELSE 0 END) as bowling_players FROM match_data m LEFT JOIN performance_data p ON m.Match_ID = p.Match_ID WHERE m.Group_ID = 3 GROUP BY m.Match_ID, m.Team1, m.Team2 ORDER BY m.Match_ID DESC"

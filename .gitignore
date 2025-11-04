@@ -1,33 +1,74 @@
 # Dependencies
 node_modules/
 package-lock.json
-
-# Capacitor
-android/
-ios/
+**/node_modules/
 
 # Build outputs
 www/
 dist/
 build/
+**/build/
+*.apk
+*.aab
+
+# Android specific
+native-android-app/.gradle/
+native-android-app/build/
+native-android-app/local.properties
+native-android-app/app/build/
+native-android-app/app/release/
+native-android-app/.idea/
+native-android-app/*.iml
+*.keystore
+keystore.properties
+
+# Cloudflare Worker
+cricket-worker/cricket-api/.wrangler/
+cricket-worker/cricket-api/dist/
+cricket-worker/cricket-api/.dev.vars
+DB/.wrangler/
+DB/wrangler.toml
 
 # Debug and test files
 *.log
-debug-*.html
+**/logs/
 test-*.html
 *-test.html
+*_backup.*
+*_minimal.*
+
+# Temporary documentation (keep only production docs)
+*_FIX.md
+*_SUMMARY.md
+temp_*.txt
+temp_*.js
+commands.txt
 
 # IDE files
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Cache
 .cache/
+*.cache
 
 # Temporary files
 *.tmp
 *.temp
+
+# Sensitive configuration
+.env
+.env.local
+secrets.json
+*-secret.*
+
+# Production cleanup tracking
+CLEANUP_PLAN.md

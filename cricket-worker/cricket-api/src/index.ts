@@ -30,6 +30,8 @@ interface CricketMatch {
   Team2: string;
   Team1_Captain: string;
   Team2_Captain: string;
+  Team1_Composition?: string;
+  Team2_Composition?: string;
   Winning_Team: string;
   Losing_Team: string;
   Winning_Team_Score: string;
@@ -39,6 +41,8 @@ interface CricketMatch {
   Man_Of_The_Match: string;
   Game_Start_Time: string;
   Game_Finish_Time: string;
+  Winning_Captain?: string;
+  Losing_Captain?: string;
 }
 
 export default {
@@ -67,6 +71,37 @@ export default {
           timestamp: new Date().toISOString(),
           database: 'cricket_mgr'
         }, { headers: corsHeaders });
+      }
+
+      if (path === '/message' && method === 'GET') {
+        return new Response('Hello, World!', {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/plain'
+          }
+        });
+      }
+
+      if (path === '/random' && method === 'GET') {
+        const generateUuid = (): string => {
+          const cryptoRef = (globalThis as unknown as { crypto?: Crypto }).crypto;
+          if (cryptoRef && typeof cryptoRef.randomUUID === 'function') {
+            return cryptoRef.randomUUID();
+          }
+          return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
+            const random = Math.random() * 16 | 0;
+            const value = char === 'x' ? random : (random & 0x3 | 0x8);
+            return value.toString(16);
+          });
+        };
+
+        const uuid = generateUuid();
+        return new Response(uuid, {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/plain'
+          }
+        });
       }
 
       // Group authentication
@@ -212,25 +247,154 @@ export default {
         return Response.json({ success: true }, { headers: corsHeaders });
       }
 
-      // Save match
+      // Save match (ONLY if it doesn't exist - prevents partial overwrites)
       if (path === '/matches' && method === 'POST') {
         const body = await request.json() as CricketMatch;
         const { 
           Match_ID, group_id, Date, Team1, Team2, Team1_Captain, Team2_Captain,
-          Winning_Team, Losing_Team, Winning_Team_Score, Losing_Team_Score, Result, Overs
+          Winning_Team, Losing_Team, Winning_Team_Score, Losing_Team_Score, Result,
+          Overs, Man_Of_The_Match, Game_Start_Time, Game_Finish_Time,
+          Team1_Composition, Team2_Composition, Winning_Captain, Losing_Captain
         } = body;
+
+        // � DEBUG: Log all incoming match data
+        console.log('🔍 DEBUG: /matches POST endpoint called');
+        console.log(`🔍 DEBUG: Match_ID=${Match_ID}, Team1=${Team1}, Team2=${Team2}`);
+        console.log(`🔍 DEBUG: Team1_Captain=${Team1_Captain}, Team2_Captain=${Team2_Captain}`);
+        console.log(`🔍 DEBUG: Man_Of_The_Match=${Man_Of_The_Match}`);
+        console.log(`🔍 DEBUG: Winning_Captain=${Winning_Captain}, Losing_Captain=${Losing_Captain}`);
+
+        // �🔒 SAFEGUARD: Check if match already exists - prevent partial overwrites
+        const existingMatch = await env.cricket_mgr.prepare(
+          "SELECT Match_ID, Team1_Captain, Team2_Captain, Man_Of_The_Match, Winning_Captain, Losing_Captain FROM match_data WHERE Match_ID = ?"
+        ).bind(Match_ID).first();
         
-        await env.cricket_mgr.prepare(`
-          INSERT OR REPLACE INTO match_data 
-          (Match_ID, group_id, Date, Team1, Team2, Team1_Captain, Team2_Captain,
-           Winning_Team, Losing_Team, Winning_Team_Score, Losing_Team_Score, Result, Overs) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          Match_ID, group_id, Date, Team1, Team2, Team1_Captain, Team2_Captain,
-          Winning_Team, Losing_Team, Winning_Team_Score, Losing_Team_Score, Result, Overs
-        ).run();
+        if (existingMatch) {
+          console.log(`⚠️ WORKER: Match ${Match_ID} already exists in database`);
+          console.log(`⚠️ WORKER: Existing data - Team1_Captain=${existingMatch.Team1_Captain}, Team2_Captain=${existingMatch.Team2_Captain}, MOTM=${existingMatch.Man_Of_The_Match}`);
+          console.log(`⚠️ WORKER: Incoming data - Team1_Captain=${Team1_Captain}, Team2_Captain=${Team2_Captain}, MOTM=${Man_Of_The_Match}`);
+          console.log(`🚫 WORKER: BLOCKING save to prevent data loss`);
+          return Response.json({ 
+            success: false, 
+            error: 'Match already exists. Delete existing match before re-saving.',
+            match_id: Match_ID
+          }, { status: 409, headers: corsHeaders });
+        }
+
+        const serializeComposition = (composition: unknown): string => {
+          if (typeof composition === 'string') {
+            const trimmed = composition.trim();
+            return trimmed || '[]';
+          }
+          if (Array.isArray(composition)) {
+            return JSON.stringify(composition);
+          }
+          return '[]';
+        };
+
+        // 🔍 DEBUG: Log RAW values received from app
+        console.log(`🔍 WORKER_RECEIVED: Match ${Match_ID} RAW captain data from app:`);
+        console.log(`🔍 WORKER_RECEIVED: Team1_Captain (raw) = "${Team1_Captain}" (type: ${typeof Team1_Captain})`);
+        console.log(`🔍 WORKER_RECEIVED: Team2_Captain (raw) = "${Team2_Captain}" (type: ${typeof Team2_Captain})`);
+        console.log(`🔍 WORKER_RECEIVED: Winning_Captain (raw) = "${Winning_Captain}" (type: ${typeof Winning_Captain})`);
+        console.log(`🔍 WORKER_RECEIVED: Losing_Captain (raw) = "${Losing_Captain}" (type: ${typeof Losing_Captain})`);
+        console.log(`🔍 WORKER_RECEIVED: Man_Of_The_Match (raw) = "${Man_Of_The_Match}" (type: ${typeof Man_Of_The_Match})`);
+
+        const sanitizedTeam1Captain = Team1_Captain?.trim() || null;
+        const sanitizedTeam2Captain = Team2_Captain?.trim() || null;
+        const sanitizedWinningCaptain = Winning_Captain?.trim() || null;
+        const sanitizedLosingCaptain = Losing_Captain?.trim() || null;
+        const team1CompositionValue = serializeComposition(Team1_Composition);
+        const team2CompositionValue = serializeComposition(Team2_Composition);
+        const gameStartTimeValue = Game_Start_Time?.trim() || null;
+        const gameFinishTimeValue = Game_Finish_Time?.trim() || null;
+        const manOfTheMatchValue = Man_Of_The_Match?.trim() || null;
         
-        return Response.json({ success: true }, { headers: corsHeaders });
+        const team1Value = Team1?.trim() || 'Team 1';
+        const team2Value = Team2?.trim() || 'Team 2';
+        const winningTeamValue = Winning_Team || '';
+        const losingTeamValue = Losing_Team || '';
+        const resultValue = Result || '';
+        const oversValue = typeof Overs === 'number' && !isNaN(Overs) ? Overs : Number(Overs) || 0;
+
+        // 🔍 DEBUG: Log sanitized values that will be inserted
+        console.log(`🔍 WORKER_SANITIZED: Match ${Match_ID} AFTER sanitization:`);
+        console.log(`🔍 WORKER_SANITIZED: Team1_Captain = ${sanitizedTeam1Captain === null ? 'NULL' : `"${sanitizedTeam1Captain}"`}`);
+        console.log(`🔍 WORKER_SANITIZED: Team2_Captain = ${sanitizedTeam2Captain === null ? 'NULL' : `"${sanitizedTeam2Captain}"`}`);
+        console.log(`🔍 WORKER_SANITIZED: Winning_Captain = ${sanitizedWinningCaptain === null ? 'NULL' : `"${sanitizedWinningCaptain}"`}`);
+        console.log(`🔍 WORKER_SANITIZED: Losing_Captain = ${sanitizedLosingCaptain === null ? 'NULL' : `"${sanitizedLosingCaptain}"`}`);
+        console.log(`🔍 WORKER_SANITIZED: Man_Of_The_Match = ${manOfTheMatchValue === null ? 'NULL' : `"${manOfTheMatchValue}"`}`);
+
+        // 🔒 Use INSERT (not INSERT OR REPLACE) to prevent accidental overwrites
+        try {
+          console.log(`🔍 WORKER_INSERT: Executing INSERT for match ${Match_ID}...`);
+          
+          const insertResult = await env.cricket_mgr.prepare(`
+            INSERT INTO match_data 
+            (Match_ID, group_id, Date, Team1, Team2, Team1_Captain, Team2_Captain,
+             Team1_Composition, Team2_Composition, Winning_Team, Losing_Team,
+             Game_Start_Time, Game_Finish_Time, Winning_Team_Score, Losing_Team_Score,
+             Result, Overs, Man_Of_The_Match, Winning_Captain, Losing_Captain) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            Match_ID,
+            group_id,
+            Date,
+            team1Value,
+            team2Value,
+            sanitizedTeam1Captain,
+            sanitizedTeam2Captain,
+            team1CompositionValue,
+            team2CompositionValue,
+            winningTeamValue,
+            losingTeamValue,
+            gameStartTimeValue,
+            gameFinishTimeValue,
+            String(Winning_Team_Score || ''),
+            String(Losing_Team_Score || ''),
+            resultValue,
+            oversValue,
+            manOfTheMatchValue,
+            sanitizedWinningCaptain,
+            sanitizedLosingCaptain
+          ).run();
+          
+          console.log(`✅ WORKER_INSERT: INSERT completed for match ${Match_ID}`);
+          console.log(`✅ WORKER_INSERT: Result meta:`, JSON.stringify(insertResult.meta));
+          
+          // 🔍 VERIFY: Read back the data to confirm it was stored
+          const verification = await env.cricket_mgr.prepare(`
+            SELECT Match_ID, Team1_Captain, Team2_Captain, Winning_Captain, Losing_Captain, Man_Of_The_Match
+            FROM match_data
+            WHERE Match_ID = ?
+          `).bind(Match_ID).first();
+          
+          console.log(`🔍 WORKER_VERIFY: Data read back from D1 for match ${Match_ID}:`);
+          console.log(`🔍 WORKER_VERIFY: Team1_Captain = ${verification?.Team1_Captain === null ? 'NULL' : `"${verification?.Team1_Captain}"`}`);
+          console.log(`🔍 WORKER_VERIFY: Team2_Captain = ${verification?.Team2_Captain === null ? 'NULL' : `"${verification?.Team2_Captain}"`}`);
+          console.log(`🔍 WORKER_VERIFY: Winning_Captain = ${verification?.Winning_Captain === null ? 'NULL' : `"${verification?.Winning_Captain}"`}`);
+          console.log(`🔍 WORKER_VERIFY: Losing_Captain = ${verification?.Losing_Captain === null ? 'NULL' : `"${verification?.Losing_Captain}"`}`);
+          console.log(`🔍 WORKER_VERIFY: Man_Of_The_Match = ${verification?.Man_Of_The_Match === null ? 'NULL' : `"${verification?.Man_Of_The_Match}"`}`);
+          
+          // 🚨 ALERT if data mismatch
+          if (verification?.Team1_Captain !== sanitizedTeam1Captain || verification?.Team2_Captain !== sanitizedTeam2Captain) {
+            console.error(`🚨 WORKER_MISMATCH: Captain data MISMATCH detected!`);
+            console.error(`🚨 WORKER_MISMATCH: Expected Team1_Captain="${sanitizedTeam1Captain}", got "${verification?.Team1_Captain}"`);
+            console.error(`🚨 WORKER_MISMATCH: Expected Team2_Captain="${sanitizedTeam2Captain}", got "${verification?.Team2_Captain}"`);
+          }
+          
+          console.log(`✅ WORKER: New match ${Match_ID} saved successfully to D1`);
+          return Response.json({ success: true }, { headers: corsHeaders });
+          
+        } catch (insertError) {
+          console.error(`🚨 WORKER_ERROR: INSERT failed for match ${Match_ID}:`, insertError);
+          console.error(`🚨 WORKER_ERROR: Error details:`, JSON.stringify(insertError, null, 2));
+          return Response.json({ 
+            success: false, 
+            error: 'Database INSERT failed',
+            details: String(insertError)
+          }, { status: 500, headers: corsHeaders });
+        }
       }
 
       // Bulk data sync - upload (from app to D1)
@@ -244,12 +408,20 @@ export default {
           };
           const { group_id, players, matches, performance_data } = body;
           
+          console.log('🔍 DEBUG: ============================================');
+          console.log('🔍 DEBUG: BULK SYNC /sync/upload endpoint called');
+          console.log('🔍 DEBUG: ============================================');
           console.log('Sync upload request:', { 
             group_id, 
             playersCount: players?.length, 
             matchesCount: matches?.length,
             performanceCount: performance_data?.length
           });
+          
+          // 🐛 DEBUG: Log all match IDs being synced
+          if (matches && matches.length > 0) {
+            console.log('🔍 DEBUG: Match IDs in sync request:', matches.map(m => m.Match_ID || m.id));
+          }
           
           // Verify group exists before proceeding
           console.log('Verifying group exists...');
@@ -319,10 +491,14 @@ export default {
           
           // Process matches after players are inserted
           console.log('Inserting matches...');
+          
           const matchPromises = matches.map((match, index) => {
             try {
               // Handle D1 format (direct field access) vs app format (object extraction)
               const matchId = String(match.Match_ID || match.id || `match_${Date.now()}_${index}`);
+              
+              console.log(`📝 WORKER: Upserting match ${matchId}`);
+              
               const team1Name = match.Team1 || (typeof match.team1 === 'object' ? match.team1?.name : match.team1) || 'Team 1';
               const team2Name = match.Team2 || (typeof match.team2 === 'object' ? match.team2?.name : match.team2) || 'Team 2';
               
@@ -331,8 +507,9 @@ export default {
               const team2Captain = match.Team2_Captain || (typeof match.team2 === 'object' ? match.team2?.captain?.id : '') || '';
               
               // Convert empty strings to null for foreign key constraints
-              const team1CaptainFK = team1Captain.trim() || null;
-              const team2CaptainFK = team2Captain.trim() || null;
+              // Ensure values are strings before calling trim()
+              const team1CaptainFK = team1Captain ? String(team1Captain).trim() || null : null;
+              const team2CaptainFK = team2Captain ? String(team2Captain).trim() || null : null;
               
               // Validate that captains have values (they should always exist)
               if (!team1CaptainFK) {
@@ -359,22 +536,38 @@ export default {
               if (!manOfTheMatchFK) {
                 console.warn(`Warning: Man_Of_The_Match is empty for match ${matchId}. Setting to NULL.`);
               }
+
+              const winningCaptain = match.Winning_Captain || match.winningCaptainId || '';
+              const losingCaptain = match.Losing_Captain || match.losingCaptainId || '';
+              const winningCaptainFK = String(winningCaptain || '').trim() || null;
+              const losingCaptainFK = String(losingCaptain || '').trim() || null;
+
+              const serializeComposition = (value: unknown): string => {
+                if (typeof value === 'string') {
+                  const trimmed = value.trim();
+                  return trimmed || '[]';
+                }
+                if (Array.isArray(value)) {
+                  return JSON.stringify(value);
+                }
+                return '[]';
+              };
+
+              const team1CompositionValue = serializeComposition(match.Team1_Composition ?? match.team1Composition);
+              const team2CompositionValue = serializeComposition(match.Team2_Composition ?? match.team2Composition);
               
               const matchDate = match.Date || match.ended || match.started || match.date || new Date().toISOString().split('T')[0];
-              const gameStartTime = match.Game_Start_Time || match.started || null;
-              const gameFinishTime = match.Game_Finish_Time || match.ended || null;
+              const gameStartTimeRaw = match.Game_Start_Time || match.started || null;
+              const gameFinishTimeRaw = match.Game_Finish_Time || match.ended || null;
+              const gameStartTimeValue = gameStartTimeRaw ? String(gameStartTimeRaw).trim() || null : null;
+              const gameFinishTimeValue = gameFinishTimeRaw ? String(gameFinishTimeRaw).trim() || null : null;
               const overs = Number(match.Overs || match.totalOvers || match.overs || 20);
               const result = match.Result || match.result || '';
               
-                              console.log('Processing match:', {
+              console.log('� Upserting match data:', {
                 matchId,
                 team1Name,
                 team2Name,
-                winnerName,
-                loserName,
-                team1Score,
-                team2Score,
-                manOfTheMatchFK,
                 team1CaptainFK,
                 team2CaptainFK
               });
@@ -383,9 +576,9 @@ export default {
                 INSERT OR REPLACE INTO match_data 
                 (Match_ID, group_id, Date, Team1, Team2, Team1_Captain, Team2_Captain,
                  Team1_Composition, Team2_Composition, Winning_Team, Losing_Team, 
-                 Winning_Team_Score, Losing_Team_Score, Result, Man_Of_The_Match, 
-                 Game_Start_Time, Game_Finish_Time, Overs) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 Game_Start_Time, Game_Finish_Time, Winning_Team_Score, Losing_Team_Score, 
+                 Result, Overs, Man_Of_The_Match, Winning_Captain, Losing_Captain) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               `).bind(
                 matchId,
                 group_id,
@@ -394,36 +587,39 @@ export default {
                 team2Name,
                 team1CaptainFK, // Use null-converted value
                 team2CaptainFK, // Use null-converted value
-                match.Team1_Composition || '[]', // Team compositions as JSON strings
-                match.Team2_Composition || '[]',
+                team1CompositionValue,
+                team2CompositionValue,
                 winnerName,
                 loserName,
-                String(team1Score),
-                String(team2Score),
+                gameStartTimeValue,
+                gameFinishTimeValue,
+                String(team1Score ?? ''),
+                String(team2Score ?? ''),
                 String(result),
+                overs,
                 manOfTheMatchFK, // Use null-converted value
-                gameStartTime,
-                gameFinishTime,
-                overs
+                winningCaptainFK,
+                losingCaptainFK
               ).run();
             } catch (matchError) {
-              console.error('Match insert error:', matchError, 'Match data:', match);
+              console.error('❌ WORKER: Match insert error:', matchError, 'Match data:', match);
               throw matchError;
             }
           });
           
           // Wait for all matches to be inserted
           await Promise.all(matchPromises);
-          console.log('All matches inserted successfully');
+          console.log('✅ WORKER: All matches inserted successfully');
           
           // Process performance data last, after players and matches exist
           console.log('Inserting performance data...');
+          
           const performancePromises = (performance_data || []).map((perf, index) => {
             try {
               const matchId = String(perf.Match_ID || `match_${Date.now()}_${index}`);
               const playerId = String(perf.Player_ID || `player_${Date.now()}_${index}`);
               
-              console.log('Processing performance for player:', playerId, 'in match:', matchId);
+              console.log('📝 Upserting performance for player:', playerId, 'in match:', matchId);
               
               // Handle dismissal fields - convert empty strings to NULL and validate Player_IDs
               const dismissalType = perf.dismissalType === '' ? null : perf.dismissalType;
@@ -450,8 +646,9 @@ export default {
                 dismissalBowler = null;
               }
               
+              // Use INSERT OR IGNORE - UNIQUE constraint will prevent duplicates
               return env.cricket_mgr.prepare(`
-                INSERT OR REPLACE INTO performance_data 
+                INSERT OR IGNORE INTO performance_data 
                 (Match_ID, Player_ID, notOuts, runs, ballsFaced, fours, sixes,
                  ballsBowled, runsConceded, wickets, extras, maidenOvers, 
                  isOut, dismissalType, dismissalFielder, dismissalBowler) 
@@ -617,7 +814,10 @@ export default {
             }
           } : null,
           gameStartTime: m.Game_Start_Time,
-          gameFinishTime: m.Game_Finish_Time
+          gameFinishTime: m.Game_Finish_Time,
+          // 🔄 CRITICAL: Include team compositions for captain performance tracking
+          Team1_Composition: m.Team1_Composition,
+          Team2_Composition: m.Team2_Composition
         }));
         
         return Response.json({ 
@@ -638,6 +838,8 @@ export default {
           'GET /groups/check/{name}',
           'GET /groups/{id}/data',
           'GET /groups/find/{name}',
+          'GET /message',
+          'GET /random',
           'POST /players',
           'POST /matches',
           'POST /sync/upload',

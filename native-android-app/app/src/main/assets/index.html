@@ -4042,12 +4042,15 @@
                     <strong style="color: #856404;">⚠️ WARNING: THIS CANNOT BE RECOVERED!</strong>
                 </div>
                 <p style="margin-bottom: 15px; font-size: 16px; line-height: 1.4;">
-                    You are deleting your entire group's player data and match records.
+                    You are about to delete <strong>ONLY your current group's data</strong> (players, matches, and performance records).
+                </p>
+                <p style="margin-bottom: 15px; font-size: 14px; color: #28a745;">
+                    ✅ <strong>Other groups and their data will NOT be affected</strong>
                 </p>
                 <p style="margin-bottom: 20px; color: #dc3545;">
                     <strong>❌ No backup will be created</strong> before deletion.
                 </p>
-                <p style="font-weight: bold; color: #dc3545; font-size: 16px;">Are you sure you want to wipe this?</p>
+                <p style="font-weight: bold; color: #dc3545; font-size: 16px;">Are you sure you want to wipe your current group's data?</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn" onclick="closeModal('wipeDataModal')">Cancel</button>
@@ -4062,7 +4065,7 @@
     <!-- Default data script removed for fresh start -->
     <!-- <script src="cricket_stats.js"></script> -->
     <script src="data-loader.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=20251018-2344"></script>
     
     <!-- Emergency function definitions in case app.js fails to load -->
     <script>
@@ -4686,7 +4689,6 @@
                 // Step 2: Download the backup file
                 const jsonStr = JSON.stringify(completeBackup, null, 2);
                 const blob = new Blob([jsonStr], { type: 'application/json' });
-        */
                 const url = URL.createObjectURL(blob);
                 
                 const a = document.createElement('a');
@@ -4698,6 +4700,7 @@
                 URL.revokeObjectURL(url);
                 
                 console.log('✅ Backup created:', filename);
+        */
                 
                 // Step 3: Clear all localStorage - more comprehensive approach
                 console.log('🗑️ Starting localStorage cleanup...');
@@ -5248,8 +5251,18 @@
                 return;
             }
 
+        // DEDUPLICATE matches by ID before displaying
+        const uniqueMatchesMap = new Map();
+        matchesData.forEach(match => {
+            const matchId = String(match.Match_ID || match.id || match.match_id || '');
+            if (matchId && !uniqueMatchesMap.has(matchId)) {
+                uniqueMatchesMap.set(matchId, match);
+            }
+        });
+        const deduplicatedMatches = Array.from(uniqueMatchesMap.values());
+
         // Sort matches by date (newest first)
-        const sortedMatches = matchesData.sort((a, b) => {
+        const sortedMatches = deduplicatedMatches.sort((a, b) => {
             const dateA = new Date(a.Date || a.Date_Saved || a.date || '1970-01-01');
             const dateB = new Date(b.Date || b.Date_Saved || b.date || '1970-01-01');
             return dateB - dateA;
@@ -5710,6 +5723,9 @@
                             }
                         </div>
 
+                        ${(match.team1Score?.fallOfWickets?.length > 0 || match.team2Score?.fallOfWickets?.length > 0) ? 
+                            getFallOfWicketsHTML(match, team1Name, team2Name) : ''}
+
                         <div class="match-actions">
                             <button class="btn btn-danger" onclick="deleteMatch('${matchId}')">🗑️ Delete Match</button>
                             <button class="btn" onclick="closeScorecard()">Close</button>
@@ -5745,6 +5761,104 @@
                 stackTrace: error.stack
             });
         }
+    }
+
+    // Helper function to resolve player ID to name for historical scorecard
+    function resolvePlayerName(playerId, allPlayers) {
+        if (!playerId) return '';
+        if (typeof playerId === 'string' && !/^\d+$/.test(playerId)) return playerId; // Already a name
+        
+        const player = allPlayers.find(p => p.Player_ID == playerId || p.id == playerId);
+        return player ? (player.Name || player.name) : playerId.toString();
+    }
+
+    function getFallOfWicketsHTML(match, team1Name, team2Name) {
+        // Get all players for ID resolution
+        const allPlayers = JSON.parse(localStorage.getItem('cricket-players') || '[]');
+        
+        let html = '<div class="scorecard-section"><div class="scorecard-header">📉 Fall of Wickets</div>';
+        
+        if (match.team1Score?.fallOfWickets?.length > 0) {
+            html += `<h5 style="color: #00ff41; margin: 10px 0 5px 0;">${team1Name}</h5>`;
+            match.team1Score.fallOfWickets.forEach((wicket, index) => {
+                const playerName = wicket.batsman || wicket.player || 'Unknown';
+                const score = wicket.runs || wicket.score || '';
+                const dismissal = wicket.dismissal || wicket.dismissalType || '';
+                const bowler = wicket.bowler || '';
+                let fielder = wicket.fielder || wicket.helper || '';
+                const over = wicket.over || '';
+                
+                // Resolve fielder ID to name if it's numeric
+                if (fielder && (typeof fielder === 'number' || /^\d+$/.test(fielder))) {
+                    fielder = resolvePlayerName(fielder, allPlayers);
+                }
+                
+                let dismissalText = '';
+                if (dismissal && bowler) {
+                    switch (dismissal.toLowerCase()) {
+                        case 'caught':
+                            dismissalText = fielder ? `c ${fielder} b ${bowler}` : `c & b ${bowler}`;
+                            break;
+                        case 'bowled':
+                            dismissalText = `b ${bowler}`;
+                            break;
+                        case 'lbw':
+                            dismissalText = `lbw b ${bowler}`;
+                            break;
+                        case 'stumped':
+                            dismissalText = fielder ? `st ${fielder} b ${bowler}` : `st ${bowler}`;
+                            break;
+                        case 'run out':
+                            dismissalText = fielder ? `run out (${fielder})` : 'run out';
+                            break;
+                        default:
+                            dismissalText = dismissal;
+                    }
+                }
+                
+                html += `<p><strong>${score}/${index + 1}</strong> ${playerName} (${over})${dismissalText ? ` - ${dismissalText}` : ''}</p>`;
+            });
+        }
+        
+        if (match.team2Score?.fallOfWickets?.length > 0) {
+            html += `<h5 style="color: #00ff41; margin: 10px 0 5px 0;">${team2Name}</h5>`;
+            match.team2Score.fallOfWickets.forEach((wicket, index) => {
+                const playerName = wicket.batsman || wicket.player || 'Unknown';
+                const score = wicket.runs || wicket.score || '';
+                const dismissal = wicket.dismissal || wicket.dismissalType || '';
+                const bowler = wicket.bowler || '';
+                const fielder = wicket.fielder || wicket.helper || '';
+                const over = wicket.over || '';
+                
+                let dismissalText = '';
+                if (dismissal && bowler) {
+                    switch (dismissal.toLowerCase()) {
+                        case 'caught':
+                            dismissalText = fielder ? `c ${fielder} b ${bowler}` : `c & b ${bowler}`;
+                            break;
+                        case 'bowled':
+                            dismissalText = `b ${bowler}`;
+                            break;
+                        case 'lbw':
+                            dismissalText = `lbw b ${bowler}`;
+                            break;
+                        case 'stumped':
+                            dismissalText = fielder ? `st ${fielder} b ${bowler}` : `st ${bowler}`;
+                            break;
+                        case 'run out':
+                            dismissalText = fielder ? `run out (${fielder})` : 'run out';
+                            break;
+                        default:
+                            dismissalText = dismissal;
+                    }
+                }
+                
+                html += `<p><strong>${score}/${index + 1}</strong> ${playerName} (${over})${dismissalText ? ` - ${dismissalText}` : ''}</p>`;
+            });
+        }
+        
+        html += '</div>';
+        return html;
     }
 
     function closeScorecard() {
@@ -5862,6 +5976,16 @@
         }
 
         try {
+            if (!window.cricketApp) {
+                alert('App is still loading. Please wait a moment and try again.');
+                return;
+            }
+            
+            if (!window.cricketApp.authManager) {
+                alert('Authentication manager not initialized. Please refresh the page.');
+                return;
+            }
+            
             const result = await window.cricketApp.authManager.loginToGroup(groupName, password);
             
             if (result.success) {
@@ -5897,6 +6021,16 @@
         }
 
         try {
+            if (!window.cricketApp) {
+                alert('App is still loading. Please wait a moment and try again.');
+                return;
+            }
+            
+            if (!window.cricketApp.authManager) {
+                alert('Authentication manager not initialized. Please refresh the page.');
+                return;
+            }
+            
             const result = await window.cricketApp.authManager.createGroup(groupName, password);
             
             if (result.success) {
@@ -5932,37 +6066,28 @@
             
             window.cricketApp.updateSyncStatus('🔄 Syncing...', null, true);
             
-            // Step 1: Check if migration is needed (simplified approach)
-            console.log('🔄 Step 1: Checking for group migration needs...');
-            try {
-                // Instead of calling migration directly, just try to create the current group in D1 if needed
-                const currentGroup = window.cricketApp.authManager.getCurrentGroupName();
-                if (currentGroup !== 'guest') {
-                    console.log(`🌩️ Ensuring group "${currentGroup}" exists in D1...`);
-                    // This will either create the group or return success if it already exists
-                }
-            } catch (migrationError) {
-                console.warn('⚠️ Group check failed (this may be normal):', migrationError.message);
-            }
+            // Enhanced sync that forces upload even during live matches
+            console.log('🔄 Starting enhanced sync with D1...');
             
-            // Step 2: Upload current local data to D1 (in case this is first sync for a group)
-            console.log('🔄 Step 2: Uploading local data to D1...');
+            // Step 1: Force sync current data (including live match data) to D1
+            console.log('🔄 Step 1: Force uploading all local data to D1...');
             try {
-                await window.cricketApp.syncToD1();
-                console.log('✅ Local data uploaded to D1');
+                await window.cricketApp.forceSyncToD1();
+                console.log('✅ All local data uploaded to D1 (including live match data)');
             } catch (uploadError) {
-                console.warn('⚠️ Upload to D1 failed (this may be normal):', uploadError.message);
+                console.error('❌ Force sync to D1 failed:', uploadError);
+                throw uploadError; // Re-throw to trigger the catch block below
             }
             
-            // Step 3: Download latest data from D1
-            console.log('🔄 Step 3: Downloading latest data from D1...');
+            // Step 2: Download latest data from D1 to ensure we have the most recent state
+            console.log('🔄 Step 2: Downloading latest data from D1...');
             await window.cricketApp.loadDataFromManager();
             window.cricketApp.loadPlayers();
             window.cricketApp.updateStats();
             
             // If we got here without errors, sync was successful
             window.cricketApp.updateSyncStatus('✅ Synced', new Date());
-            window.cricketApp.showNotification('✅ Successfully synced with database');
+            window.cricketApp.showNotification('✅ Successfully synced with database (including live match data)');
             
         } catch (error) {
             console.error('Sync error:', error);

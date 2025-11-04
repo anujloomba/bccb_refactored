@@ -46,10 +46,14 @@ CREATE TABLE match_data (
     Result TEXT,
     Overs INTEGER,
     Man_Of_The_Match TEXT,
+    Winning_Captain TEXT,
+    Losing_Captain TEXT,
     FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
     FOREIGN KEY (Team1_Captain) REFERENCES player_data(Player_ID) ON DELETE SET NULL,
     FOREIGN KEY (Team2_Captain) REFERENCES player_data(Player_ID) ON DELETE SET NULL,
-    FOREIGN KEY (Man_Of_The_Match) REFERENCES player_data(Player_ID) ON DELETE SET NULL
+    FOREIGN KEY (Man_Of_The_Match) REFERENCES player_data(Player_ID) ON DELETE SET NULL,
+    FOREIGN KEY (Winning_Captain) REFERENCES player_data(Player_ID) ON DELETE SET NULL,
+    FOREIGN KEY (Losing_Captain) REFERENCES player_data(Player_ID) ON DELETE SET NULL
 );
 
 -- Create performance_data table with foreign keys

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Debug Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #1a1a2e;
+            color: white;
+        }
+        .section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        button.danger {
+            background: #f44336;
+        }
+        button.danger:hover {
+            background: #d32f2f;
+        }
+        pre {
+            background: #000;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            width: 200px;
+        }
+        .hash-result {
+            background: rgba(76, 175, 80, 0.2);
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 Authentication Debug Tool</h1>
+    
+    <div class="section">
+        <h2>Current Authentication State</h2>
+        <button onclick="showCurrentState()">Show Current State</button>
+        <pre id="currentState"></pre>
+    </div>
+
+    <div class="section">
+        <h2>All Stored Groups</h2>
+        <button onclick="showAllGroups()">Show All Groups</button>
+        <pre id="allGroups"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Password Hash Calculator</h2>
+        <input type="text" id="passwordInput" placeholder="Enter password">
+        <button onclick="calculateHash()">Calculate Hash</button>
+        <div id="hashResult" class="hash-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Clear Data</h2>
+        <button class="danger" onclick="clearCurrentGroup()">Clear Current Group</button>
+        <button class="danger" onclick="clearAllGroups()">Clear All Groups</button>
+        <button class="danger" onclick="clearBccbGroup()">Clear BCCB Group Only</button>
+        <button onclick="forceGuestLogin()">🔧 Force Login to Guest</button>
+        <button class="danger" onclick="clearAllLocalStorage()">Clear ALL localStorage</button>
+    </div>
+
+    <div class="section">
+        <h2>Test Authentication</h2>
+        <input type="text" id="testGroupName" placeholder="Group name">
+        <input type="password" id="testPassword" placeholder="Password">
+        <button onclick="testAuth()">Test Auth</button>
+        <pre id="authResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Actions</h2>
+        <button onclick="location.href='index.html'">Back to Main App</button>
+        <button onclick="location.reload()">Reload Page</button>
+    </div>
+
+    <script>
+        // Simple password hashing (same as in app.js)
+        async function hashPassword(password) {
+            if (!password) return null;
+            
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(hash))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+
+        function showCurrentState() {
+            const currentGroup = localStorage.getItem('cricket-current-group');
+            document.getElementById('currentState').textContent = 
+                currentGroup ? JSON.stringify(JSON.parse(currentGroup), null, 2) : 'No current group set';
+        }
+
+        function showAllGroups() {
+            const groups = localStorage.getItem('cricket-groups');
+            document.getElementById('allGroups').textContent = 
+                groups ? JSON.stringify(JSON.parse(groups), null, 2) : 'No groups stored';
+        }
+
+        async function calculateHash() {
+            const password = document.getElementById('passwordInput').value;
+            if (!password) {
+                document.getElementById('hashResult').textContent = 'Please enter a password';
+                return;
+            }
+            
+            const hash = await hashPassword(password);
+            document.getElementById('hashResult').innerHTML = 
+                `<strong>Password:</strong> ${password}<br>` +
+                `<strong>SHA-256 Hash:</strong><br>${hash}`;
+        }
+
+        function clearCurrentGroup() {
+            if (confirm('Clear current group? This will reset to guest.')) {
+                localStorage.removeItem('cricket-current-group');
+                alert('Current group cleared! Reload the app to see changes.');
+            }
+        }
+
+        function clearAllGroups() {
+            if (confirm('Clear all groups from localStorage?')) {
+                localStorage.removeItem('cricket-groups');
+                localStorage.removeItem('cricket-current-group');
+                alert('All groups cleared!');
+                showAllGroups();
+                showCurrentState();
+            }
+        }
+
+        function clearBccbGroup() {
+            if (confirm('Remove BCCB group from localStorage?')) {
+                const groups = JSON.parse(localStorage.getItem('cricket-groups') || '[]');
+                const filtered = groups.filter(g => g.name !== 'bccb');
+                localStorage.setItem('cricket-groups', JSON.stringify(filtered));
+                alert('BCCB group removed!');
+                showAllGroups();
+            }
+        }
+
+        function forceGuestLogin() {
+            if (confirm('Force login to guest group? This will clear current group and set you to guest.')) {
+                const guestGroup = {
+                    id: 1,
+                    name: 'guest',
+                    hasPassword: false
+                };
+                localStorage.setItem('cricket-current-group', JSON.stringify(guestGroup));
+                alert('Forced login to guest! Close this window and refresh the main app.');
+                showCurrentState();
+            }
+        }
+
+        function clearAllLocalStorage() {
+            if (confirm('⚠️ WARNING: This will clear ALL data including players and matches! Are you sure?')) {
+                if (confirm('Are you REALLY sure? This cannot be undone!')) {
+                    localStorage.clear();
+                    alert('All localStorage cleared!');
+                    location.reload();
+                }
+            }
+        }
+
+        async function testAuth() {
+            const groupName = document.getElementById('testGroupName').value;
+            const password = document.getElementById('testPassword').value;
+            
+            if (!groupName) {
+                alert('Please enter a group name');
+                return;
+            }
+
+            const passwordHash = await hashPassword(password);
+            
+            try {
+                const response = await fetch('https://cricket-api.cricketmgr.workers.dev/groups/auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        group_name: groupName,
+                        password_hash: passwordHash
+                    })
+                });
+
+                const result = await response.json();
+                document.getElementById('authResult').textContent = 
+                    JSON.stringify(result, null, 2);
+            } catch (error) {
+                document.getElementById('authResult').textContent = 
+                    'Error: ' + error.message;
+            }
+        }
+
+        // Auto-load on page load
+        showCurrentState();
+        showAllGroups();
+    </script>
+</body>
+</html>
