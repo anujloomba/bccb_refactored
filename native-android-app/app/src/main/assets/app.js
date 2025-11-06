@@ -2,23 +2,24 @@
 let _globalLastCaptainStatsCall = 0;
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize app after DOM is loaded
-});
+    });
 
 setTimeout(function() {
-    window.cricketApp = new CricketApp();
-    window.app = window.cricketApp;
-    window.forceUploadToD1 = async function() {
-        try {
-            await window.cricketApp.saveData(true); // Force sync to D1
-        } catch (error) {
-            // Ignore errors
+    try {
+        window.cricketApp = new CricketApp();
+        window.app = window.cricketApp;
+        window.forceUploadToD1 = async function() {
+            try {
+                await window.cricketApp.saveData(true); // Force sync to D1
+                }
+        };
+
         }
-    };
 }, 1000);
 
 // Simple message display function
 function showMessage(message, type = 'info') {
+
     try {
         // Look for any existing message area or create a temporary alert
         const messageArea = document.getElementById('messageArea');
@@ -32,8 +33,6 @@ function showMessage(message, type = 'info') {
         } else {
             // Fallback to console for now - we can enhance this later
         }
-    } catch (error) {
-        // Ignore errors
     }
 }
 
@@ -2209,7 +2208,6 @@ class CricketApp {
         const hour = now.getHours();
         const greetingEl = document.getElementById('greeting');
         const dateEl = document.getElementById('date');
-        const guestNoticeEl = document.getElementById('guestGroupNotice');
 
         let greeting = '';
         if (hour < 12) {
@@ -2221,87 +2219,11 @@ class CricketApp {
         }
 
         greetingEl.textContent = greeting;
-        
-        // Format date nicely
-        const dateString = now.toLocaleDateString('en-US', {
+        dateEl.textContent = `Ready to play cricket? • ${now.toLocaleDateString('en-US', {
             weekday: 'long',
             month: 'long',
-            day: 'numeric',
-            year: 'numeric'
-        });
-        
-        dateEl.innerHTML = `Ready to play cricket?<br><span style="font-size: 0.9em; color: #00ccff; margin-top: 5px; display: inline-block;">${dateString}</span>`;
-        
-        // Show guest group notice if user is on guest group
-        if (guestNoticeEl) {
-            const currentGroup = localStorage.getItem('currentGroup');
-            if (!currentGroup || currentGroup === 'guest' || currentGroup === 'Guest') {
-                guestNoticeEl.style.display = 'block';
-            } else {
-                guestNoticeEl.style.display = 'none';
-            }
-        }
-    }
-
-    // Navigation helpers for overview cards
-    goToCaptainHistory() {
-        showPage('teams');
-        // Scroll to top after navigation
-        setTimeout(() => {
-            const teamsContent = document.getElementById('teams');
-            if (teamsContent) {
-                teamsContent.scrollTop = 0;
-            }
-        }, 100);
-    }
-
-    goToMatchHistory() {
-        showPage('stats');
-        // Scroll to top after navigation
-        setTimeout(() => {
-            const statsContent = document.getElementById('stats');
-            if (statsContent) {
-                statsContent.scrollTop = 0;
-            }
-        }, 100);
-    }
-
-    goToOversSettings() {
-        showPage('settings');
-        // Scroll to overs section after navigation
-        setTimeout(() => {
-            const oversSection = document.getElementById('oversPerMatchInput');
-            if (oversSection) {
-                oversSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Highlight the section briefly
-                oversSection.style.transition = 'all 0.3s';
-                oversSection.style.boxShadow = '0 0 0 3px rgba(0,255,136,0.5)';
-                setTimeout(() => {
-                    oversSection.style.boxShadow = '';
-                }, 2000);
-            }
-        }, 100);
-    }
-
-    goToGroupSettings() {
-        showPage('settings');
-        // Scroll to group settings section after navigation
-        setTimeout(() => {
-            const groupSection = document.querySelector('input[placeholder*="Group ID"]') || 
-                               document.querySelector('input[placeholder*="group"]');
-            if (groupSection) {
-                groupSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Highlight the section briefly
-                const container = groupSection.closest('.glass-card') || groupSection.parentElement;
-                if (container) {
-                    container.style.transition = 'all 0.3s';
-                    container.style.boxShadow = '0 0 0 3px rgba(255,193,7,0.5)';
-                    setTimeout(() => {
-                        container.style.boxShadow = '';
-                    }, 2000);
-                }
-            }
-        }, 100);
+            day: 'numeric'
+        })}`;
     }
 
     getUniqueCaptainsCount() {

@@ -3548,34 +3548,42 @@
         <div class="content active" id="home">
             <div class="page-header fade-in">
                 <div class="page-title" id="greeting">Good Evening! 🌙</div>
-                <div class="page-subtitle" id="date" style="line-height: 1.6;">Ready to play cricket?</div>
-                <div id="guestGroupNotice" style="display: none; margin-top: 15px; padding: 12px; background: rgba(255, 193, 7, 0.15); border-left: 3px solid #ffc107; border-radius: 4px; font-size: 0.9em; line-height: 1.5;">
-                    <div style="color: #ffc107; margin-bottom: 5px;">⚠️ Using Guest Group</div>
-                    <div style="color: #e0e0e0; font-size: 0.85em; margin-bottom: 8px;">Create or join a group in settings to sync your match history across devices.</div>
-                    <button onclick="window.cricketApp.goToGroupSettings()" style="padding: 6px 12px; background: #ffc107; color: #1a1a1a; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85em;">Go to Settings</button>
-                </div>
+                <div class="page-subtitle" id="date">Ready to play cricket?</div>
             </div>
 
             <div class="glass-card slide-up">
                 <h3>📊 Overview</h3>
                 <div class="status-grid">
-                    <div class="status-card clickable" onclick="showPage('players')" style="cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 4px 15px rgba(0,255,136,0.3)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                    <div class="status-card">
                         <div class="status-number" id="playerCount">0</div>
                         <div class="status-label">Players</div>
                     </div>
-                    <div class="status-card clickable" onclick="window.cricketApp.goToCaptainHistory()" style="cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 4px 15px rgba(0,204,255,0.3)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                    <div class="status-card">
                         <div class="status-number" id="captainCount">0</div>
                         <div class="status-label">Captains</div>
                     </div>
-                    <div class="status-card clickable" onclick="window.cricketApp.goToMatchHistory()" style="cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 4px 15px rgba(0,255,136,0.3)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                    <div class="status-card">
                         <div class="status-number" id="matchCount">0</div>
                         <div class="status-label">Matches</div>
                     </div>
-                    <div class="status-card clickable" onclick="window.cricketApp.goToOversSettings()" style="cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 4px 15px rgba(0,204,255,0.3)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                    <div class="status-card">
                         <div class="status-number" id="matchFormat">20</div>
                         <div class="status-label">Overs</div>
                     </div>
                 </div>
+            </div>
+
+            <div class="glass-card slide-up">
+                <h3>⚡ Quick Actions</h3>
+                <button class="btn btn-primary" onclick="showPage('players')">
+                    👥 Manage Players
+                </button>
+                <button class="btn btn-success" onclick="showPage('teams')" id="teamsBtn">
+                    ⚡ Create Teams
+                </button>
+                <button class="btn" onclick="showPage('settings')">
+                    ⚙️ View Settings
+                </button>
             </div>
 
             <div class="glass-card slide-up">
@@ -4228,9 +4236,15 @@
                 a.click();
                 URL.revokeObjectURL(url);
                 
-                showNotification(`Data exported to Downloads/${filename}`);
+                showNotification(`� Data exported to Downloads/${filename}`);
+                    players: data.players.length,
+                    teams: data.teams.length,
+                    matches: data.matches.length,
+                    filename: filename
+                });
             } catch (error) {
-                showNotification('Failed to export data');
+                console.error('❌ Export error:', error);
+                showNotification('❌ Failed to export data');
             }
         }
         
@@ -4285,6 +4299,11 @@
                             const currentTeams = JSON.parse(localStorage.getItem('cricket-teams') || '[]');
                             const currentMatches = JSON.parse(localStorage.getItem('cricket-matches') || '[]');
                             const currentSettings = JSON.parse(localStorage.getItem('match-settings') || '{}');
+                            
+                                players: currentPlayers.length,
+                                teams: currentTeams.length,
+                                matches: currentMatches.length
+                            });
                             
                             // Merge players (avoid duplicates by name)
                             const mergedPlayers = [...currentPlayers];
@@ -4365,6 +4384,16 @@
                             const addedPlayers = mergedPlayers.length - currentPlayers.length;
                             const addedTeams = mergedTeams.length - currentTeams.length;
                             const addedMatches = mergedMatches.length - currentMatches.length;
+                            
+                                addedPlayers,
+                                addedTeams, 
+                                addedMatches,
+                                totalPlayers: mergedPlayers.length,
+                                totalTeams: mergedTeams.length,
+                                totalMatches: mergedMatches.length,
+                                sourceFile: file.name,
+                                exportDate: importedData.exportDate
+                            });
                             
                             // Show detailed success message
                             showNotification(`✅ Import complete! Added: ${addedPlayers} players, ${addedTeams} teams, ${addedMatches} matches from ${file.name}`);
@@ -5020,6 +5049,12 @@
         team1Score = team1Score || 'N/A';
         team2Score = team2Score || 'N/A';
         
+            matchId,
+            teams: `${team1Name} vs ${team2Name}`,
+            scores: `${team1Score} vs ${team2Score}`,
+            result
+        });
+        
         return {
             matchId,
             team1Name,
@@ -5077,12 +5112,23 @@
 
     function displayScorecard(matchId, data) {
         try {
+                totalMatches: data.matches?.length || 0,
+                hasHistory: !!data.history,
+                dataKeys: Object.keys(data)
+            });
+            
             // Handle both new format (matches) and legacy format (history)
             const matchesData = data.matches || data.history || [];
             
             if (!data || matchesData.length === 0) {
                 throw new Error('No match data available');
             }
+
+            // Debug: Log all match IDs to help diagnose the issue
+                id: m.Match_ID || m.id,
+                team1: m.Team1 || m.team1?.name || m.team1,
+                team2: m.Team2 || m.team2?.name || m.team2
+            })));
 
             // Try multiple ID formats to find the match
             let match = matchesData.find(m => m.Match_ID === matchId);
@@ -5132,6 +5178,10 @@
             if (bowlingData.length === 0 && data.match_bowling_performance) {
                 bowlingData = data.match_bowling_performance.filter(b => String(b.Match_ID) === String(actualMatchId));
             }
+            
+                battingEntries: battingData.length,
+                bowlingEntries: bowlingData.length
+            });
 
             // Fix date parsing
             const matchDate = match.Date || match.date || match.Date_Saved;
