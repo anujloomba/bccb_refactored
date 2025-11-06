@@ -4228,15 +4228,9 @@
                 a.click();
                 URL.revokeObjectURL(url);
                 
-                showNotification(`� Data exported to Downloads/${filename}`);
-                    players: data.players.length,
-                    teams: data.teams.length,
-                    matches: data.matches.length,
-                    filename: filename
-                });
+                showNotification(`Data exported to Downloads/${filename}`);
             } catch (error) {
-                console.error('❌ Export error:', error);
-                showNotification('❌ Failed to export data');
+                showNotification('Failed to export data');
             }
         }
         
@@ -5040,12 +5034,6 @@
         // Final validation
         team1Score = team1Score || 'N/A';
         team2Score = team2Score || 'N/A';
-        
-            matchId,
-            teams: `${team1Name} vs ${team2Name}`,
-            scores: `${team1Score} vs ${team2Score}`,
-            result
-        });
         
         return {
             matchId,

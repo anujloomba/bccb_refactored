@@ -11,10 +11,11 @@ setTimeout(function() {
         window.forceUploadToD1 = async function() {
             try {
                 await window.cricketApp.saveData(true); // Force sync to D1
-                }
+            } catch (error) {
+                // Ignore errors
+            }
         };
-
-        }
+    }, 1000);
 }, 1000);
 
 // Simple message display function
