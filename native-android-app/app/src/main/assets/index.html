@@ -287,10 +287,18 @@
 
         .btn-success {
             background: var(--success-600);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
         }
 
         .btn-warning {
             background: var(--warning-500);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
         }
 
         .btn:disabled {
@@ -851,11 +859,17 @@
         .score-btn.extra {
             background: linear-gradient(135deg, #f59e0b, #d97706);
             border-color: #f59e0b;
+            transform: scale(0.8);
+            transform-origin: center;
         }
 
         .score-btn.wicket {
             background: linear-gradient(135deg, #ef4444, #dc2626);
             border-color: #ef4444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
         }
 
         .over-summary {
@@ -3887,10 +3901,10 @@
                     <div class="setting-item" style="margin-bottom: 15px;">
                         <label for="totalOvers" style="display: block; margin-bottom: 5px; font-weight: bold;">Match Overs:</label>
                         <select id="totalOvers" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ccc;" onchange="handleOversChange(this.value)">
-                            <option value="5">5 Overs (Quick)</option>
+                            <option value="5" selected>5 Overs (Quick)</option>
                             <option value="10">10 Overs (Short)</option>
                             <option value="15">15 Overs (Medium)</option>
-                            <option value="20" selected>20 Overs (T20)</option>
+                            <option value="20">20 Overs (T20)</option>
                             <option value="25">25 Overs</option>
                             <option value="30">30 Overs</option>
                             <option value="40">40 Overs</option>
@@ -4823,20 +4837,12 @@
 
         // Global function to update player count
         window.updateSelectedPlayerCountInline = function() {
-            console.log('🔵 updateSelectedPlayerCountInline called');
             const checkboxes = document.querySelectorAll('input[name="todayPlayers"]:checked');
             const count = checkboxes.length;
-            console.log('🔍 Found checked checkboxes:', count);
-            console.log('🔍 Checkboxes:', checkboxes);
             
             const label = document.getElementById('selectedPlayerCount');
-            console.log('🔍 Count label element found:', !!label);
-            
             if (label) {
                 label.textContent = count.toString();
-                console.log('✅ Updated count to:', count);
-            } else {
-                console.error('❌ selectedPlayerCount element not found');
             }
         };
 
@@ -4891,6 +4897,13 @@
         function loadMatchSettings() {
             const settings = JSON.parse(localStorage.getItem('match-settings') || '{}');
             
+            // Initialize default value of 5 overs if not set
+            if (settings.totalOvers === undefined) {
+                settings.totalOvers = 5;
+                localStorage.setItem('match-settings', JSON.stringify(settings));
+                console.log('🏏 Initialized default match settings: 5 overs');
+            }
+            
             // Set default values and load saved values
             const totalOversSelect = document.getElementById('totalOvers');
             const runsOnWideSelect = document.getElementById('runsOnWide');
@@ -4898,7 +4911,7 @@
             const enableByesCheckbox = document.getElementById('enableByes');
             
             if (totalOversSelect) {
-                const savedOvers = settings.totalOvers || 20;
+                const savedOvers = settings.totalOvers || 5;
                 // Check if saved value matches predefined options
                 const predefinedValues = ['5', '10', '15', '20', '25', '30', '40', '50'];
                 if (predefinedValues.includes(savedOvers.toString())) {
@@ -4933,7 +4946,15 @@
                 customInput.focus();
             } else {
                 customInput.style.display = 'none';
-                saveMatchSetting('totalOvers', parseInt(value));
+                const overs = parseInt(value);
+                console.log(`🏏 OVERS_CHANGE: Saving totalOvers = ${overs}`);
+                saveMatchSetting('totalOvers', overs);
+                
+                // Verify it was saved
+                setTimeout(() => {
+                    const saved = JSON.parse(localStorage.getItem('match-settings') || '{}');
+                    console.log(`🏏 OVERS_VERIFY: Saved settings:`, saved);
+                }, 100);
             }
         }
 
@@ -5143,102 +5164,40 @@
             return;
         }
 
-        // Clear old localStorage data first
-        localStorage.removeItem('cricket-stats');
-
-        // Try Android data loader first if available
-        if (window.androidDataLoader) {
-            console.log('📱 Using Android data loader for refresh...');
-            try {
-                const androidData = await window.androidDataLoader.loadData();
-                if (androidData && (androidData.players || androidData.player_data)) {
-                    console.log('✅ Android data loader returned data');
-                    
-                    // Check both possible app references
-                    const appInstance = window.cricketApp || window.app;
-                    
-                    if (appInstance && appInstance.loadDataFromManager) {
-                        console.log('🔄 Calling app.loadDataFromManager()...');
-                        await appInstance.loadDataFromManager();
-                        console.log('✅ Data loaded, refreshing UI...');
-                        
-                        // Refresh UI components
-                        if (appInstance.updateStats) {
-                            appInstance.updateStats();
-                        }
-                        if (appInstance.loadPlayers) {
-                            appInstance.loadPlayers();
-                        }
-                        if (appInstance.loadTeams) {
-                            appInstance.loadTeams();
-                        }
-                        if (appInstance.loadMatchHistory) {
-                            appInstance.loadMatchHistory();
-                        }
-                        
-                        console.log('✅ Data refreshed from Android loader');
-                        return;
-                    } else {
-                        console.log('⚠️ app.loadDataFromManager not available');
-                        console.log('📊 window.cricketApp exists:', !!window.cricketApp);
-                        console.log('📊 window.app exists:', !!window.app);
-                        
-                        // Try alternative approach - direct data processing
-                        const appInstance = window.cricketApp || window.app;
-                        if (appInstance) {
-                            console.log('🔄 Using alternative data refresh approach...');
-                            
-                            // Force data reload through available methods
-                            if (appInstance.refreshFromLocalStorage) {
-                                console.log('🔄 Calling refreshFromLocalStorage...');
-                                appInstance.refreshFromLocalStorage();
-                            } else if (appInstance.loadPlayers) {
-                                console.log('🔄 Calling loadPlayers...');
-                                appInstance.loadPlayers();
-                            }
-                            
-                            if (appInstance.updateStats) {
-                                appInstance.updateStats();
-                            }
-                            
-                            console.log('✅ Alternative data refresh completed');
-                            return;
-                        }
-                        
-                        console.log('❌ No app instance available for data refresh');
-                    }
-                }
-            } catch (error) {
-                console.log('⚠️ Android data loader failed:', error.message);
-            }
-        }
+        // Load match history from localStorage (all data is stored there)
+        console.log('� Loading match history from localStorage...');
         
-        // Fallback to fetch for desktop/web
-        console.log('🌐 Falling back to fetch for refresh...');
-        // Load directly from cricket_stats.json with cache busting
-        fetch('./cricket_stats.json?' + Math.random(), {
-            cache: 'no-cache',
-            headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
+        try {
+            // Get the app instance
+            const appInstance = window.cricketApp || window.app;
+            
+            if (!appInstance) {
+                console.error('❌ No app instance available');
+                historyContainer.innerHTML = '<div class="no-matches">App not initialized</div>';
+                return;
             }
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                displayMatchHistory(data, historyContainer);
-                
-                // Also store in localStorage for future use
-                localStorage.setItem('cricket-stats', JSON.stringify(data));
-            })
-            .catch(error => {
-                console.error('❌ Error loading cricket_stats.json:', error);
-                historyContainer.innerHTML = '<div class="no-matches">Unable to load match history</div>';
-            });
+            
+            // Get data from the app's internal storage
+            const matchesData = appInstance.matches || [];
+            const battingData = appInstance.match_batting_performance || [];
+            const players = appInstance.players || appInstance.player_data || {};
+            
+            // Create data structure for display
+            const data = {
+                matches: matchesData,
+                match_batting_performance: battingData,
+                players: players
+            };
+            
+            console.log(`✅ Loaded ${matchesData.length} matches from app storage`);
+            
+            // Display the match history
+            displayMatchHistory(data, historyContainer);
+            
+        } catch (error) {
+            console.error('❌ Error loading match history:', error);
+            historyContainer.innerHTML = '<div class="no-matches">Unable to load match history</div>';
+        }
     }
 
         function displayMatchHistory(data, historyContainer) {
@@ -5455,39 +5414,32 @@
     function showMatchScorecard(matchId) {
         console.log('🏆 Loading scorecard for match:', matchId);
         
-        // Load data from cricket_stats.json (same as match history)
-        fetch('./cricket_stats.json')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('📊 Loaded data for scorecard:', data);
-                displayScorecard(matchId, data);
-            })
-            .catch(error => {
-                console.error('❌ Error loading scorecard data:', error);
-                
-                // Fallback: try localStorage
-                try {
-                    const localData = JSON.parse(localStorage.getItem('cricket-stats'));
-                    if (localData) {
-                        console.log('📦 Using localStorage for scorecard');
-                        displayScorecard(matchId, localData);
-                    } else {
-                        throw new Error('No data available');
-                    }
-                } catch (localError) {
-                    console.error('❌ Scorecard fallback failed:', localError);
-                    if (window.cricketApp && window.cricketApp.showNotification) {
-                        window.cricketApp.showNotification('❌ Error loading scorecard');
-                    } else {
-                        alert('Error loading scorecard');
-                    }
-                }
-            });
+        // Load data directly from app storage
+        try {
+            const appInstance = window.cricketApp || window.app;
+            
+            if (!appInstance) {
+                throw new Error('App instance not available');
+            }
+            
+            // Get data from the app's internal storage
+            const data = {
+                matches: appInstance.matches || [],
+                match_batting_performance: appInstance.match_batting_performance || [],
+                players: appInstance.players || appInstance.player_data || {}
+            };
+            
+            console.log('� Loaded data for scorecard from app storage');
+            displayScorecard(matchId, data);
+            
+        } catch (error) {
+            console.error('❌ Error loading scorecard data:', error);
+            if (window.cricketApp && window.cricketApp.showNotification) {
+                window.cricketApp.showNotification('❌ Error loading scorecard');
+            } else {
+                alert('Error loading scorecard');
+            }
+        }
     }
 
     function displayScorecard(matchId, data) {
