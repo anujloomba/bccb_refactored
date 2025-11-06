@@ -3602,7 +3602,7 @@
             </div>
 
             <div class="glass-card">
-                <button class="btn btn-primary" onclick="console.log('🔴 Add Player button clicked'); if (window.cricketApp) { window.cricketApp.showAddPlayerModal(); } else { console.error('❌ window.cricketApp not available'); showAddPlayerModal(); }">
+                <button class="btn btn-primary" onclick="if (window.cricketApp) { window.cricketApp.showAddPlayerModal(); } else { console.error('❌ window.cricketApp not available'); showAddPlayerModal(); }">
                     ➕ Add New Player
                 </button>
             </div>
@@ -4085,9 +4085,7 @@
     <script>
         // Ensure critical functions are available
         if (typeof window.showPage === 'undefined') {
-            console.log('⚠️ showPage not found, creating emergency fallback');
             window.showPage = function(pageId) {
-                console.log('🔧 Emergency showPage called for:', pageId);
                 
                 // Hide all pages
                 const pages = document.querySelectorAll('.page');
@@ -4101,9 +4099,7 @@
                 if (targetPage) {
                     targetPage.style.display = 'block';
                     targetPage.classList.add('active');
-                    console.log('✅ Emergency: Activated page:', pageId);
                 } else {
-                    console.log('❌ Emergency: Page not found:', pageId);
                 }
                 
                 // Update navigation
@@ -4119,7 +4115,6 @@
         
         if (typeof window.closeModal === 'undefined') {
             window.closeModal = function(modalId) {
-                console.log('🔧 Emergency closeModal called for:', modalId);
                 const modal = document.getElementById(modalId);
                 if (modal) {
                     modal.classList.remove('active');
@@ -4128,113 +4123,12 @@
             };
         }
         
-        console.log('🚑 Emergency functions loaded');
     </script>
     
     <script>
-    // Immediately available debug functions - no waiting for app load
-    window.checkDebugFunctions = function() {
-        console.log('=== Debug Function Check ===');
-        console.log('window.cricketApp exists:', !!window.cricketApp);
-        console.log('window.app exists:', !!window.app);
-        console.log('CricketApp class exists:', typeof CricketApp);
-        console.log('debugBowlerSelection exists:', typeof window.debugBowlerSelection);
-        
-        if (window.cricketApp) {
-            console.log('App state:');
-            console.log('  - waitingForBowlerSelection:', window.cricketApp.waitingForBowlerSelection);
-            console.log('  - currentMatch exists:', !!window.cricketApp.currentMatch);
-            console.log('  - players count:', window.cricketApp.players?.length || 0);
-            
-            // Try to register debug functions if they don't exist
-            if (typeof window.debugBowlerSelection !== 'function') {
-                console.log('📝 Registering debug functions...');
-                window.debugBowlerSelection = () => window.cricketApp.debugBowlerSelection();
-                window.debugTestButton = () => window.cricketApp.debugTestButtonClick();
-                window.debugForceReset = () => window.cricketApp.debugForceResetBowlerSelection();
-                window.debugAppState = () => window.cricketApp.debugAppState();
-                console.log('✅ Debug functions registered!');
-            }
-        } else {
-            console.log('❌ CricketApp not initialized yet');
-            
-            // Try to create app instance if class exists
-            if (typeof CricketApp !== 'undefined') {
-                console.log('📱 Creating CricketApp instance...');
-                window.cricketApp = new CricketApp();
-                window.app = window.cricketApp;
-                
-                // Register debug functions
-                window.debugBowlerSelection = () => window.cricketApp.debugBowlerSelection();
-                window.debugTestButton = () => window.cricketApp.debugTestButtonClick();
-                window.debugForceReset = () => window.cricketApp.debugForceResetBowlerSelection();
-                window.debugAppState = () => window.cricketApp.debugAppState();
-                
-                console.log('✅ CricketApp created and debug functions registered!');
-            } else {
-                console.log('❌ CricketApp class not found');
-            }
-        }
-        console.log('============================');
-    };
-    
-    // Simple manual debug for bowler selection issue - works without app methods
-    window.manualDebugBowlerSelection = function() {
-        console.log('🔍 === MANUAL BOWLER SELECTION DEBUG ===');
-        
-        const app = window.cricketApp || window.app;
-        if (!app) {
-            console.log('❌ No cricket app found');
-            return;
-        }
-        
-        console.log('1. App State:');
-        console.log('  - waitingForBowlerSelection:', app.waitingForBowlerSelection);
-        console.log('  - currentMatch exists:', !!app.currentMatch);
-        
-        console.log('2. Button Analysis:');
-        const buttons = document.querySelectorAll('.score-btn');
-        console.log('  - Total buttons:', buttons.length);
-        console.log('  - Disabled buttons:', Array.from(buttons).filter(btn => btn.disabled).length);
-        console.log('  - Buttons with opacity 0.5:', Array.from(buttons).filter(btn => btn.style.opacity === '0.5').length);
-        
-        if (buttons.length > 0) {
-            const firstButton = buttons[0];
-            console.log('  - First button state:', {
-                disabled: firstButton.disabled,
-                opacity: firstButton.style.opacity,
-                pointerEvents: firstButton.style.pointerEvents,
-                onclick: firstButton.onclick ? 'has onclick' : 'no onclick'
-            });
-        }
-        
-        console.log('3. Modal Check:');
-        const modal = document.querySelector('.modal-overlay');
-        console.log('  - Modal exists:', !!modal);
-        
-        console.log('4. Function Availability:');
-        console.log('  - handleRunButton exists:', typeof window.handleRunButton);
-        console.log('  - addRuns exists:', typeof window.addRuns);
-        console.log('  - cricketApp.addRuns exists:', typeof app.addRuns);
-        
-        console.log('🔍 === END MANUAL DEBUG ===');
-        
-        return {
-            waitingForBowlerSelection: app.waitingForBowlerSelection,
-            currentMatch: !!app.currentMatch,
-            buttonCount: buttons.length,
-            disabledButtons: Array.from(buttons).filter(btn => btn.disabled).length,
-            modalExists: !!modal
-        };
-    };
-    
-    console.log('💡 Debug commands available:');
-    console.log('  - checkDebugFunctions() - Check and setup debug system');
-    console.log('  - manualDebugBowlerSelection() - Manual debug of bowler selection');
-    
+
     // Global toggleTile function - ensure it's available immediately
     window.toggleTile = function(contentId, hintElement) {
-        console.log('🔧 toggleTile called for:', contentId);
         const content = document.getElementById(contentId);
         if (!content) {
             console.error('❌ Content element not found:', contentId);
@@ -4244,47 +4138,36 @@
         if (content.style.display === 'none' || content.style.display === '') {
             content.style.display = 'block';
             if (hintElement) hintElement.style.display = 'none';
-            console.log('✅ Expanded:', contentId);
         } else {
             content.style.display = 'none';
             if (hintElement) hintElement.style.display = 'block';
-            console.log('✅ Collapsed:', contentId);
         }
     };
 
     // Wipe data confirmation function
     window.confirmWipeAllData = function() {
-        console.log('🔧 confirmWipeAllData called - showing confirmation modal');
         
         // Show the confirmation modal instead of directly wiping
         const modal = document.getElementById('wipeDataModal');
         if (modal) {
             modal.classList.add('active');
             modal.style.display = 'block';
-            console.log('✅ Wipe confirmation modal shown');
         } else {
-            console.log('❌ Wipe confirmation modal not found');
         }
     };
 
     // Execute wipe after confirmation
     window.executeWipeAllData = function() {
-        console.log('🗑️ executeWipeAllData called after confirmation');
         
         if (window.cricketApp && window.cricketApp.executeCompleteDataWipe) {
-            console.log('🗑️ Calling executeCompleteDataWipe...');
             window.cricketApp.executeCompleteDataWipe().then(filename => {
-                console.log('✅ Wipe completed successfully:', filename);
                 closeModal('wipeDataModal');
             }).catch(error => {
                 console.error('❌ Wipe failed:', error);
                 closeModal('wipeDataModal');
             });
         } else {
-            console.log('❌ Cricket app or executeCompleteDataWipe method not available');
-            console.log('window.cricketApp exists:', !!window.cricketApp);
             if (window.cricketApp) {
-                console.log('Available methods:', Object.getOwnPropertyNames(window.cricketApp));
             }
             closeModal('wipeDataModal');
         }
@@ -4292,12 +4175,10 @@
 
     // Modal close functionality
     window.closeModal = function(modalId) {
-        console.log('🔧 closeModal called for:', modalId);
         const modal = document.getElementById(modalId);
         if (modal) {
             modal.classList.remove('active');
             modal.style.display = 'none';
-            console.log('✅ Modal closed:', modalId);
         } else {
             console.error('❌ Modal not found:', modalId);
         }
@@ -4305,7 +4186,6 @@
 
     // Show notification function
     window.showNotification = function(message) {
-        console.log('📢 Notification:', message);
         if (window.cricketApp && window.cricketApp.showNotification) {
             window.cricketApp.showNotification(message);
         } else {
@@ -4315,7 +4195,6 @@
 
     // Global executeWipeAllData function - ensure it's available
     window.executeWipeAllData = function() {
-        console.log('🗑️ WIPE DEBUG: executeWipeAllData called');
         if (window.cricketApp && window.cricketApp.wipeAllData) {
             window.cricketApp.wipeAllData();
         } else {
@@ -4329,7 +4208,6 @@
         }
     };
 
-    console.log('✅ Global functions defined: toggleTile, executeWipeAllData');
     </script>
     <script>
         // Enhanced Data Management Functions for JSON backup/restore
@@ -4359,7 +4237,6 @@
                 URL.revokeObjectURL(url);
                 
                 showNotification(`� Data exported to Downloads/${filename}`);
-                console.log('✅ Cricket data exported successfully:', {
                     players: data.players.length,
                     teams: data.teams.length,
                     matches: data.matches.length,
@@ -4374,7 +4251,6 @@
         function importCricketData() {
             try {
                 showNotification('🔍 Searching Downloads folder for cricket backup files...');
-                console.log('📂 Starting automatic import from Downloads folder');
                 
                 // Create file input that will default to Downloads folder
                 const input = document.createElement('input');
@@ -4397,18 +4273,15 @@
                     // Check if it's a cricket backup file
                     if (!file.name.includes('cricket-data-backup') || !file.name.endsWith('.json')) {
                         showNotification('❌ Please select a cricket backup JSON file (cricket-data-backup-*.json)');
-                        console.log('❌ Invalid file selected:', file.name);
                         return;
                     }
                     
-                    console.log('📁 Processing backup file:', file.name);
                     showNotification(`📥 Processing backup file: ${file.name}`);
                     
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         try {
                             const importedData = JSON.parse(e.target.result);
-                            console.log('📥 Importing data from:', file.name, importedData);
                             
                             // Validate the backup file format
                             if (!importedData.version || !importedData.exportDate) {
@@ -4427,7 +4300,6 @@
                             const currentMatches = JSON.parse(localStorage.getItem('cricket-matches') || '[]');
                             const currentSettings = JSON.parse(localStorage.getItem('match-settings') || '{}');
                             
-                            console.log('📊 Current data:', {
                                 players: currentPlayers.length,
                                 teams: currentTeams.length,
                                 matches: currentMatches.length
@@ -4440,7 +4312,6 @@
                                     const existingPlayer = mergedPlayers.find(p => p.name === importedPlayer.name);
                                     if (!existingPlayer) {
                                         mergedPlayers.push(importedPlayer);
-                                        console.log(`➕ Added new player: ${importedPlayer.name}`);
                                     } else {
                                         // Merge statistics for existing players
                                         existingPlayer.runs = (existingPlayer.runs || 0) + (importedPlayer.runs || 0);
@@ -4457,7 +4328,6 @@
                                             existingPlayer.boundaries.sixes = (existingPlayer.boundaries.sixes || 0) + (importedPlayer.boundaries.sixes || 0);
                                         }
                                         
-                                        console.log(`🔄 Merged stats for player: ${existingPlayer.name}`);
                                     }
                                 });
                             }
@@ -4469,9 +4339,7 @@
                                     const existingTeam = mergedTeams.find(t => t.name === importedTeam.name);
                                     if (!existingTeam) {
                                         mergedTeams.push(importedTeam);
-                                        console.log(`➕ Added new team: ${importedTeam.name}`);
                                     } else {
-                                        console.log(`🔄 Team already exists: ${importedTeam.name}`);
                                     }
                                 });
                             }
@@ -4491,9 +4359,7 @@
                                     
                                     if (!isDuplicate) {
                                         mergedMatches.push(importedMatch);
-                                        console.log(`➕ Added new match: ${importedMatch.team1} vs ${importedMatch.team2} (${importedMatch.date})`);
                                     } else {
-                                        console.log(`🔄 Duplicate match skipped: ${importedMatch.team1} vs ${importedMatch.team2}`);
                                     }
                                 });
                             }
@@ -4504,7 +4370,6 @@
                                 Object.keys(importedData.settings).forEach(key => {
                                     if (!(key in mergedSettings)) {
                                         mergedSettings[key] = importedData.settings[key];
-                                        console.log(`➕ Added new setting: ${key}`);
                                     }
                                 });
                             }
@@ -4520,7 +4385,6 @@
                             const addedTeams = mergedTeams.length - currentTeams.length;
                             const addedMatches = mergedMatches.length - currentMatches.length;
                             
-                            console.log('✅ Import completed successfully:', {
                                 addedPlayers,
                                 addedTeams, 
                                 addedMatches,
@@ -4600,19 +4464,15 @@
         
         function executeWipeAllData() {
             try {
-                console.log('🗑️ WIPE DEBUG: executeWipeAllData called');
                 
                 // Check if cricket app is available
                 if (window.cricketApp && window.cricketApp.executeCompleteDataWipe) {
-                    console.log('🗑️ WIPE DEBUG: Using cricketApp.executeCompleteDataWipe');
                     
                     window.cricketApp.executeCompleteDataWipe().then(filename => {
-                        console.log('✅ WIPE DEBUG: Wipe completed successfully, filename:', filename);
                         closeModal('wipeDataModal');
                         
                         // Reinitialize app after 2 seconds for clean state (no reload to avoid Android issues)
                         setTimeout(() => {
-                            console.log('🔄 WIPE DEBUG: Reinitializing app for clean state...');
                             
                             // Initialize with default data instead of reloading
                             if (window.initializeWithDefaultData) {
@@ -4626,7 +4486,6 @@
                                 window.emergencyShowPage('players');
                             }
                             
-                            console.log('✅ WIPE DEBUG: App reinitialized successfully');
                         }, 2000);
                         
                     }).catch(error => {
@@ -4636,14 +4495,12 @@
                     });
                     
                 } else {
-                    console.log('⚠️ WIPE DEBUG: cricketApp not available, using fallback method');
                     
                     // Fallback: Clear localStorage and reload
                     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                     const filename = `cricket-fallback-backup-${timestamp}.json`;
                     
                     localStorage.clear();
-                    console.log('🗑️ WIPE DEBUG: localStorage cleared via fallback');
                     
                     closeModal('wipeDataModal');
                     showNotification(`✅ Data wiped (fallback)! Backup: ${filename}`);
@@ -4658,7 +4515,6 @@
             }
         }
 
-        // Simple debug function available immediately - fixed reference error
         function updateCompleteBackup() {
             try {
                 if (window.app || window.cricketApp) {
@@ -4669,7 +4525,6 @@
                         teams: app.teams || [],
                         currentMatch: app.currentMatch || null
                     };
-                    console.log('Debug backup data updated:', completeBackup);
                 }
             } catch (error) {
                 console.warn('Debug backup update failed:', error.message);
@@ -4713,11 +4568,9 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 
-                console.log('✅ Backup created:', filename);
         */
                 
                 // Step 3: Clear all localStorage - more comprehensive approach
-                console.log('🗑️ Starting localStorage cleanup...');
                 
                 // Method 1: Remove specific cricket-related keys
                 const keysToRemove = [
@@ -4729,31 +4582,10 @@
                     'match-settings',
                     'cricket-metadata'
                 ];
-                
-        // Simple debug function available immediately
-        window.checkDebugFunctions = function() {
-            console.log('=== Debug Function Check ===');
-            console.log('window.cricketApp exists:', !!window.cricketApp);
-            console.log('debugBowlerSelection exists:', typeof window.debugBowlerSelection);
-            console.log('debugTestButton exists:', typeof window.debugTestButton);
-            console.log('debugForceReset exists:', typeof window.debugForceReset);
-            console.log('debugAppState exists:', typeof window.debugAppState);
-            
-            if (window.cricketApp) {
-                console.log('App state:');
-                console.log('  - waitingForBowlerSelection:', window.cricketApp.waitingForBowlerSelection);
-                console.log('  - currentMatch exists:', !!window.cricketApp.currentMatch);
-                console.log('  - players count:', window.cricketApp.players.length);
-            }
-            console.log('============================');
-        };
-        
-        console.log('💡 Use checkDebugFunctions() to verify debug system status');
 
         // Initialize app when page loads
         window.addEventListener('load', async () => {
             if (typeof CricketApp !== 'undefined') {
-                console.log('🏏 Initializing Cricket App...');
                 
                 // Wait a moment for data import to complete
                 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -4762,45 +4594,28 @@
                 if (!window.cricketApp) {
                     window.cricketApp = new CricketApp();
                     
-                    // Immediately register debug functions
                     window.debugBowlerSelection = () => window.cricketApp.debugBowlerSelection();
                     window.debugTestButton = () => window.cricketApp.debugTestButtonClick();
                     window.debugForceReset = () => window.cricketApp.debugForceResetBowlerSelection();
                     window.debugAppState = () => window.cricketApp.debugAppState();
                     
-                    console.log('🔧 Debug functions available immediately:');
-                    console.log('  - debugBowlerSelection()');
-                    console.log('  - debugTestButton()');
-                    console.log('  - debugForceReset()');
-                    console.log('  - debugAppState()');
                 }
                 // Keep backward compatibility
                 window.app = window.cricketApp;
-                console.log('✅ Cricket App initialized with', window.cricketApp.players.length, 'players');
                 
-                // Add debug functions to window for easy access
                 window.debugBowlerSelection = () => window.cricketApp.debugBowlerSelection();
                 window.debugTestButton = () => window.cricketApp.debugTestButtonClick();
                 window.debugForceReset = () => window.cricketApp.debugForceResetBowlerSelection();
                 window.debugAppState = () => window.cricketApp.debugAppState();
                 
-                console.log('🔧 Debug functions available:');
-                console.log('  - debugBowlerSelection() - Comprehensive bowler selection debug');
-                console.log('  - debugTestButton() - Test button click simulation');
-                console.log('  - debugForceReset() - Force reset bowler selection state');
-                console.log('  - debugAppState() - Basic app state check');
             }
         });
 
         // Global function for toggling player selection
         window.togglePlayerSelection = function(labelElement) {
-            console.log('🔵 Player clicked:', labelElement);
             const checkbox = labelElement.querySelector('input[type="checkbox"]');
             const isSelected = labelElement.classList.contains('selected');
-            
-            console.log('🔍 Current state:', isSelected ? 'selected' : 'not selected');
-            console.log('🔍 Checkbox found:', !!checkbox);
-            
+
             if (isSelected) {
                 labelElement.classList.remove('selected');
                 if (checkbox) checkbox.checked = false;
@@ -4808,18 +4623,14 @@
                 labelElement.classList.add('selected');
                 if (checkbox) checkbox.checked = true;
             }
-            
-            console.log('🔍 New state:', labelElement.classList.contains('selected') ? 'selected' : 'not selected');
-            
+
             // Force update the count immediately using multiple methods
             setTimeout(() => {
                 const checkboxes = document.querySelectorAll('input[name="todayPlayers"]:checked');
                 const count = checkboxes.length;
                 const label = document.getElementById('selectedPlayerCount');
-                console.log('🔍 Direct count update - found checkboxes:', count, 'label:', !!label);
                 if (label) {
                     label.textContent = count.toString();
-                    console.log('✅ Count updated directly to:', count);
                 }
                 
                 // Try calling the cricketApp method too
@@ -4890,7 +4701,6 @@
                 }
             }
             
-            console.log('Match setting saved:', settingName, '=', value);
         }
 
         // Load saved match settings when page loads
@@ -4901,7 +4711,6 @@
             if (settings.totalOvers === undefined) {
                 settings.totalOvers = 5;
                 localStorage.setItem('match-settings', JSON.stringify(settings));
-                console.log('🏏 Initialized default match settings: 5 overs');
             }
             
             // Set default values and load saved values
@@ -4947,13 +4756,11 @@
             } else {
                 customInput.style.display = 'none';
                 const overs = parseInt(value);
-                console.log(`🏏 OVERS_CHANGE: Saving totalOvers = ${overs}`);
                 saveMatchSetting('totalOvers', overs);
                 
                 // Verify it was saved
                 setTimeout(() => {
                     const saved = JSON.parse(localStorage.getItem('match-settings') || '{}');
-                    console.log(`🏏 OVERS_VERIFY: Saved settings:`, saved);
                 }, 100);
             }
         }
@@ -4990,142 +4797,19 @@
 
     <!-- DEBUG FUNCTIONS - LOADED AT END TO ENSURE EVERYTHING IS READY -->
     <script>
-    // Force create debug functions immediately when page loads
     (function() {
-        console.log('🔧 Loading debug functions...');
         
-        // Wait a moment for everything to load, then create debug functions
         setTimeout(function() {
-            // Check if debug functions already exist
-            if (typeof window.checkDebugFunctions === 'function') {
-                console.log('✅ Debug functions already exist');
-                return;
-            }
-            
-            console.log('📝 Creating debug functions...');
-            
-            // Immediate debug check function
-            window.checkDebugFunctions = function() {
-                console.log('=== Debug Function Check ===');
-                console.log('window.cricketApp exists:', !!window.cricketApp);
-                console.log('window.app exists:', !!window.app);
-                console.log('CricketApp class exists:', typeof CricketApp);
-                
-                const app = window.cricketApp || window.app;
-                if (app) {
-                    console.log('✅ App found! State:');
-                    console.log('  - waitingForBowlerSelection:', app.waitingForBowlerSelection);
-                    console.log('  - currentMatch exists:', !!app.currentMatch);
-                    console.log('  - players count:', app.players?.length || 0);
-                    
-                    // Register main debug functions
-                    if (app.debugBowlerSelection) {
-                        window.debugBowlerSelection = () => app.debugBowlerSelection();
-                        window.debugTestButton = () => app.debugTestButtonClick();
-                        window.debugForceReset = () => app.debugForceResetBowlerSelection();
-                        window.debugAppState = () => app.debugAppState();
-                        console.log('✅ Main debug functions registered!');
-                    } else {
-                        console.log('⚠️ App exists but debug methods not found');
-                    }
-                } else {
-                    console.log('❌ No cricket app found');
-                    
-                    // Try to create one if class exists
-                    if (typeof CricketApp !== 'undefined') {
-                        console.log('📱 Creating CricketApp instance...');
-                        try {
-                            window.cricketApp = new CricketApp();
-                            window.app = window.cricketApp;
-                            console.log('✅ CricketApp created successfully!');
-                            
-                            // Register debug functions
-                            if (window.cricketApp.debugBowlerSelection) {
-                                window.debugBowlerSelection = () => window.cricketApp.debugBowlerSelection();
-                                window.debugTestButton = () => window.cricketApp.debugTestButtonClick();
-                                window.debugForceReset = () => window.cricketApp.debugForceResetBowlerSelection();
-                                window.debugAppState = () => window.cricketApp.debugAppState();
-                                console.log('✅ Debug functions registered after app creation!');
-                            }
-                        } catch (error) {
-                            console.error('❌ Failed to create CricketApp:', error);
-                        }
-                    } else {
-                        console.log('❌ CricketApp class not available');
-                    }
-                }
-                console.log('============================');
-            };
-            
-            // Simple manual debug function that works without app methods
-            window.manualDebugBowlerSelection = function() {
-                console.log('🔍 === MANUAL BOWLER SELECTION DEBUG ===');
-                
-                const app = window.cricketApp || window.app;
-                if (!app) {
-                    console.log('❌ No cricket app found');
-                    console.log('Available on window:', Object.keys(window).filter(k => k.includes('cricket')));
-                    return { error: 'No app found' };
-                }
-                
-                console.log('1. App State:');
-                console.log('  - waitingForBowlerSelection:', app.waitingForBowlerSelection);
-                console.log('  - currentMatch exists:', !!app.currentMatch);
-                
-                console.log('2. Button Analysis:');
-                const buttons = document.querySelectorAll('.score-btn');
-                const disabledButtons = Array.from(buttons).filter(btn => btn.disabled);
-                const opacityButtons = Array.from(buttons).filter(btn => btn.style.opacity === '0.5');
-                
-                console.log('  - Total buttons:', buttons.length);
-                console.log('  - Disabled buttons:', disabledButtons.length);
-                console.log('  - Buttons with opacity 0.5:', opacityButtons.length);
-                
-                // Check specific button
-                const testButton = document.querySelector('button[onclick="handleRunButton(1)"]');
-                if (testButton) {
-                    console.log('  - Test button (1 run) state:', {
-                        disabled: testButton.disabled,
-                        opacity: testButton.style.opacity,
-                        pointerEvents: testButton.style.pointerEvents,
-                        hasOnclick: !!testButton.onclick
-                    });
-                }
-                
-                console.log('3. Modal Check:');
-                const modal = document.querySelector('.modal-overlay');
-                console.log('  - Modal exists:', !!modal);
-                
-                console.log('4. Function Availability:');
-                console.log('  - handleRunButton:', typeof window.handleRunButton);
-                console.log('  - addRuns:', typeof window.addRuns);
-                console.log('  - app.addRuns:', typeof app.addRuns);
-                
-                console.log('🔍 === END MANUAL DEBUG ===');
-                
-                return {
-                    waitingForBowlerSelection: app.waitingForBowlerSelection,
-                    currentMatch: !!app.currentMatch,
-                    buttonCount: buttons.length,
-                    disabledButtons: disabledButtons.length,
-                    opacityButtons: opacityButtons.length,
-                    modalExists: !!modal,
-                    testButtonDisabled: testButton ? testButton.disabled : 'not found'
-                };
-            };
-            
+
             // Force reset function
             window.forceResetBowlerSelection = function() {
-                console.log('🔧 Force resetting bowler selection...');
                 const app = window.cricketApp || window.app;
                 if (!app) {
-                    console.log('❌ No app found to reset');
                     return;
                 }
                 
                 // Force clear the flag
                 app.waitingForBowlerSelection = false;
-                console.log('✅ Set waitingForBowlerSelection to false');
                 
                 // Force enable all buttons
                 const buttons = document.querySelectorAll('.score-btn');
@@ -5134,23 +4818,14 @@
                     btn.style.opacity = '1';
                     btn.style.pointerEvents = 'auto';
                 });
-                console.log('✅ Enabled', buttons.length, 'buttons');
                 
                 // Remove any modals
                 const modals = document.querySelectorAll('.modal-overlay');
                 modals.forEach(modal => modal.remove());
-                console.log('✅ Removed', modals.length, 'modals');
                 
-                console.log('🔧 Force reset complete!');
                 return manualDebugBowlerSelection();
             };
-            
-            console.log('✅ Debug functions created successfully!');
-            console.log('💡 Available commands:');
-            console.log('  - checkDebugFunctions()');
-            console.log('  - manualDebugBowlerSelection()');
-            console.log('  - forceResetBowlerSelection()');
-            
+
         }, 500); // Wait 500ms for everything to load
         
     })();
@@ -5165,7 +4840,6 @@
         }
 
         // Load match history from localStorage (all data is stored there)
-        console.log('� Loading match history from localStorage...');
         
         try {
             // Get the app instance
@@ -5188,9 +4862,7 @@
                 match_batting_performance: battingData,
                 players: players
             };
-            
-            console.log(`✅ Loaded ${matchesData.length} matches from app storage`);
-            
+
             // Display the match history
             displayMatchHistory(data, historyContainer);
             
@@ -5249,7 +4921,6 @@
 
     // Robust match data validation for display - enhanced version
     function validateMatchDisplayData(match, playerInfo, battingData) {
-        console.log('🔍 Validating match display data for:', match.Match_ID || match.id);
         
         // Normalize team names - handle all possible formats
         const normalizeTeamName = (teamData, fallback) => {
@@ -5378,7 +5049,6 @@
         team1Score = team1Score || 'N/A';
         team2Score = team2Score || 'N/A';
         
-        console.log('✅ Normalized match data:', {
             matchId,
             teams: `${team1Name} vs ${team2Name}`,
             scores: `${team1Score} vs ${team2Score}`,
@@ -5412,7 +5082,6 @@
     }
 
     function showMatchScorecard(matchId) {
-        console.log('🏆 Loading scorecard for match:', matchId);
         
         // Load data directly from app storage
         try {
@@ -5429,7 +5098,6 @@
                 players: appInstance.players || appInstance.player_data || {}
             };
             
-            console.log('� Loaded data for scorecard from app storage');
             displayScorecard(matchId, data);
             
         } catch (error) {
@@ -5444,8 +5112,6 @@
 
     function displayScorecard(matchId, data) {
         try {
-            console.log('🎯 Finding match data for:', matchId);
-            console.log('📋 Available data structure:', {
                 totalMatches: data.matches?.length || 0,
                 hasHistory: !!data.history,
                 dataKeys: Object.keys(data)
@@ -5459,7 +5125,6 @@
             }
 
             // Debug: Log all match IDs to help diagnose the issue
-            console.log('🔍 Available match IDs:', matchesData.map(m => ({
                 id: m.Match_ID || m.id,
                 team1: m.Team1 || m.team1?.name || m.team1,
                 team2: m.Team2 || m.team2?.name || m.team2
@@ -5499,12 +5164,9 @@
                 throw new Error(`Match not found. Available matches: ${suggestions}`);
             }
 
-            console.log('✅ Found match:', match);
-
             // Get detailed match data from batting, bowling sections
             // Try multiple ID formats for performance data matching
             const actualMatchId = match.Match_ID || match.id;
-            console.log('🔍 Using match ID for performance data:', actualMatchId);
             
             let battingData = data.match_batting_performance ? data.match_batting_performance.filter(b => b.Match_ID === actualMatchId) : [];
             let bowlingData = data.match_bowling_performance ? data.match_bowling_performance.filter(b => b.Match_ID === actualMatchId) : [];
@@ -5517,12 +5179,9 @@
                 bowlingData = data.match_bowling_performance.filter(b => String(b.Match_ID) === String(actualMatchId));
             }
             
-            console.log('📊 Performance data found:', {
                 battingEntries: battingData.length,
                 bowlingEntries: bowlingData.length
             });
-
-            console.log(`📊 Batting records: ${battingData.length}, Bowling records: ${bowlingData.length}`);
 
             // Fix date parsing
             const matchDate = match.Date || match.date || match.Date_Saved;
@@ -5687,7 +5346,6 @@
             `;
 
             document.body.insertAdjacentHTML('beforeend', modalHtml);
-            console.log('✅ Scorecard modal displayed successfully');
             
         } catch (error) {
             console.error('❌ Error displaying scorecard:', error);
@@ -5706,7 +5364,6 @@
                 alert(`❌ ${errorMessage}`);
             }
             
-            // Log detailed error info for debugging
             console.error('🔧 Scorecard error details:', {
                 searchedId: matchId,
                 errorMessage: error.message,
@@ -5825,8 +5482,6 @@
             return;
         }
 
-        console.log('🗑️ Deleting match:', matchId);
-
         // Call the server API to delete the match
         fetch('/api/delete-match', {
             method: 'POST',
@@ -5838,7 +5493,6 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                console.log('✅ Match deleted successfully:', data.message);
                 
                 // Refresh the match history display
                 loadMatchHistory();
@@ -6019,20 +5673,16 @@
             window.cricketApp.updateSyncStatus('🔄 Syncing...', null, true);
             
             // Enhanced sync that forces upload even during live matches
-            console.log('🔄 Starting enhanced sync with D1...');
             
             // Step 1: Force sync current data (including live match data) to D1
-            console.log('🔄 Step 1: Force uploading all local data to D1...');
             try {
                 await window.cricketApp.forceSyncToD1();
-                console.log('✅ All local data uploaded to D1 (including live match data)');
             } catch (uploadError) {
                 console.error('❌ Force sync to D1 failed:', uploadError);
                 throw uploadError; // Re-throw to trigger the catch block below
             }
             
             // Step 2: Download latest data from D1 to ensure we have the most recent state
-            console.log('🔄 Step 2: Downloading latest data from D1...');
             await window.cricketApp.loadDataFromManager();
             window.cricketApp.loadPlayers();
             window.cricketApp.updateStats();

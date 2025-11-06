@@ -4,14 +4,14 @@ exports.playerComparisonContainer = `
     <div class="comparison-selectors">
         <div class="comparison-selector">
             <label>Player 1</label>
-            <select id="scoringPlayer1Select" onchange="console.log('Player 1 changed:', this.value); window.cricketApp.updateScoringSpiderChart();" style="color: #00ff88; font-weight: bold; background-color: #1a1a1a;">
+            <select id="scoringPlayer1Select" onchange="window.cricketApp.updateScoringSpiderChart();" style="color: #00ff88; font-weight: bold; background-color: #1a1a1a;">
                 <option value="" style="color: #ffffff;">Select Player 1</option>
                 ${'${player1Options}'}
             </select>
         </div>
         <div class="comparison-selector">
             <label>Player 2</label>
-            <select id="scoringPlayer2Select" onchange="console.log('Player 2 changed:', this.value); window.cricketApp.updateScoringSpiderChart();" style="color: #00ccff; font-weight: bold; background-color: #1a1a1a;">
+            <select id="scoringPlayer2Select" onchange="window.cricketApp.updateScoringSpiderChart();" style="color: #00ccff; font-weight: bold; background-color: #1a1a1a;">
                 <option value="" style="color: #ffffff;">Select Player 2</option>
                 ${'${player2Options}'}
             </select>
