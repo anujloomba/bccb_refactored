@@ -4366,16 +4366,6 @@
                             const addedTeams = mergedTeams.length - currentTeams.length;
                             const addedMatches = mergedMatches.length - currentMatches.length;
                             
-                                addedPlayers,
-                                addedTeams, 
-                                addedMatches,
-                                totalPlayers: mergedPlayers.length,
-                                totalTeams: mergedTeams.length,
-                                totalMatches: mergedMatches.length,
-                                sourceFile: file.name,
-                                exportDate: importedData.exportDate
-                            });
-                            
                             // Show detailed success message
                             showNotification(`✅ Import complete! Added: ${addedPlayers} players, ${addedTeams} teams, ${addedMatches} matches from ${file.name}`);
                             

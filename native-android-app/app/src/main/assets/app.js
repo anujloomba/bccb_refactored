@@ -32,6 +32,8 @@ function showMessage(message, type = 'info') {
         } else {
             // Fallback to console for now - we can enhance this later
         }
+    } catch (error) {
+        // Ignore errors
     }
 }
 
