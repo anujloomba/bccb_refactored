@@ -2,25 +2,23 @@
 let _globalLastCaptainStatsCall = 0;
 
 document.addEventListener('DOMContentLoaded', function() {
-    });
+    // Initialize app after DOM is loaded
+});
 
 setTimeout(function() {
-    try {
-        window.cricketApp = new CricketApp();
-        window.app = window.cricketApp;
-        window.forceUploadToD1 = async function() {
-            try {
-                await window.cricketApp.saveData(true); // Force sync to D1
-            } catch (error) {
-                // Ignore errors
-            }
-        };
-    }, 1000);
+    window.cricketApp = new CricketApp();
+    window.app = window.cricketApp;
+    window.forceUploadToD1 = async function() {
+        try {
+            await window.cricketApp.saveData(true); // Force sync to D1
+        } catch (error) {
+            // Ignore errors
+        }
+    };
 }, 1000);
 
 // Simple message display function
 function showMessage(message, type = 'info') {
-
     try {
         // Look for any existing message area or create a temporary alert
         const messageArea = document.getElementById('messageArea');

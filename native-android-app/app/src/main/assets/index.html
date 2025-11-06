@@ -4286,11 +4286,6 @@
                             const currentMatches = JSON.parse(localStorage.getItem('cricket-matches') || '[]');
                             const currentSettings = JSON.parse(localStorage.getItem('match-settings') || '{}');
                             
-                                players: currentPlayers.length,
-                                teams: currentTeams.length,
-                                matches: currentMatches.length
-                            });
-                            
                             // Merge players (avoid duplicates by name)
                             const mergedPlayers = [...currentPlayers];
                             if (importedData.players && Array.isArray(importedData.players)) {
@@ -5092,23 +5087,12 @@
 
     function displayScorecard(matchId, data) {
         try {
-                totalMatches: data.matches?.length || 0,
-                hasHistory: !!data.history,
-                dataKeys: Object.keys(data)
-            });
-            
             // Handle both new format (matches) and legacy format (history)
             const matchesData = data.matches || data.history || [];
             
             if (!data || matchesData.length === 0) {
                 throw new Error('No match data available');
             }
-
-            // Debug: Log all match IDs to help diagnose the issue
-                id: m.Match_ID || m.id,
-                team1: m.Team1 || m.team1?.name || m.team1,
-                team2: m.Team2 || m.team2?.name || m.team2
-            })));
 
             // Try multiple ID formats to find the match
             let match = matchesData.find(m => m.Match_ID === matchId);
@@ -5158,10 +5142,6 @@
             if (bowlingData.length === 0 && data.match_bowling_performance) {
                 bowlingData = data.match_bowling_performance.filter(b => String(b.Match_ID) === String(actualMatchId));
             }
-            
-                battingEntries: battingData.length,
-                bowlingEntries: bowlingData.length
-            });
 
             // Fix date parsing
             const matchDate = match.Date || match.date || match.Date_Saved;
