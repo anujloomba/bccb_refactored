@@ -14,10 +14,37 @@ android {
         versionName "1.0"
     }
     
+    signingConfigs {
+        release {
+            // To use:
+            // 1. Create keystore: keytool -genkey -v -keystore cricket-manager-release.keystore -alias cricket-manager -keyalg RSA -keysize 2048 -validity 10000
+            // 2. Set these properties in gradle.properties (DON'T commit passwords to git):
+            //    CRICKET_KEYSTORE_FILE=../cricket-manager-release.keystore
+            //    CRICKET_KEYSTORE_PASSWORD=your_keystore_password
+            //    CRICKET_KEY_ALIAS=cricket-manager
+            //    CRICKET_KEY_PASSWORD=your_key_password
+            
+            if (project.hasProperty('CRICKET_KEYSTORE_FILE')) {
+                storeFile file(CRICKET_KEYSTORE_FILE)
+                storePassword CRICKET_KEYSTORE_PASSWORD
+                keyAlias CRICKET_KEY_ALIAS
+                keyPassword CRICKET_KEY_PASSWORD
+            }
+        }
+    }
+    
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (project.hasProperty('CRICKET_KEYSTORE_FILE')) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            minifyEnabled false
+            debuggable true
         }
     }
     
