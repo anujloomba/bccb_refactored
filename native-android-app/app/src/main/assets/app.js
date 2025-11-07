@@ -2,7 +2,7 @@
 let _globalLastCaptainStatsCall = 0;
 
 document.addEventListener('DOMContentLoaded', function() {
-    });
+});
 
 setTimeout(function() {
     try {
@@ -11,15 +11,17 @@ setTimeout(function() {
         window.forceUploadToD1 = async function() {
             try {
                 await window.cricketApp.saveData(true); // Force sync to D1
-                }
+            } catch (error) {
+                console.error('Force upload to D1 failed:', error);
+            }
         };
-
-        }
+    } catch (error) {
+        console.error('App initialization failed:', error);
+    }
 }, 1000);
 
 // Simple message display function
 function showMessage(message, type = 'info') {
-
     try {
         // Look for any existing message area or create a temporary alert
         const messageArea = document.getElementById('messageArea');
@@ -33,6 +35,8 @@ function showMessage(message, type = 'info') {
         } else {
             // Fallback to console for now - we can enhance this later
         }
+    } catch (error) {
+        console.error('Show message failed:', error);
     }
 }
 
@@ -1265,7 +1269,9 @@ class GroupAuthManager {
         if (saved) {
             try {
                 return JSON.parse(saved);
-                }
+            } catch (error) {
+                console.error('Error loading current group:', error);
+            }
         }
         return {
             id: 1,
@@ -1349,12 +1355,13 @@ class GroupAuthManager {
                     const d1Result = await d1Manager.createGroup(groupName, passwordHash);
                     if (d1Result.success) {
                         d1GroupId = d1Result.group.id;
-                        } else {
+                    } else {
                         throw new Error(d1Result.error || 'Failed to create group in D1');
                     }
-                } else {
-                    }
-                throw new Error(`Failed to create group in cloud database: ${d1Error.message}`);
+                }
+            } catch (d1Error) {
+                console.error('D1 group creation failed:', d1Error);
+                // Continue with local group creation
             }
 
             const newGroup = {
@@ -1377,6 +1384,8 @@ class GroupAuthManager {
             });
 
             return { success: true, group: newGroup };
+        } catch (error) {
+            console.error('Create group error:', error);
             return { success: false, error: error.message };
         }
     }
@@ -1427,9 +1436,12 @@ class GroupAuthManager {
                     if (groupIndex >= 0) {
                         existingGroups[groupIndex] = group;
                         localStorage.setItem('cricket-groups', JSON.stringify(existingGroups));
-                        }
+                    }
                 }
-                }
+            } catch (error) {
+                console.warn('Failed to sync with D1:', error.message);
+                // Continue with local group data
+            }
 
             // Switch to group
             this.saveCurrentGroup({
@@ -1439,6 +1451,8 @@ class GroupAuthManager {
             });
 
             return { success: true, group: group };
+        } catch (error) {
+            console.error('Login to group error:', error);
             return { success: false, error: error.message };
         }
     }
@@ -1466,6 +1480,8 @@ class GroupAuthManager {
             }
 
             throw new Error('Group not found. Please check group name and try again.');
+        } catch (error) {
+            console.error('Login with D1 error:', error);
             return { success: false, error: error.message };
         }
     }
@@ -1475,7 +1491,10 @@ class GroupAuthManager {
         if (stored) {
             try {
                 return JSON.parse(stored);
-                }
+            } catch (error) {
+                console.warn('Failed to parse stored groups:', error);
+                return [];
+            }
         }
         return [];
     }
@@ -1499,20 +1518,24 @@ class GroupAuthManager {
                     if (d1Result.success) {
                         group.id = d1Result.group.id;
                         migratedCount++;
-                        } else if (d1Result.error && d1Result.error.includes('already exists')) {
+                    } else if (d1Result.error && d1Result.error.includes('already exists')) {
                         const authResult = await d1Manager.authenticateGroup(group.name, group.passwordHash);
                         if (authResult.success) {
                             group.id = authResult.group.id;
-                            }
+                        }
                     }
-                    }
+                } catch (error) {
+                    console.warn(`Failed to migrate group ${group.name}:`, error);
+                    // Continue with next group
+                }
             }
 
             // Save updated groups back to localStorage
             localStorage.setItem('cricket-groups', JSON.stringify(localGroups));
 
             return { success: true, migratedCount };
-
+        } catch (error) {
+            console.error('Migrate groups error:', error);
             return { success: false, error: error.message };
         }
     }
@@ -1574,6 +1597,7 @@ class D1ApiManager {
                     const errorText = await response.text();
                     console.error(`🌐 API_CALL: Error response body:`, errorText);
                     errorDetails = errorText ? `: ${errorText}` : '';
+                } catch (e) {
                     // Ignore error reading response body
                 }
                 throw new Error(`HTTP ${response.status}${errorDetails}`);
@@ -1581,6 +1605,7 @@ class D1ApiManager {
 
             const result = await response.json();
             return result;
+        } catch (error) {
             console.error(`🌐 API_CALL: Request failed:`, error);
             throw error;
         }
@@ -1674,15 +1699,21 @@ class D1ApiManager {
         }
 
         try {
+            // Try the new wipe endpoint first
             const wipeResult = await this.apiCall('/groups/' + groupId + '/wipe', 'DELETE');
             return wipeResult;
-
+        } catch (error) {
+            console.warn('Primary wipe failed, trying alternative methods:', error);
+            
             try {
+                // Try deleting each table separately
                 const perfResult = await this.apiCall('/groups/' + groupId + '/performance', 'DELETE');
                 const matchResult = await this.apiCall('/groups/' + groupId + '/matches', 'DELETE');
                 const playerResult = await this.apiCall('/groups/' + groupId + '/players', 'DELETE');
                 return { success: true, performance: perfResult, matches: matchResult, players: playerResult };
-
+            } catch (error2) {
+                console.warn('Table-by-table deletion failed, trying legacy method:', error2);
+                
                 // Last resort: try the old sync method with empty data
                 const legacyResult = await this.apiCall('/sync/upload', 'POST', {
                     group_id: groupId,
@@ -1701,6 +1732,7 @@ class D1ApiManager {
         try {
             await this.apiCall('/health');
             return true;
+        } catch (error) {
             return false;
         }
     }
@@ -1717,11 +1749,13 @@ class CricketApp {
                 this.saveData(true); // Trigger D1 sync when teams are saved (with completed match protection)
 
                 this.showNotification('💾 Teams saved! Click "Let\'s Play" to start the toss.');
+            } catch (error) {
+                console.error('Failed to save teams:', error);
                 this.showNotification('❌ Failed to save teams');
-                }
+            }
         } else {
             this.showNotification('❌ No teams to save');
-            }
+        }
     }
 
     // Load saved teams from localStorage (if any) and show them
@@ -1736,8 +1770,11 @@ class CricketApp {
                     return true;
                 }
             }
-            }
-        return false;
+            return false;
+        } catch (error) {
+            console.error('Failed to load saved teams:', error);
+            return false;
+        }
     }
     constructor() {
         this.currentView = 'home';
@@ -1821,12 +1858,14 @@ class CricketApp {
                                     if (match.Team1_Composition && typeof match.Team1_Composition === 'string') {
                                         try {
                                             match.team1Composition = JSON.parse(match.Team1_Composition);
+                                        } catch (e) {
                                             match.team1Composition = [];
                                         }
                                     }
                                     if (match.Team2_Composition && typeof match.Team2_Composition === 'string') {
                                         try {
                                             match.team2Composition = JSON.parse(match.Team2_Composition);
+                                        } catch (e) {
                                             match.team2Composition = [];
                                         }
                                     }
@@ -1848,7 +1887,9 @@ class CricketApp {
                                 return;
                             }
                         }
-                        }
+                    } catch (error) {
+                        console.warn('Failed to recover from D1 after wipe:', error);
+                    }
                 }
 
                 this.showDataSource('Wiped State (Empty)');
@@ -1860,10 +1901,6 @@ class CricketApp {
 
             // Removed auto-login to bccb - user must explicitly login to a group
             if (currentGroup !== 'guest') {
-                }
-
-            if (currentGroup !== 'guest') {
-
                 try {
                     const d1GroupResponse = await this.d1Manager.apiCall(`/groups/find/${currentGroup}`);
                     if (d1GroupResponse && d1GroupResponse.id && d1GroupResponse.id !== currentGroupId) {
@@ -1880,10 +1917,11 @@ class CricketApp {
                         if (groupIndex >= 0) {
                             groups[groupIndex].id = currentGroupId;
                             localStorage.setItem('cricket-groups', JSON.stringify(groups));
-                            }
-                    } else {
                         }
                     }
+                } catch (error) {
+                    console.warn('Failed to sync group ID from D1:', error);
+                }
 
                 try {
                     const isConnected = await this.d1Manager.checkConnection();
@@ -1936,8 +1974,7 @@ class CricketApp {
                                         match.performanceData = [];
                                     }
                                 });
-
-                                }
+                            }
 
                             // Save to localStorage for offline access
                             this.saveData(false);
@@ -1948,6 +1985,9 @@ class CricketApp {
                             return;
                         }
                     }
+                    this.updateSyncStatus('⚠️ Offline', null);
+                } catch (d1Error) {
+                    console.warn('D1 sync failed, falling back to localStorage:', d1Error);
                     this.updateSyncStatus('⚠️ Offline', null);
                 }
             }
@@ -1991,7 +2031,15 @@ class CricketApp {
             this.saveData(false); // Save empty state to localStorage
 
             this.showDataSource('Empty State');
-            }
+        } catch (error) {
+            console.error('Error loading data:', error);
+            // Initialize with empty state on error
+            this.players = [];
+            this.matches = [];
+            this.teams = [];
+            this.currentMatch = null;
+            this.showDataSource('Error - Empty State');
+        }
     }
 
     // Function removed - app now uses localStorage-only data model
@@ -2093,6 +2141,8 @@ class CricketApp {
             }
 
             return null;
+        } catch (error) {
+            console.error('Error loading from localStorage:', error);
             return null;
         }
     }
@@ -2208,6 +2258,7 @@ class CricketApp {
         const hour = now.getHours();
         const greetingEl = document.getElementById('greeting');
         const dateEl = document.getElementById('date');
+        const guestMessageEl = document.getElementById('guestMessage');
 
         let greeting = '';
         if (hour < 12) {
@@ -2218,12 +2269,20 @@ class CricketApp {
             greeting = 'Good Evening! 🌙';
         }
 
-        greetingEl.textContent = greeting;
-        dateEl.textContent = `Ready to play cricket? • ${now.toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric'
-        })}`;
+        if (greetingEl) greetingEl.textContent = greeting;
+        if (dateEl) {
+            dateEl.textContent = now.toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        // Show guest message if user is in guest mode
+        if (guestMessageEl) {
+            const isGuest = this.authManager && this.authManager.getCurrentGroupName() === 'guest';
+            guestMessageEl.style.display = isGuest ? 'block' : 'none';
+        }
     }
 
     getUniqueCaptainsCount() {
@@ -2281,7 +2340,9 @@ class CricketApp {
                     teamsBtn.disabled = false;
                     if (teamsBtn.style) teamsBtn.style.opacity = '1';
                 }
-                }
+            } catch (e) {
+                console.warn('Error updating teams button:', e);
+            }
         }
 
         if (scoringBtn && typeof scoringBtn.disabled !== 'undefined') {
@@ -2293,7 +2354,9 @@ class CricketApp {
                     scoringBtn.disabled = false;
                     if (scoringBtn.style) scoringBtn.style.opacity = '1';
                 }
-                }
+            } catch (e) {
+                console.warn('Error updating scoring button:', e);
+            }
         }
     }
 
@@ -2315,22 +2378,21 @@ class CricketApp {
 
         // Fallback: try to load from localStorage
         try {
-
             const localData = JSON.parse(localStorage.getItem('cricket-stats'));
             if (localData && (localData.matches || localData.history)) {
                 if (localData.matches && Array.isArray(localData.matches)) {
                     this.matches = localData.matches;
-                    }
+                }
 
                 this.displayMatchHistory(localData, historyContainer);
 
                 // Refresh analytics after loading match data
                 this.updateScoringTabView();
             } else {
-
                 historyContainer.innerHTML = '<div class="no-matches">No match history available</div>';
             }
-
+        } catch (error) {
+            console.error('Error loading match history:', error);
             historyContainer.innerHTML = '<div class="no-matches">Error loading match history</div>';
         }
     }
@@ -2761,7 +2823,7 @@ class CricketApp {
 
             await this.syncToD1(consolidatedData);
             this.showNotification('✅ Force sync completed!');
-
+        } catch (error) {
             console.error(`🚨 FORCE_SYNC failed:`, error);
             this.updateSyncStatus('⚠️ Force sync failed', null);
             this.showNotification('❌ Force sync failed: ' + error.message);
@@ -2829,10 +2891,10 @@ class CricketApp {
                     name: groupName,
                     hasPassword: false // Default to false for sync operations
                 });
-
-                } else {
-                }
             }
+        } catch (error) {
+            console.warn('Failed to update group ID from D1:', error);
+        }
 
         try {
             this.updateSyncStatus('🔄 Syncing...', null, true);
@@ -2890,6 +2952,7 @@ class CricketApp {
             this.saveData(false); // Pass false to prevent recursive D1 sync
 
             this.updateSyncStatus('✅ Synced', new Date());
+        } catch (error) {
             console.error('❌ D1_SYNC_ERROR: Sync failed with error:', error);
             console.error('❌ D1_SYNC_ERROR: Error message:', error?.message);
             console.error('❌ D1_SYNC_ERROR: Error stack:', error?.stack);
@@ -2959,11 +3022,17 @@ class CricketApp {
                 await this.dataManager.saveJSONData(this.players, this.matches, this.teams, true);
 
                 if (success) {
-                    } else {
-                    }
-            } else {
+                    this.showNotification('✅ Data exported successfully');
+                } else {
+                    this.showNotification('❌ Export failed');
                 }
+            } else {
+                this.showNotification('❌ Export not available');
             }
+        } catch (error) {
+            console.error('Export error:', error);
+            this.showNotification('❌ Export failed: ' + error.message);
+        }
     }
 
     // Import from CSV functionality
@@ -2975,8 +3044,12 @@ class CricketApp {
                 this.loadPlayers();
                 this.loadTeams();
                 this.updateStats(true); // Force stats reload after data import
-                }
+                this.showNotification('✅ Data imported successfully');
             }
+        } catch (error) {
+            console.error('Import error:', error);
+            this.showNotification('❌ Import failed: ' + error.message);
+        }
     }
 
     extractAllBattingPerformance() {
@@ -3059,30 +3132,44 @@ class CricketApp {
             // Save data with error handling
             try {
                 this.saveData(true); // Create JSON backup when adding new player
-                }
+            } catch (e) {
+                console.warn('Failed to save data:', e);
+            }
 
             try {
                 this.updateStats();
-                }
+            } catch (e) {
+                console.warn('Failed to update stats:', e);
+            }
 
             // Load players with error handling
             try {
                 this.loadPlayers();
-                }
+            } catch (e) {
+                console.warn('Failed to load players:', e);
+            }
 
             // Also save to the data manager if available
             if (this.dataManager) {
                 try {
                     this.dataManager.addPlayer(newPlayer);
-                    }
+                } catch (e) {
+                    console.warn('Failed to add player to data manager:', e);
+                }
             }
 
             // Save updated data to localStorage
             if (typeof window.saveAppData === 'function') {
-                window.saveAppData();
+                try {
+                    window.saveAppData();
+                } catch (e) {
+                    console.warn('Failed to save app data:', e);
                 }
+            }
 
             this.showNotification(`✅ ${name.trim()} added successfully!`);
+        } catch (error) {
+            console.error('Error adding player:', error);
             throw error; // Re-throw to be caught by calling function
         }
     }
@@ -3090,15 +3177,16 @@ class CricketApp {
     showAddPlayerModal() {
         const modal = document.getElementById('addPlayerModal');
         if (modal) {
-
             // Remove inline display style and add active class
             modal.style.display = '';  // Clear inline style
             modal.classList.add('active');
 
             // Check if modal is actually visible
             const rect = modal.getBoundingClientRect();
-            } else {
+            if (rect.width === 0 || rect.height === 0) {
+                console.warn('Modal may not be visible');
             }
+        }
     }
 
     // Scoring Analytics Methods
@@ -3300,9 +3388,10 @@ class CricketApp {
             const storedData = localStorage.getItem('cricket-stats');
             if (storedData) {
                 consolidatedData = JSON.parse(storedData);
-            } else {
-                }
             }
+        } catch (error) {
+            console.warn('Failed to parse cricket-stats from localStorage:', error);
+        }
 
         // Prioritize app state for group-filtered data, use consolidated data as fallback
         const shouldUseAppState = !consolidatedData || !consolidatedData.match_batting_performance || (this.players && this.players.length > 0);
@@ -3324,7 +3413,7 @@ class CricketApp {
         } else {
             // Fallback to current app state
             currentGroupPlayers = this.players || [];
-            }
+        }
 
         currentGroupPlayers.forEach(player => {
             playerStatsMap.set(player.Name || player.name, {
@@ -3411,12 +3500,6 @@ class CricketApp {
             return hasBattingData || hasBowlingData;
         });
 
-            name: p.name,
-            matches: p.matches,
-            runs: p.runs,
-            wickets: p.wickets
-        })));
-
         // Now calculate relative consistency based on the group distribution
         return allPlayerStats.map(player => {
             player.battingConsistency = this.calculateRelativeBattingConsistency(player, allPlayerStats);
@@ -3479,13 +3562,6 @@ class CricketApp {
     }
 
     calculateStatsFromMatchResults() {
-            id: m.id,
-            hasPerformanceData: !!(m.performanceData),
-            performanceDataLength: m.performanceData?.length || 0,
-            team1: m.team1?.name,
-            team2: m.team2?.name
-        })));
-
         // Initialize player stats map
         const playerStatsMap = new Map();
 
@@ -3614,14 +3690,6 @@ class CricketApp {
             return stats;
         });
 
-            name: p.name,
-            matches: p.matches,
-            runs: p.runs,
-            ballsFaced: p.ballsFaced,
-            wickets: p.wickets,
-            ballsBowled: p.ballsBowled
-        })));
-
         const filteredStats = allPlayerStats.filter(player => {
             // Show any player with any data - no minimum match requirements
             const hasBattingData = player.runs > 0 || player.ballsFaced > 0;
@@ -3632,12 +3700,6 @@ class CricketApp {
             // This ensures all players who participated in a match are shown
             return hasMatchData || hasBattingData || hasBowlingData;
         });
-
-            name: p.name,
-            matches: p.matches,
-            runs: p.runs,
-            wickets: p.wickets
-        })));
 
         return filteredStats;
     }
@@ -3879,10 +3941,6 @@ class CricketApp {
             return;
         }
 
-            player1: { name: player1.name, matches: player1.matches, runs: player1.runs, fours: player1.fours, sixes: player1.sixes },
-            player2: { name: player2.name, matches: player2.matches, runs: player2.runs, fours: player2.fours, sixes: player2.sixes }
-        });
-
         this.renderBattingSpiderChart(player1, player2);
         this.renderBowlingSpiderChart(player1, player2);
     }
@@ -3926,6 +3984,8 @@ class CricketApp {
                         break;
                 }
                 return isNaN(value) ? 0 : Number(value);
+            } catch (error) {
+                console.error('Error calculating metric value:', error);
                 return 0;
             }
         };
@@ -4074,6 +4134,7 @@ class CricketApp {
                         break;
                 }
                 return isNaN(value) ? 0 : Number(value);
+            } catch (error) {
                 console.error('Error getting batting metric:', error);
                 return 0;
             }
@@ -4133,6 +4194,7 @@ class CricketApp {
                         break;
                 }
                 return isNaN(value) ? 0 : Number(value);
+            } catch (error) {
                 console.error('Error getting bowling metric:', error);
                 return 0;
             }
@@ -4485,7 +4547,8 @@ class CricketApp {
                     <div class="player-name-only">${player.name}</div>
                 </div>
             `).join('');
-
+        } catch (error) {
+            console.error('Error rendering player list:', error);
             playerList.innerHTML = `
                 <div class="glass-card" style="text-align: center; color: rgba(255,255,255,0.8);">
                     <h3>❌ Error loading players</h3>
@@ -4717,22 +4780,16 @@ class CricketApp {
                 }
             ];
 
-                team1Name: newTeams[0].name,
-                team1Captain: newTeams[0].captain,
-                team1CaptainId: newTeams[0].captain?.id,
-                team2Name: newTeams[1].name,
-                team2Captain: newTeams[1].captain,
-                team2CaptainId: newTeams[1].captain?.id
-            });
-
             // Store teams temporarily without saving to JSON
             this.tempTeams = newTeams;
 
             const strengthDiff = Math.abs(teamAStrength - teamBStrength);
             // Show teams result inline
             this.showInlineTeamsResult(newTeams[0], newTeams[1]);
-
-            }
+        } catch (error) {
+            console.error('Error generating teams:', error);
+            alert('Error generating teams. Please try again.');
+        }
     }
 
     reshuffleTeamsWithSameSelections() {
@@ -4775,8 +4832,10 @@ class CricketApp {
             const strengthDiff = Math.abs(teamAStrength - teamBStrength);
             // Show teams result inline
             this.showInlineTeamsResult(newTeams[0], newTeams[1]);
-
-            }
+        } catch (error) {
+            console.error('Error reshuffling teams:', error);
+            alert('Error regenerating teams. Please try again.');
+        }
     }
 
     showInlineTeamsResult(team1, team2) {
@@ -4899,7 +4958,9 @@ class CricketApp {
                     return;
                 }
             }
-            }
+        } catch (error) {
+            console.error('Error loading saved teams:', error);
+        }
 
         if (this.teams.length === 0) {
             teamList.innerHTML = `
@@ -5019,6 +5080,7 @@ class CricketApp {
                     }
                 }
             }
+        } catch (e) {
             console.error('Error loading saved teams:', e);
             this.showNotification('❌ Error loading saved teams');
         }
@@ -5101,6 +5163,7 @@ class CricketApp {
                 </div>
             </div>
         `}).join('');
+        } catch (error) {
             console.error('❌ Error calculating captain stats:', error);
         }
 
@@ -5360,12 +5423,14 @@ class CricketApp {
         if (typeof team1Players === 'string') {
             try {
                 team1Players = JSON.parse(team1Players);
+            } catch (e) {
                 team1Players = [];
             }
         }
         if (typeof team2Players === 'string') {
             try {
                 team2Players = JSON.parse(team2Players);
+            } catch (e) {
                 team2Players = [];
             }
         }
@@ -5756,12 +5821,6 @@ class CricketApp {
                 }
             });
         });
-
-            id,
-            name: playerStats[id].playerName,
-            underCaptain: playerStats[id].underCaptain.length,
-            overall: playerStats[id].overall.length
-        })));
 
         // Calculate z-scores
         const results = [];
@@ -6299,8 +6358,7 @@ class CricketApp {
         return player.matchStats;
     }
 
-    `);
-
+    consolidatePlayerData() {
         // Collect ALL players from all sources
         const allPlayers = new Map();
 
@@ -7631,11 +7689,6 @@ class CricketApp {
         currentTeamScore.overByOver = [0];
         currentTeamScore.fallOfWickets = [];
 
-        // Set selected opening batsmen
-            selectedBatsmen: selectedBatsmen.map(b => ({ id: b.id, name: b.name })),
-            teamPlayers: secondInningsTeam.players.map(p => ({ id: p.id, name: p.name }))
-        });
-
         const striker = secondInningsTeam.players.find(p =>
             p.id === selectedBatsmen[0].id ||
             p.id == selectedBatsmen[0].id ||
@@ -7689,12 +7742,6 @@ class CricketApp {
 
             // Set the current bowler reference to the actual player object
             this.currentMatch.bowler = selectedBowlerPlayer;
-
-                name: this.currentMatch.bowler.name,
-                runs: this.currentMatch.bowler.matchBowlingRuns,
-                balls: this.currentMatch.bowler.matchBowlingBalls,
-                wickets: this.currentMatch.bowler.matchBowlingWickets
-            });
         } else {
             console.error('🏏 SECOND_INNINGS_BOWLER_ERROR: Could not find selected bowler in team!');
             alert(`Error: Could not find selected bowler ${selectedBowler.name} in team`);
@@ -9449,13 +9496,15 @@ class CricketApp {
                         if (newWindow) {
                             setTimeout(() => {
                                 newWindow.close();
-                                }, 2000);
-                        } else {
-                            }
+                            }, 2000);
                         }
+                    } catch (openError) {
+                        console.error('Error opening download window:', openError);
+                    }
                 }, 500);
-
+            } catch (downloadError) {
                 // Try to diagnose download issues
+                console.error('Download error:', downloadError);
                 // Fallback: Show the backup data in a modal for manual copying
                 alert(`Backup creation failed. Please copy this data manually:\n\nFilename: ${filename}\n\nData will be shown in console.`);
             }
@@ -9473,14 +9522,12 @@ class CricketApp {
                 }
 
                 if (currentGroupName !== 'guest') {
-
                     if (this.d1Manager) {
                         const wipeResult = await this.d1Manager.wipeD1Group(currentGroupId);
-
-                        } else {
-                        }
-                } else {
                     }
+                }
+            } catch (wipeError) {
+                console.error('Error wiping D1 group:', wipeError);
             }
 
             // Step 4: Clear ALL localStorage keys (complete scrub) but preserve login state
@@ -9508,8 +9555,10 @@ class CricketApp {
                         { player_info: [], matches: [], match_batting_performance: [], match_bowling_performance: [], index: [] },
                         true
                     );
-                    }
                 }
+            } catch (saveError) {
+                console.error('Error clearing JSON files:', saveError);
+            }
 
             // Step 6: Reset all app data
             this.players = [];
@@ -9529,7 +9578,8 @@ class CricketApp {
             this.loadMatchHistory(); // Refresh match history to show empty state
 
             return filename;
-
+        } catch (error) {
+            console.error('Error executing complete data wipe:', error);
             throw error;
         }
     }
@@ -9545,6 +9595,8 @@ class CricketApp {
                     this.showOngoingMatchModal(currentMatch);
                     return true; // Indicates there was an ongoing match
                 }
+            } catch (parseError) {
+                console.error('Error parsing saved match:', parseError);
                 localStorage.removeItem('cricket-current-match');
             }
         }
@@ -9644,8 +9696,9 @@ class CricketApp {
                 this.currentMatch = JSON.parse(savedMatch);
                 // Validate and fix any corrupted data
                 this.validateAndFixMatchData();
-
-                }
+            } catch (parseError) {
+                console.error('Error parsing saved match:', parseError);
+            }
         }
 
         // Navigate to scoring tab to continue the match
@@ -11138,83 +11191,6 @@ class CricketApp {
         `;
     }
 
-        }
-
-     catch (e) {
-                }
-        }
-
-        // Test Android data loader
-        if (window.androidDataLoader) {
-            window.androidDataLoader.loadData()
-                .then(data => {
-                })
-        } else {
-            }
-
-        // cricket_stats.json fetch removed - no longer needed
-    }
-
-    )
-            .then(() => {
-
-                if (this.matches && this.matches.length > 0) {
-                }
-
-                // Step 4: Try analytics
-                this.calculatePlayerStatistics();
-            })
-            .catch(error => {
-                });
-    }
-
-    ).catch(error => {
-            });
-    }
-
-        this.calculatePlayerStatistics();
-        }
-
-    // Comprehensive debug for bowler selection process
-
-        const buttons = document.querySelectorAll('.score-btn');
-
-        // Modal state
-        const modal = document.querySelector('.modal-overlay');
-
-        // Test a specific button in detail
-        const testButton = document.querySelector('button[onclick="handleRunButton(1)"]');
-        if (testButton) {
-            }
-
-        return {
-            waitingForBowlerSelection: this.waitingForBowlerSelection,
-            currentMatch: !!this.currentMatch,
-            buttonCount: buttons.length,
-            disabledButtons: Array.from(buttons).filter(btn => btn.disabled).length,
-            modalExists: !!modal
-        };
-    }
-
-     catch (error) {
-            }
-
-        // Try through global function
-        try {
-            if (window.addRuns) {
-                window.addRuns(1);
-                } else {
-                }
-            }
-
-        try {
-            if (window.handleRunButton) {
-                window.handleRunButton(1);
-                } else {
-                }
-            }
-    }
-
     // Force reset the bowler selection state
     triggerInitialBowlerSelection() {
         if (!this.currentMatch) {
@@ -11233,23 +11209,6 @@ class CricketApp {
         // Show bowler selection modal for initial bowler
         this.showBowlerSelectionModal(bowlingTeam.players);
     }
-
-    );
-
-        }
-
-    );
-        }
-
-        // Check if modal exists
-        const modal = document.getElementById('editPlayerModal');
-        if (modal) {
-            const nameInput = document.getElementById('playerName');
-            if (nameInput) {
-                }
-        }
-
-        }
 
     // Import cricket data from file (for APK/PWA version)
     async importCricketData() {
@@ -11277,9 +11236,10 @@ class CricketApp {
                             const text = await file.text();
                             const data = JSON.parse(text);
                             await this.processImportedData(data, file.name);
-                            } else {
-                            }
-                        } finally {
+                        }
+                    } catch (fileError) {
+                        console.error('Error processing import file:', fileError);
+                    } finally {
                         // Clean up
                         document.body.removeChild(input);
                     }
@@ -11302,10 +11262,13 @@ class CricketApp {
 
                 await this.processImportedData(data, file.name);
             }
+        } catch (error) {
             // Handle user cancellation gracefully
             if (error.name === 'AbortError' || error.message.includes('aborted')) {
-                } else {
-                }
+                console.log('File selection cancelled by user');
+            } else {
+                console.error('Error importing data:', error);
+            }
         }
     }
 
@@ -11417,14 +11380,16 @@ class CricketApp {
             if (window.androidDataLoader) {
                 window.androidDataLoader.dataLoaded = false;
                 window.androidDataLoader.cricketData = null;
-                }
+            }
 
             this.updateStats();
             this.loadPlayers(); // Refresh players list
             this.loadMatchHistory(); // Refresh match history
             this.loadTeams(); // Refresh teams
-
-            }
+        } catch (error) {
+            console.error('Error processing imported data:', error);
+            alert(`Failed to import data: ${error.message}`);
+        }
     }
 
     // clearCacheAndRefresh method removed - cricket_stats.json no longer used
@@ -11489,9 +11454,10 @@ class CricketApp {
                             const text = await file.text();
                             const data = JSON.parse(text);
                             await this.performSmartMerge(data, file.name);
-                        } else {
-                            }
-                        } finally {
+                        }
+                    } catch (fileError) {
+                        console.error('Error processing file:', fileError);
+                    } finally {
                         // Clean up
                         document.body.removeChild(input);
                     }
@@ -11515,10 +11481,13 @@ class CricketApp {
 
                 await this.performSmartMerge(data, file.name);
             }
+        } catch (error) {
             // Handle user cancellation gracefully
             if (error.name === 'AbortError' || error.message.includes('aborted')) {
-                } else {
-                }
+                console.log('File selection cancelled by user');
+            } else {
+                console.error('Error importing data:', error);
+            }
         }
     }
 
@@ -11650,9 +11619,10 @@ class CricketApp {
             localStorage.setItem('cricket_stats_json', JSON.stringify(cricketStatsData));
 
             this.updateStats();
-
-            // Show detailed results
-            }
+        } catch (error) {
+            console.error('Error performing smart merge:', error);
+            alert(`Failed to merge data: ${error.message}`);
+        }
     }
 
     // Merge player data with smart logic
@@ -11683,7 +11653,7 @@ class CricketApp {
                         last_updated: new Date().toISOString().split('T')[0]
                     };
                     updatedCount++;
-                    } else {
+                } else {
                     unchangedCount++;
                 }
             } else {
@@ -11889,7 +11859,10 @@ class CricketApp {
             };
 
             this.downloadJSON(jsonData, `cricket-data-backup-${timestamp}.json`);
-            }
+        } catch (error) {
+            console.error('Error exporting data:', error);
+            alert('Failed to export data');
+        }
     }
 
     downloadJSON(data, filename) {
@@ -11928,8 +11901,10 @@ class CricketApp {
                 this.updateStats();
                 this.loadPlayers();
                 this.loadTeams();
-
-                }
+            } catch (error) {
+                console.error('Error importing file:', error);
+                alert('Failed to import data from file');
+            }
         };
         reader.readAsText(file);
     }
@@ -12138,14 +12113,12 @@ class CricketApp {
             team2Name: this.currentMatch.team2?.name,
             team1Batting: this.currentMatch.team1Score.batting,
             team2Batting: this.currentMatch.team2Score.batting,
-            battingTeamDetermined: this.currentMatch.currentTeam === 1 ? 'team1' : 'team2'
-        };
-
+            battingTeamDetermined: this.currentMatch.currentTeam === 1 ? 'team1' : 'team2',
             striker: currentTeamScore.striker?.name,
             strikerId: currentTeamScore.striker?.id,
             nonStriker: currentTeamScore.nonStriker?.name,
             nonStrikerId: currentTeamScore.nonStriker?.id
-        }, null, 2));
+        };
 
         if (!battingTeam || !battingTeam.players) {
             return [];
@@ -12460,6 +12433,7 @@ function showPage(pageId) {
             // Programmatic call - find the nav item by onclick attribute
             document.querySelector(`[onclick="showPage('${pageId}')"]`)?.classList.add('active');
         }
+    } catch (error) {
         // Fallback - find the nav item by onclick attribute
         document.querySelector(`[onclick="showPage('${pageId}')"]`)?.classList.add('active');
     }
@@ -12567,9 +12541,10 @@ function closeModal(modalId) {
         if (modal) {
             modal.classList.remove('active');
             modal.style.display = 'none'; // Fix: Also hide the modal completely
-            } else {
-            }
         }
+    } catch (error) {
+        console.error('Error closing modal:', error);
+    }
 }
 
 // Form Handlers
@@ -12603,14 +12578,17 @@ function addPlayer(event) {
         const form = event.target;
         if (form && typeof form.reset === 'function') {
             form.reset();
-            }
+        }
 
         setTimeout(() => {
             try {
                 closeModal('addPlayerModal');
-                }
+            } catch (modalError) {
+                console.error('Error closing modal:', modalError);
+            }
         }, 100);
-
+    } catch (error) {
+        console.error('Error adding player:', error);
         if (window.cricketApp && window.cricketApp.showNotification) {
             window.cricketApp.showNotification('❌ Error adding player: ' + error.message);
         } else {
@@ -12896,18 +12874,11 @@ function savePlayerChanges(playerId) {
     }
 
     let playerName = '';
-        nameInputExists: !!nameInput,
-        nameInputValue: nameInput ? nameInput.value : 'NO INPUT',
-        inputValueLength: nameInput ? nameInput.value.length : 0,
-        inputValueTrimmed: nameInput ? nameInput.value.trim() : 'NO INPUT',
-        originalPlayerName: player.name || player.Name || ''
-    });
-
     // Force read the input value directly
     const inputValue = nameInput ? nameInput.value : '';
     if (nameInput && inputValue && inputValue.trim() && inputValue.trim() !== '') {
         playerName = inputValue.trim();
-        } else {
+    } else {
         playerName = player.name || player.Name || '';
     }
 
@@ -12943,7 +12914,8 @@ function savePlayerChanges(playerId) {
 
         // Show success message
         appInstance.showNotification(`✅ ${player.name} updated successfully!`);
-
+    } catch (error) {
+        console.error('Error saving player changes:', error);
         appInstance.showNotification('❌ Error saving changes: ' + error.message);
     }
 }
@@ -12956,13 +12928,14 @@ function exportUpdatedPlayersToJSON(players, matches = [], teams = []) {
             window.cricketApp.teams = teams || window.cricketApp.teams || [];
 
             window.cricketApp.saveData(true);
-
-            } else {
+        } else {
             // Fallback to old method if app not available
             exportUpdatedPlayersToJSONLegacy(players, matches, teams);
         }
 
         return true;
+    } catch (error) {
+        console.error('Error exporting updated players:', error);
         // Fallback to old method on error
         exportUpdatedPlayersToJSONLegacy(players, matches, teams);
         return false;
@@ -13067,6 +13040,8 @@ function exportUpdatedPlayersToJSONLegacy(players, matches = [], teams = []) {
         }
 
         return true;
+    } catch (error) {
+        console.error('Error exporting to JSON:', error);
         if (window.cricketApp && window.cricketApp.showNotification) {
             window.cricketApp.showNotification('❌ Export failed: ' + error.message);
         }
@@ -13098,7 +13073,8 @@ function handleOfflineFileSave(cricketStatsData, players, matches = [], teams = 
         } else {
             handleOfflineFileSaveFallback(cricketStatsData, players, matches, teams);
         }
-
+    } catch (error) {
+        console.error('Error in offline file save:', error);
         if (window.cricketApp && window.cricketApp.showNotification) {
             window.cricketApp.showNotification('❌ Save failed: ' + error.message);
         }
@@ -13121,6 +13097,8 @@ function handleOfflineFileSaveFallback(cricketStatsData, players, matches, teams
             const location = isModernAPI ? 'user-selected location' : 'Downloads folder';
             window.cricketApp.showNotification(`✅ Complete data saved: ${players.length} players, ${matches.length} matches, ${teams.length} teams to ${location} (fallback method)`);
         }
+    } catch (error) {
+        console.error('Error in offline save fallback:', error);
         if (window.cricketApp && window.cricketApp.showNotification) {
             window.cricketApp.showNotification('❌ Offline save fallback failed: ' + error.message);
         }
@@ -13144,9 +13122,11 @@ async function handleModernFileSave(cricketStatsData) {
         if (window.cricketApp && window.cricketApp.showNotification) {
             window.cricketApp.showNotification('✅ Cricket data saved to device');
         }
-
+    } catch (error) {
+        console.error('Error in modern file save:', error);
         if (error.name !== 'AbortError') {
-            }
+            console.error('Save error:', error);
+        }
         // Fallback to download
         downloadFallback(cricketStatsData);
     }
@@ -13170,6 +13150,8 @@ async function saveToServer(data) {
         } else {
             return false;
         }
+    } catch (error) {
+        console.error('Error saving to server:', error);
         return false;
     }
 }
@@ -13195,6 +13177,8 @@ function downloadFallback(cricketStatsData) {
         } else {
             downloadFallbackLegacy(cricketStatsData);
         }
+    } catch (error) {
+        console.error('Error in downloadFallback:', error);
         downloadFallbackLegacy(cricketStatsData);
     }
 }
@@ -13610,6 +13594,7 @@ window.confirmTeams = function() {
     let teamsToConfirm = null;
 
     if (window.cricketApp.tempTeams) {
+        console.log('Confirming teams with captains:', {
             team1Captain: window.cricketApp.tempTeams[0].captain,
             team1CaptainId: window.cricketApp.tempTeams[0].captain?.id,
             team2Captain: window.cricketApp.tempTeams[1].captain,
@@ -13635,6 +13620,7 @@ window.confirmTeams = function() {
                     teamsToConfirm = teams;
                 }
             }
+        } catch (e) {
             console.error('❌ CONFIRM_TEAMS: Error loading saved teams:', e);
         }
     }
@@ -13647,6 +13633,7 @@ window.confirmTeams = function() {
     // Set as permanent teams
     window.cricketApp.teams = [...teamsToConfirm];
 
+    console.log('Teams confirmed with captains:', {
         team1Captain: window.cricketApp.teams[0].captain,
         team1CaptainId: window.cricketApp.teams[0].captain?.id,
         team2Captain: window.cricketApp.teams[1].captain,
@@ -13867,6 +13854,7 @@ window.addEventListener('DOMContentLoaded', function() {
         getBackups: () => window.cricketApp.getBackupList(),
         restore: (timestamp) => window.cricketApp.restoreFromBackup(timestamp),
         help: () => {
+            console.log(`
 🔄 Edit-in-Place Console Helpers:
 
 editInPlaceHelpers.showInfo()     - Show instructions for edit-in-place mode
@@ -13889,13 +13877,15 @@ Example:
             if (window.exportCricketData) {
                 window.exportCricketData();
             } else {
-                }
+                console.error('Export function not available');
+            }
         },
         import: () => {
             if (window.importCricketData) {
                 window.importCricketData();
             } else {
-                }
+                console.error('Import function not available');
+            }
         },
         summary: () => window.cricketDataManager.getDataSummary(),
         test: () => window.cricketDataManager.testImport(),
@@ -13904,6 +13894,7 @@ Example:
             return fileName;
         },
         help: () => {
+            console.log(`
 💾 Data Management Console Helpers:
 
 dataHelpers.export()        - Export data to Downloads folder
@@ -13981,7 +13972,9 @@ window.addEventListener('DOMContentLoaded', function() {
         window.cricketApp = new CricketApp();
         // Create global app reference for backward compatibility
         window.app = window.cricketApp;
-        }
+    } catch (error) {
+        console.error('Error initializing cricket app:', error);
+    }
 });
 
 function startToss() {
@@ -14005,7 +13998,7 @@ function startToss() {
         const existingTossResult = document.getElementById('toss-result-container');
         if (existingTossResult) {
             existingTossResult.remove();
-            }
+        }
 
         // Create inline toss display similar to team box
         const tossResultContainer = document.createElement('div');
@@ -14109,6 +14102,7 @@ function startToss() {
 
         }, 2000);
 
+    } catch (error) {
         console.error('❌ Error in startToss():', error);
         showMessage('Error starting toss: ' + error.message, 'error');
     }
@@ -14176,7 +14170,8 @@ function getCurrentTeams() {
         }
 
         return [];
-
+    } catch (error) {
+        console.error('Error getting current teams:', error);
         return [];
     }
 }
@@ -14530,20 +14525,22 @@ function startMatchWithPlayers() {
             const scoringNavItem = document.querySelector('a[onclick="showPage(\'scoring\')"]');
             if (scoringNavItem) {
                 scoringNavItem.classList.add('active');
-                }
+            }
 
             const navTitle = document.getElementById('navTitle');
             if (navTitle) {
                 navTitle.textContent = 'Live Scoring';
-                }
+            }
 
         } else {
             // List all available content sections
             const allContent = document.querySelectorAll('.content');
+            console.log('Available content sections:', 
                 Array.from(allContent).map(c => c.id || 'no-id'));
         }
-
-        }
+    } catch (error) {
+        console.error('Error showing scoring section:', error);
+    }
 
     // Show success message after switching
     showMessage(`Match starting! ${matchSetup.striker.name} and ${matchSetup.nonStriker.name} are batting. ${matchSetup.bowler.name} is bowling.`, 'success');
@@ -14563,6 +14560,8 @@ function startMatchWithPlayers() {
             try {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 window.scrollTo(0, 0);
+            } catch (scrollError) {
+                console.error('Error scrolling:', scrollError);
             }
 
             // Method 2: Also scroll the scoring section itself
@@ -14570,12 +14569,12 @@ function startMatchWithPlayers() {
                 const scoringSection = document.getElementById('scoring');
                 if (scoringSection) {
                     scoringSection.scrollTop = 0;
-                    }
+                }
 
                 // Method 3: Scroll document body
                 document.body.scrollTop = 0;
                 document.documentElement.scrollTop = 0;
-                }, 100);
+            }, 100);
 
             // Force update of all scoring interface elements
             setTimeout(() => {
@@ -14589,8 +14588,9 @@ function startMatchWithPlayers() {
                     const currentTeamEl = document.getElementById('currentTeam');
                     if (currentTeamEl && currentMatch.team1) {
                         currentTeamEl.textContent = currentMatch.team1.name;
-                        } else {
-                        }
+                    } else {
+                        console.log('Could not update current team display');
+                    }
 
                     const strikerNameEl = document.getElementById('strikerName');
                     const nonStrikerNameEl = document.getElementById('nonStrikerName');
@@ -14598,23 +14598,29 @@ function startMatchWithPlayers() {
 
                     if (strikerNameEl && currentTeamScore.striker) {
                         strikerNameEl.textContent = currentTeamScore.striker.name;
-                        } else {
-                        }
+                    } else {
+                        console.log('Could not update striker name');
+                    }
 
                     if (nonStrikerNameEl && currentTeamScore.nonStriker) {
                         nonStrikerNameEl.textContent = currentTeamScore.nonStriker.name;
-                        } else {
-                        }
+                    } else {
+                        console.log('Could not update non-striker name');
+                    }
 
                     if (bowlerNameEl && currentMatch.bowler) {
                         bowlerNameEl.textContent = currentMatch.bowler.name;
-                        } else {
-                        }
-                } else {
+                    } else {
+                        console.log('Could not update bowler name');
                     }
+                } else {
+                    console.log('Cricket app or current match not available');
+                }
             }, 200);
 
-            }
+        } catch (error) {
+            console.error('Error starting match:', error);
+        }
     }, 100);
 }
 
@@ -14648,6 +14654,7 @@ function showWicketModal() {
     const currentTeamScore = match.currentTeam === 1 ? match.team1Score : match.team2Score;
     const battingTeam = match.currentTeam === 1 ? match.team1 : match.team2;
 
+    console.log('Wicket context:', JSON.stringify({
         oldMethod_currentTeam: match.currentTeam,
         oldMethod_teamName: match.currentTeam === 1 ? match.team1?.name : match.team2?.name,
         newMethod_battingTeam: match.currentTeam === 1 ? 'team1' : 'team2',
@@ -14870,6 +14877,7 @@ function showWicketModal() {
         if (newBatsmanSelect) {
             newBatsmanSelect.innerHTML = '<option value="">Select new batsman...</option>';
 
+            console.log('Current match team state:', JSON.stringify({
                 team1: window.cricketApp.currentMatch.team1?.name,
                 team2: window.cricketApp.currentMatch.team2?.name,
                 team1Batting: window.cricketApp.currentMatch.team1Score?.batting,
@@ -14913,6 +14921,7 @@ function showWicketModal() {
                     option.value = player.id;
                     option.textContent = player.name;
                     newBatsmanSelect.appendChild(option);
+                    console.log('Available batsman:', JSON.stringify({
                         id: player.id,
                         name: player.name,
                         teamCheck: 'Will verify in next log'
@@ -15052,9 +15061,11 @@ function showWicketModal() {
 
             if (helperEl && helperEl.options) {
                 Array.from(helperEl.options).forEach((opt, i) => {
+                    console.log(`Helper option ${i}: ${opt.value} - ${opt.text}`);
                 });
             }
 
+            console.log('Helper element detailed check:', {
                 helperElementExists: !!helperEl,
                 helperElementValue: helperEl?.value,
                 helperElementSelectedIndex: helperEl?.selectedIndex,
@@ -15273,6 +15284,7 @@ function undoLastBall() {
     // Show notification
     window.cricketApp.showNotification(`↶ Undid: ${actionDescription}`);
 
+    console.log('Undo complete:', {
         undidAction: actionDescription,
         ballsRemaining: ballHistory.length,
         currentState: {
@@ -15711,6 +15723,7 @@ function generateTeamScorecardHTML(teamScorecard, teamName, teamKey, fullScoreca
                 const hasBatted = teamScorecard.totalScore && teamScorecard.totalScore !== '0/0';
                 const shouldShowFallOfWickets = hasWickets && hasBatted;
 
+                console.log('Fall of Wickets display check:', {
                     hasWickets: hasWickets,
                     hasBatted: hasBatted,
                     totalScore: teamScorecard.totalScore,
@@ -15925,6 +15938,7 @@ function formatDismissalText(wicket) {
     }
 
     if (!dismissalType) {
+        console.log('No dismissal type found, checking wicket data:', {
             bowler: wicket.bowler,
             helper: wicket.helper,
             fielder: wicket.fielder,
@@ -16098,6 +16112,8 @@ window.cricketDataManager = {
             localStorage.setItem('match-settings', JSON.stringify(data.settings || {}));
 
             return true;
+        } catch (error) {
+            console.error('Error restoring auto-backup:', error);
             return false;
         }
     },
@@ -16105,12 +16121,16 @@ window.cricketDataManager = {
     // Helper function to test import functionality
     testImport() {
         if (window.exportCricketData) {
-            } else {
-            }
+            console.log('Export function available');
+        } else {
+            console.log('Export function NOT available');
+        }
 
         if (window.importCricketData) {
-            } else {
-            }
+            console.log('Import function available');
+        } else {
+            console.log('Import function NOT available');
+        }
 
         return this.getDataSummary();
     },
@@ -16119,6 +16139,50 @@ window.cricketDataManager = {
     getExpectedFileName() {
         const today = new Date().toISOString().split('T')[0];
         return `cricket-data-backup-${today}.json`;
+    }
+};
+
+// Global navigation helper functions for onclick handlers
+function showCaptainshipHistory() {
+    if (window.app) {
+        app.showPage('teams');
+        setTimeout(() => {
+            const captainshipSection = document.querySelector('.captainship-history');
+            if (captainshipSection) {
+                captainshipSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
+    }
+}
+
+function showMatchHistory() {
+    if (window.app) {
+        app.showPage('stats');
+        setTimeout(() => {
+            const matchHistorySection = document.getElementById('matchHistorySection');
+            if (matchHistorySection) {
+                matchHistorySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
+    }
+}
+
+function navigateToOversSettings() {
+    if (window.app) {
+        app.showPage('settings');
+        setTimeout(() => {
+            const oversInput = document.getElementById('oversPerInnings');
+            if (oversInput) {
+                oversInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                oversInput.focus();
+            }
+        }, 100);
+    }
+}
+
+function navigateToGroupSettings() {
+    if (window.app) {
+        app.showPage('settings');
     }
 };
 

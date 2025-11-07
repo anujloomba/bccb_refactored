@@ -3548,42 +3548,33 @@
         <div class="content active" id="home">
             <div class="page-header fade-in">
                 <div class="page-title" id="greeting">Good Evening! 🌙</div>
-                <div class="page-subtitle" id="date">Ready to play cricket?</div>
+                <div class="page-subtitle">Ready to play cricket?</div>
+                <div class="page-subtitle" id="date" style="font-size: 14px; opacity: 0.8; margin-top: 5px;"></div>
+                <div id="guestMessage" style="display: none; margin-top: 10px; padding: 10px; background: rgba(255, 193, 7, 0.1); border-left: 3px solid #ffc107; border-radius: 4px; font-size: 13px;">
+                    ⚠️ You're in guest mode. <a href="#" onclick="showPage('settings'); return false;" style="color: #ffc107; text-decoration: underline;">Change group settings</a> to sync your game history.
+                </div>
             </div>
 
             <div class="glass-card slide-up">
                 <h3>📊 Overview</h3>
                 <div class="status-grid">
-                    <div class="status-card">
+                    <div class="status-card" onclick="showPage('players')" style="cursor: pointer;">
                         <div class="status-number" id="playerCount">0</div>
                         <div class="status-label">Players</div>
                     </div>
-                    <div class="status-card">
+                    <div class="status-card" onclick="showCaptainshipHistory()" style="cursor: pointer;">
                         <div class="status-number" id="captainCount">0</div>
                         <div class="status-label">Captains</div>
                     </div>
-                    <div class="status-card">
+                    <div class="status-card" onclick="showMatchHistory()" style="cursor: pointer;">
                         <div class="status-number" id="matchCount">0</div>
                         <div class="status-label">Matches</div>
                     </div>
-                    <div class="status-card">
+                    <div class="status-card" onclick="navigateToOversSettings()" style="cursor: pointer;">
                         <div class="status-number" id="matchFormat">20</div>
                         <div class="status-label">Overs</div>
                     </div>
                 </div>
-            </div>
-
-            <div class="glass-card slide-up">
-                <h3>⚡ Quick Actions</h3>
-                <button class="btn btn-primary" onclick="showPage('players')">
-                    👥 Manage Players
-                </button>
-                <button class="btn btn-success" onclick="showPage('teams')" id="teamsBtn">
-                    ⚡ Create Teams
-                </button>
-                <button class="btn" onclick="showPage('settings')">
-                    ⚙️ View Settings
-                </button>
             </div>
 
             <div class="glass-card slide-up">
@@ -4079,7 +4070,7 @@
     <!-- Default data script removed for fresh start -->
     <!-- <script src="cricket_stats.js"></script> -->
     <script src="data-loader.js"></script>
-    <script src="app.js?v=20251018-2344"></script>
+    <script src="app.js?v=20251107-1110"></script>
     
     <!-- Emergency function definitions in case app.js fails to load -->
     <script>
@@ -4236,12 +4227,7 @@
                 a.click();
                 URL.revokeObjectURL(url);
                 
-                showNotification(`� Data exported to Downloads/${filename}`);
-                    players: data.players.length,
-                    teams: data.teams.length,
-                    matches: data.matches.length,
-                    filename: filename
-                });
+                showNotification(`📦 Data exported to Downloads/${filename}`);
             } catch (error) {
                 console.error('❌ Export error:', error);
                 showNotification('❌ Failed to export data');
@@ -4299,11 +4285,6 @@
                             const currentTeams = JSON.parse(localStorage.getItem('cricket-teams') || '[]');
                             const currentMatches = JSON.parse(localStorage.getItem('cricket-matches') || '[]');
                             const currentSettings = JSON.parse(localStorage.getItem('match-settings') || '{}');
-                            
-                                players: currentPlayers.length,
-                                teams: currentTeams.length,
-                                matches: currentMatches.length
-                            });
                             
                             // Merge players (avoid duplicates by name)
                             const mergedPlayers = [...currentPlayers];
@@ -4384,16 +4365,6 @@
                             const addedPlayers = mergedPlayers.length - currentPlayers.length;
                             const addedTeams = mergedTeams.length - currentTeams.length;
                             const addedMatches = mergedMatches.length - currentMatches.length;
-                            
-                                addedPlayers,
-                                addedTeams, 
-                                addedMatches,
-                                totalPlayers: mergedPlayers.length,
-                                totalTeams: mergedTeams.length,
-                                totalMatches: mergedMatches.length,
-                                sourceFile: file.name,
-                                exportDate: importedData.exportDate
-                            });
                             
                             // Show detailed success message
                             showNotification(`✅ Import complete! Added: ${addedPlayers} players, ${addedTeams} teams, ${addedMatches} matches from ${file.name}`);
@@ -4569,19 +4540,6 @@
                 URL.revokeObjectURL(url);
                 
         */
-                
-                // Step 3: Clear all localStorage - more comprehensive approach
-                
-                // Method 1: Remove specific cricket-related keys
-                const keysToRemove = [
-                    'cricket-stats',
-                    'cricket-players', 
-                    'cricket-matches',
-                    'cricket-teams',
-                    'cricket-current-match',
-                    'match-settings',
-                    'cricket-metadata'
-                ];
 
         // Initialize app when page loads
         window.addEventListener('load', async () => {
@@ -4667,6 +4625,65 @@
                 content.style.display = 'none';
                 hintElement.style.display = 'block';
             }
+        }
+
+        // Navigation functions for overview statistics
+        function showCaptainshipHistory() {
+            // Navigate to teams page
+            showPage('teams');
+            
+            // Scroll to captainship history section at the top
+            setTimeout(() => {
+                const captainshipSection = document.querySelector('.captainship-section');
+                if (captainshipSection) {
+                    captainshipSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
+        }
+
+        function showMatchHistory() {
+            // Just scroll to match history section on current page
+            const matchHistoryContainer = document.getElementById('matchHistoryContainer');
+            if (matchHistoryContainer) {
+                // Scroll to the parent glass-card containing the match history
+                const parentCard = matchHistoryContainer.closest('.glass-card');
+                if (parentCard) {
+                    parentCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        }
+
+        function navigateToOversSettings() {
+            // Navigate to settings page
+            showPage('settings');
+            
+            // Open the match settings section and scroll to it
+            setTimeout(() => {
+                const matchSettingsContent = document.getElementById('matchSettingsContent');
+                const matchSettingsCard = matchSettingsContent ? matchSettingsContent.closest('.glass-card') : null;
+                
+                if (matchSettingsContent && matchSettingsCard) {
+                    // Expand the settings if collapsed
+                    matchSettingsContent.style.display = 'block';
+                    
+                    // Hide the "Click to expand" hint
+                    const hintElement = matchSettingsCard.querySelector('.tile-click-hint');
+                    if (hintElement) {
+                        hintElement.style.display = 'none';
+                    }
+                    
+                    // Scroll to the match settings card
+                    matchSettingsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    
+                    // Focus on the total overs dropdown
+                    setTimeout(() => {
+                        const totalOversSelect = document.getElementById('totalOvers');
+                        if (totalOversSelect) {
+                            totalOversSelect.focus();
+                        }
+                    }, 500);
+                }
+            }, 100);
         }
 
         // Match settings save functionality
@@ -4877,7 +4894,8 @@
             const matchesData = data.matches || data.history || [];
             const battingData = data.match_batting_performance || [];
             
-            if (!data || matchesData.length === 0) {
+            // Ensure matchesData is an array
+            if (!data || !Array.isArray(matchesData) || matchesData.length === 0) {
                 historyContainer.innerHTML = '<div class="no-matches">No match history available</div>';
                 return;
             }
@@ -5049,12 +5067,6 @@
         team1Score = team1Score || 'N/A';
         team2Score = team2Score || 'N/A';
         
-            matchId,
-            teams: `${team1Name} vs ${team2Name}`,
-            scores: `${team1Score} vs ${team2Score}`,
-            result
-        });
-        
         return {
             matchId,
             team1Name,
@@ -5112,23 +5124,12 @@
 
     function displayScorecard(matchId, data) {
         try {
-                totalMatches: data.matches?.length || 0,
-                hasHistory: !!data.history,
-                dataKeys: Object.keys(data)
-            });
-            
             // Handle both new format (matches) and legacy format (history)
             const matchesData = data.matches || data.history || [];
             
-            if (!data || matchesData.length === 0) {
+            if (!Array.isArray(matchesData) || matchesData.length === 0) {
                 throw new Error('No match data available');
             }
-
-            // Debug: Log all match IDs to help diagnose the issue
-                id: m.Match_ID || m.id,
-                team1: m.Team1 || m.team1?.name || m.team1,
-                team2: m.Team2 || m.team2?.name || m.team2
-            })));
 
             // Try multiple ID formats to find the match
             let match = matchesData.find(m => m.Match_ID === matchId);
@@ -5178,10 +5179,6 @@
             if (bowlingData.length === 0 && data.match_bowling_performance) {
                 bowlingData = data.match_bowling_performance.filter(b => String(b.Match_ID) === String(actualMatchId));
             }
-            
-                battingEntries: battingData.length,
-                bowlingEntries: bowlingData.length
-            });
 
             // Fix date parsing
             const matchDate = match.Date || match.date || match.Date_Saved;
@@ -5602,6 +5599,7 @@
                 await window.cricketApp.loadDataFromManager();
                 window.cricketApp.loadPlayers();
                 window.cricketApp.updateStats();
+                window.cricketApp.updateGreeting(); // Hide guest mode message after login
             } else {
                 alert('Login failed: ' + result.error);
             }
@@ -5652,6 +5650,7 @@
                 // Update UI
                 window.cricketApp.loadPlayers();
                 window.cricketApp.updateStats();
+                window.cricketApp.updateGreeting(); // Hide guest mode message after creating new group
                 window.cricketApp.saveData();
             } else {
                 alert('Group creation failed: ' + result.error);
