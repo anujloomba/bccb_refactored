@@ -21,6 +21,8 @@ native-android-app/.idea/
 native-android-app/*.iml
 *.keystore
 keystore.properties
+native-android-app\gradle.properties
+native-android-app\build.gradle
 
 # Cloudflare Worker
 cricket-worker/cricket-api/.wrangler/

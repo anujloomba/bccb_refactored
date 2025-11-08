@@ -1,20 +1,8 @@
--- Cricket Manager D1 Database Schema
--- Fixed version with proper table order and constraints
+-- Migration script to remove all foreign key constraints
+-- This will recreate the tables without FK constraints
 
--- Create groups table first (referenced by other tables)
-CREATE TABLE groups (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  group_name TEXT UNIQUE NOT NULL,
-  password_hash TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- Insert default guest group
-INSERT INTO groups (group_name, password_hash) VALUES ('guest', NULL);
-
--- Create player_data table (FK to groups removed for flexibility)
-CREATE TABLE player_data (
+-- Step 1: Create temporary tables with new schema (no FKs)
+CREATE TABLE player_data_new (
     Player_ID TEXT PRIMARY KEY,
     group_id INTEGER NOT NULL DEFAULT 1,
     Name TEXT NOT NULL,
@@ -25,8 +13,7 @@ CREATE TABLE player_data (
     Last_Edit_Date DATE
 );
 
--- Create match_data table (all FKs removed for flexibility)
-CREATE TABLE match_data (
+CREATE TABLE match_data_new (
     Match_ID TEXT PRIMARY KEY,
     group_id INTEGER NOT NULL DEFAULT 1,
     Date DATE NOT NULL,
@@ -49,8 +36,7 @@ CREATE TABLE match_data (
     Losing_Captain TEXT
 );
 
--- Create performance_data table (all FKs removed for flexibility)
-CREATE TABLE performance_data (
+CREATE TABLE performance_data_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     Match_ID TEXT NOT NULL,
     Player_ID TEXT NOT NULL,
@@ -70,9 +56,23 @@ CREATE TABLE performance_data (
     dismissalBowler TEXT
 );
 
--- Create indexes for better performance
+-- Step 2: Copy data from old tables to new tables
+INSERT INTO player_data_new SELECT * FROM player_data;
+INSERT INTO match_data_new SELECT * FROM match_data;
+INSERT INTO performance_data_new SELECT * FROM performance_data;
+
+-- Step 3: Drop old tables
+DROP TABLE performance_data;
+DROP TABLE match_data;
+DROP TABLE player_data;
+
+-- Step 4: Rename new tables to original names
+ALTER TABLE player_data_new RENAME TO player_data;
+ALTER TABLE match_data_new RENAME TO match_data;
+ALTER TABLE performance_data_new RENAME TO performance_data;
+
+-- Step 5: Recreate indexes
 CREATE INDEX idx_player_group ON player_data(group_id);
 CREATE INDEX idx_match_group ON match_data(group_id);
 CREATE INDEX idx_performance_match ON performance_data(Match_ID);
 CREATE INDEX idx_performance_player ON performance_data(Player_ID);
-CREATE INDEX idx_groups_name ON groups(group_name);

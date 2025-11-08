@@ -492,24 +492,50 @@ export default {
           // Process matches after players are inserted
           console.log('Inserting matches...');
           
-          const matchPromises = matches.map((match, index) => {
+          const matchPromises = matches.map(async (match, index) => {
+            // Handle D1 format (direct field access) vs app format (object extraction)
+            const matchId = String(match.Match_ID || match.id || `match_${Date.now()}_${index}`);
+            
             try {
-              // Handle D1 format (direct field access) vs app format (object extraction)
-              const matchId = String(match.Match_ID || match.id || `match_${Date.now()}_${index}`);
-              
               console.log(`📝 WORKER: Upserting match ${matchId}`);
               
               const team1Name = match.Team1 || (typeof match.team1 === 'object' ? match.team1?.name : match.team1) || 'Team 1';
               const team2Name = match.Team2 || (typeof match.team2 === 'object' ? match.team2?.name : match.team2) || 'Team 2';
               
-                            // Handle captains - should always have values since teams are formed from existing players
-              const team1Captain = match.Team1_Captain || (typeof match.team1 === 'object' ? match.team1?.captain?.id : '') || '';
-              const team2Captain = match.Team2_Captain || (typeof match.team2 === 'object' ? match.team2?.captain?.id : '') || '';
+              // Handle captains - check camelCase FIRST (what app sends fresh), filter empty strings
+              // Captain can be: direct ID string, object.captain (string ID), or object.captain.id
+              let team1Captain = (match.team1Captain && match.team1Captain !== '') ? match.team1Captain : ((match.Team1_Captain && match.Team1_Captain !== '') ? match.Team1_Captain : '');
+              if (!team1Captain && typeof match.team1 === 'object' && match.team1?.captain) {
+                // If captain is already a string, use it; if it's an object, extract id
+                team1Captain = typeof match.team1.captain === 'string' ? match.team1.captain : match.team1.captain?.id || '';
+              }
+              
+              let team2Captain = (match.team2Captain && match.team2Captain !== '') ? match.team2Captain : ((match.Team2_Captain && match.Team2_Captain !== '') ? match.Team2_Captain : '');
+              if (!team2Captain && typeof match.team2 === 'object' && match.team2?.captain) {
+                // If captain is already a string, use it; if it's an object, extract id
+                team2Captain = typeof match.team2.captain === 'string' ? match.team2.captain : match.team2.captain?.id || '';
+              }
               
               // Convert empty strings to null for foreign key constraints
               // Ensure values are strings before calling trim()
+              console.log('🔧 TEAM_CAPTAIN_CONVERSION:', {
+                matchId,
+                team1CaptainBeforeConversion: team1Captain,
+                team2CaptainBeforeConversion: team2Captain,
+                team1CaptainType: typeof team1Captain,
+                team2CaptainType: typeof team2Captain
+              });
+              
               const team1CaptainFK = team1Captain ? String(team1Captain).trim() || null : null;
               const team2CaptainFK = team2Captain ? String(team2Captain).trim() || null : null;
+              
+              console.log('🔧 TEAM_CAPTAIN_FK_RESULT:', {
+                matchId,
+                team1CaptainFK,
+                team2CaptainFK,
+                team1CaptainFKType: typeof team1CaptainFK,
+                team2CaptainFKType: typeof team2CaptainFK
+              });
               
               // Validate that captains have values (they should always exist)
               if (!team1CaptainFK) {
@@ -519,14 +545,24 @@ export default {
                 console.warn(`Warning: Team2_Captain is empty for team ${team2Name}. Setting to NULL.`);
               }
               
-              const winnerName = match.Winning_Team || match.winner || '';
-              const loserName = match.Losing_Team || match.loser || '';
+              // Handle winner/loser - check both PascalCase (D1) and camelCase (app) formats
+              const winnerName = match.Winning_Team || match.winningTeam || match.winner || '';
+              const loserName = match.Losing_Team || match.losingTeam || match.loser || '';
               
-              const team1Score = match.Winning_Team_Score || match.finalScore?.team1 || '';
-              const team2Score = match.Losing_Team_Score || match.finalScore?.team2 || '';
+              // Handle scores - check both PascalCase (D1) and camelCase (app) formats
+              const team1Score = match.Winning_Team_Score || match.winningTeamScore || match.finalScore?.team1 || '';
+              const team2Score = match.Losing_Team_Score || match.losingTeamScore || match.finalScore?.team2 || '';
               
-              // Handle Man of the Match - should always have a value for completed matches
-              const manOfTheMatch = match.Man_Of_The_Match || (typeof match.manOfTheMatch === 'object' ? match.manOfTheMatch?.name : match.manOfTheMatch) || '';
+              // Handle Man of the Match - extract Player_ID from object if present
+              let manOfTheMatch = match.Man_Of_The_Match || '';
+              if (!manOfTheMatch && match.manOfTheMatch) {
+                // If manOfTheMatch is an object with player.id, extract it
+                if (typeof match.manOfTheMatch === 'object') {
+                  manOfTheMatch = match.manOfTheMatch?.player?.id || match.manOfTheMatch?.playerId || match.manOfTheMatch?.Player_ID || '';
+                } else {
+                  manOfTheMatch = match.manOfTheMatch;
+                }
+              }
               
               // Convert to string and then handle empty values for foreign key constraint
               const manOfTheMatchStr = String(manOfTheMatch || '');
@@ -537,10 +573,24 @@ export default {
                 console.warn(`Warning: Man_Of_The_Match is empty for match ${matchId}. Setting to NULL.`);
               }
 
-              const winningCaptain = match.Winning_Captain || match.winningCaptainId || '';
-              const losingCaptain = match.Losing_Captain || match.losingCaptainId || '';
+              // Filter empty strings for winning/losing captains - check camelCase first
+              const winningCaptain = (match.Winning_Captain && match.Winning_Captain !== '') ? match.Winning_Captain : ((match.winningCaptain && match.winningCaptain !== '') ? match.winningCaptain : (match.winningCaptainId || ''));
+              const losingCaptain = (match.Losing_Captain && match.Losing_Captain !== '') ? match.Losing_Captain : ((match.losingCaptain && match.losingCaptain !== '') ? match.losingCaptain : (match.losingCaptainId || ''));
               const winningCaptainFK = String(winningCaptain || '').trim() || null;
               const losingCaptainFK = String(losingCaptain || '').trim() || null;
+              
+              // 🔍 DEBUG: Log captain extraction for winning/losing
+              console.log('🏆 CAPTAIN_EXTRACTION:', {
+                matchId,
+                rawWinningCaptain: match.Winning_Captain,
+                rawLosingCaptain: match.Losing_Captain,
+                rawWinningCaptainCamel: match.winningCaptain,
+                rawLosingCaptainCamel: match.losingCaptain,
+                extractedWinningCaptain: winningCaptain,
+                extractedLosingCaptain: losingCaptain,
+                finalWinningCaptainFK: winningCaptainFK,
+                finalLosingCaptainFK: losingCaptainFK
+              });
 
               const serializeComposition = (value: unknown): string => {
                 if (typeof value === 'string') {
@@ -556,23 +606,27 @@ export default {
               const team1CompositionValue = serializeComposition(match.Team1_Composition ?? match.team1Composition);
               const team2CompositionValue = serializeComposition(match.Team2_Composition ?? match.team2Composition);
               
-              const matchDate = match.Date || match.ended || match.started || match.date || new Date().toISOString().split('T')[0];
-              const gameStartTimeRaw = match.Game_Start_Time || match.started || null;
-              const gameFinishTimeRaw = match.Game_Finish_Time || match.ended || null;
+              const matchDate = match.Date || match.date || match.ended || match.started || new Date().toISOString().split('T')[0];
+              // Handle timestamps - check both PascalCase (D1) and camelCase (app) formats
+              const gameStartTimeRaw = match.Game_Start_Time || match.gameStartTime || match.started || null;
+              const gameFinishTimeRaw = match.Game_Finish_Time || match.gameFinishTime || match.ended || null;
               const gameStartTimeValue = gameStartTimeRaw ? String(gameStartTimeRaw).trim() || null : null;
               const gameFinishTimeValue = gameFinishTimeRaw ? String(gameFinishTimeRaw).trim() || null : null;
               const overs = Number(match.Overs || match.totalOvers || match.overs || 20);
               const result = match.Result || match.result || '';
               
-              console.log('� Upserting match data:', {
+              console.log('🏏 Inserting match data:', {
                 matchId,
                 team1Name,
                 team2Name,
                 team1CaptainFK,
-                team2CaptainFK
+                team2CaptainFK,
+                winningCaptainFK,
+                losingCaptainFK,
+                manOfTheMatchFK
               });
               
-              return env.cricket_mgr.prepare(`
+              const insertResult = await env.cricket_mgr.prepare(`
                 INSERT OR REPLACE INTO match_data 
                 (Match_ID, group_id, Date, Team1, Team2, Team1_Captain, Team2_Captain,
                  Team1_Composition, Team2_Composition, Winning_Team, Losing_Team, 
@@ -601,8 +655,11 @@ export default {
                 winningCaptainFK,
                 losingCaptainFK
               ).run();
-            } catch (matchError) {
-              console.error('❌ WORKER: Match insert error:', matchError, 'Match data:', match);
+              
+              console.log(`✅ WORKER: Match ${matchId} inserted successfully`);
+              console.log(`🔍 INSERT_RESULT:`, { success: insertResult.success, meta: insertResult.meta });
+            } catch (matchError: any) {
+              console.error(`❌ WORKER: Match insert error for ${matchId}:`, matchError, 'Match data:', match);
               throw matchError;
             }
           });
@@ -633,6 +690,9 @@ export default {
                 // If it's a generic string like "fielder" or not a number, set to NULL
                 console.warn(`Invalid dismissalFielder value "${dismissalFielder}" for player ${playerId}, setting to NULL`);
                 dismissalFielder = null;
+              } else {
+                // Convert to string for TEXT column (handle both number and string input)
+                dismissalFielder = String(dismissalFielder);
               }
               
               // For dismissalBowler, check if it's a valid Player_ID format (timestamp-like number)
@@ -644,9 +704,12 @@ export default {
                 // If it's a generic string like "bowler" or not a number, set to NULL
                 console.warn(`Invalid dismissalBowler value "${dismissalBowler}" for player ${playerId}, setting to NULL`);
                 dismissalBowler = null;
+              } else {
+                // Convert to string for TEXT column (handle both number and string input)
+                dismissalBowler = String(dismissalBowler);
               }
               
-              // Use INSERT OR IGNORE - UNIQUE constraint will prevent duplicates
+              // Use INSERT OR IGNORE to prevent overwriting existing data
               return env.cricket_mgr.prepare(`
                 INSERT OR IGNORE INTO performance_data 
                 (Match_ID, Player_ID, notOuts, runs, ballsFaced, fours, sixes,
@@ -669,9 +732,9 @@ export default {
                 Boolean(perf.isOut || false),
                 dismissalType, // NULL if empty
                 dismissalFielder, // NULL if empty
-                dismissalBowler // NULL if empty
+                dismissalBowler // NULL if empty, STRING if present
               ).run();
-            } catch (perfError) {
+            } catch (perfError: any) {
               console.error('Performance insert error:', perfError, 'Performance data:', perf);
               throw perfError;
             }
