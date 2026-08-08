@@ -1,0 +1,59 @@
+name: Verify iOS app
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ios-verify.yml'
+      - 'native-ios-app/**'
+      - 'native-android-app/app/src/main/assets/**'
+  push:
+    paths:
+      - '.github/workflows/ios-verify.yml'
+      - 'native-ios-app/**'
+      - 'native-android-app/app/src/main/assets/**'
+  workflow_dispatch:
+
+jobs:
+  build-simulator:
+    name: Build iOS simulator app
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: native-ios-app
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: native-ios-app/package-lock.json
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Synchronize shared web assets
+        run: npm run sync:ios
+
+      - name: Build unsigned simulator app
+        run: >-
+          xcodebuild
+          -project ios/App/App.xcodeproj
+          -scheme App
+          -configuration Debug
+          -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath build/DerivedData
+          CODE_SIGNING_ALLOWED=NO
+          build
+
+      - name: Upload simulator app
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bccb-cricket-ios-simulator
+          path: native-ios-app/build/DerivedData/Build/Products/Debug-iphonesimulator/App.app
+          if-no-files-found: ignore

@@ -19,6 +19,7 @@ CREATE TABLE groups (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   group_name TEXT UNIQUE NOT NULL,
   password_hash TEXT,
+  admin_password_hash TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

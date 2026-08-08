@@ -6,6 +6,7 @@ CREATE TABLE groups (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   group_name TEXT UNIQUE NOT NULL,
   password_hash TEXT,
+  admin_password_hash TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -46,7 +47,8 @@ CREATE TABLE match_data (
     Overs INTEGER,
     Man_Of_The_Match TEXT,
     Winning_Captain TEXT,
-    Losing_Captain TEXT
+    Losing_Captain TEXT,
+    Import_Fingerprint TEXT
 );
 
 -- Create performance_data table (all FKs removed for flexibility)
@@ -67,12 +69,16 @@ CREATE TABLE performance_data (
     isOut BOOLEAN DEFAULT FALSE,
     dismissalType TEXT,
     dismissalFielder TEXT,
-    dismissalBowler TEXT
+    dismissalBowler TEXT,
+    UNIQUE(Match_ID, Player_ID)
 );
 
 -- Create indexes for better performance
 CREATE INDEX idx_player_group ON player_data(group_id);
 CREATE INDEX idx_match_group ON match_data(group_id);
+CREATE UNIQUE INDEX idx_match_group_import_fingerprint
+    ON match_data(group_id, Import_Fingerprint)
+    WHERE Import_Fingerprint IS NOT NULL;
 CREATE INDEX idx_performance_match ON performance_data(Match_ID);
 CREATE INDEX idx_performance_player ON performance_data(Player_ID);
 CREATE INDEX idx_groups_name ON groups(group_name);

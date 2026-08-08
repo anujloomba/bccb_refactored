@@ -2,11 +2,24 @@
  * Cricket Manager D1 API Worker
  * Provides REST API endpoints for cricket app data synchronization
  */
+import {
+  calculateImportedManOfTheMatch,
+  canonicalScorecardContent,
+  normaliseScorecardName,
+  parseScorecardPdf,
+  resolveMappedPlayerId,
+  scorecardAssociationNames,
+  suggestPlayerMatches,
+  type ImportedPerformance,
+  type ParsedInnings,
+  type ParsedScorecard
+} from './scorecard';
 
 interface CricketGroup {
   id: number;
   group_name: string;
   password_hash: string | null;
+  admin_password_hash: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +56,84 @@ interface CricketMatch {
   Game_Finish_Time: string;
   Winning_Captain?: string;
   Losing_Captain?: string;
+  Import_Fingerprint?: string;
+}
+
+interface ScorecardImportConfirmation {
+  group_id: number;
+  admin_password_hash?: unknown;
+  scorecard: ParsedScorecard;
+  mappings: Array<{ sourceName: string; playerId: string }>;
+  ignoredSourceNames?: string[];
+}
+
+function isValidImportedPerformance(performance: ImportedPerformance): boolean {
+  return typeof performance.sourceName === 'string'
+    && performance.sourceName.trim().length > 0
+    && Number.isInteger(performance.runs) && performance.runs >= 0
+    && Number.isInteger(performance.ballsFaced) && performance.ballsFaced >= 0
+    && Number.isInteger(performance.fours) && performance.fours >= 0
+    && Number.isInteger(performance.sixes) && performance.sixes >= 0
+    && Number.isInteger(performance.ballsBowled) && performance.ballsBowled >= 0
+    && Number.isInteger(performance.runsConceded) && performance.runsConceded >= 0
+    && Number.isInteger(performance.wickets) && performance.wickets >= 0
+    && Number.isInteger(performance.maidenOvers) && performance.maidenOvers >= 0
+    && Number.isInteger(performance.notOuts) && performance.notOuts >= 0
+    && typeof performance.isOut === 'boolean'
+    && (performance.dismissalType === null || typeof performance.dismissalType === 'string');
+}
+
+function isValidInnings(innings: ParsedInnings): boolean {
+  return typeof innings.teamName === 'string'
+    && innings.teamName.trim().length > 0
+    && /^\d+-\d+$/.test(innings.score)
+    && Number.isFinite(innings.overs) && innings.overs >= 0
+    && Array.isArray(innings.batting) && innings.batting.length > 0
+    && Array.isArray(innings.bowling) && innings.bowling.length > 0
+    && innings.batting.every(isValidImportedPerformance)
+    && innings.bowling.every(isValidImportedPerformance);
+}
+
+async function scorecardImportFingerprint(scorecard: ParsedScorecard): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(canonicalScorecardContent(scorecard))
+  );
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function isValidScorecard(scorecard: ParsedScorecard): boolean {
+  return Boolean(scorecard)
+    && typeof scorecard.team1 === 'string'
+    && typeof scorecard.team2 === 'string'
+    && scorecard.team1.trim().length > 0
+    && scorecard.team2.trim().length > 0
+    && scorecard.team1 !== scorecard.team2
+    && typeof scorecard.result === 'string'
+    && Array.isArray(scorecard.innings)
+    && scorecard.innings.length === 2
+    && isValidInnings(scorecard.innings[0])
+    && isValidInnings(scorecard.innings[1]);
+}
+
+function scorecardCaptainName(scorecard: ParsedScorecard, team: 'team1' | 'team2'): string {
+  return team === 'team1'
+    ? scorecard.team1CaptainName || scorecard.team1
+    : scorecard.team2CaptainName || scorecard.team2;
+}
+
+async function isAdminGroup(
+  env: Env,
+  groupId: number,
+  adminPasswordHash: unknown
+): Promise<boolean> {
+  if (typeof adminPasswordHash !== 'string' || adminPasswordHash.length === 0) {
+    return false;
+  }
+  const group = await env.cricket_mgr.prepare(
+    'SELECT id FROM groups WHERE id = ? AND admin_password_hash = ?'
+  ).bind(groupId, adminPasswordHash).first<{ id: number }>();
+  return Boolean(group);
 }
 
 export default {
@@ -82,6 +173,251 @@ export default {
         });
       }
 
+      if (path === '/scorecard-imports/preview' && method === 'POST') {
+            const form = await request.formData();
+            const groupId = Number(form.get('group_id'));
+            const adminPasswordHash = form.get('admin_password_hash');
+            const scorecardFile = form.get('scorecard');
+            if (!Number.isInteger(groupId) || groupId < 1) {
+              return Response.json({ error: 'A valid group is required.' }, { status: 400, headers: corsHeaders });
+            }
+            if (!(await isAdminGroup(env, groupId, adminPasswordHash))) {
+              return Response.json({ error: 'Scorecard imports require an administrator login.' }, { status: 403, headers: corsHeaders });
+            }
+            if (!(scorecardFile instanceof File) || scorecardFile.type !== 'application/pdf') {
+              return Response.json({ error: 'Upload a PDF scorecard.' }, { status: 400, headers: corsHeaders });
+            }
+            if (scorecardFile.size > 10 * 1024 * 1024) {
+              return Response.json({ error: 'Scorecard PDFs must be 10 MB or smaller.' }, { status: 413, headers: corsHeaders });
+            }
+
+            const scorecard = await parseScorecardPdf(await scorecardFile.arrayBuffer());
+            const importFingerprint = await scorecardImportFingerprint(scorecard);
+            const existingImport = await env.cricket_mgr.prepare(
+              'SELECT Match_ID FROM match_data WHERE group_id = ? AND Import_Fingerprint = ?'
+            ).bind(groupId, importFingerprint).first<{ Match_ID: string }>();
+            const players = await env.cricket_mgr.prepare(
+              'SELECT Player_ID, Name FROM player_data WHERE group_id = ? ORDER BY Name'
+            ).bind(groupId).all<{ Player_ID: string; Name: string }>();
+            return Response.json({
+              scorecard,
+              playerMatches: suggestPlayerMatches(scorecard, players.results || []),
+              alreadyImported: Boolean(existingImport),
+              matchId: existingImport?.Match_ID
+            }, { headers: corsHeaders });
+      }
+
+      if (path === '/scorecard-imports/confirm' && method === 'POST') {
+            const body = await request.json() as ScorecardImportConfirmation;
+            if (
+              !Number.isInteger(body.group_id)
+              || body.group_id < 1
+              || !isValidScorecard(body.scorecard)
+              || !Array.isArray(body.mappings)
+              || (body.ignoredSourceNames !== undefined && !Array.isArray(body.ignoredSourceNames))
+            ) {
+              return Response.json({ error: 'Invalid scorecard import confirmation.' }, { status: 400, headers: corsHeaders });
+            }
+            if (!(await isAdminGroup(env, body.group_id, body.admin_password_hash))) {
+              return Response.json({ error: 'Scorecard imports require an administrator login.' }, { status: 403, headers: corsHeaders });
+            }
+
+            const [firstInnings, secondInnings] = body.scorecard.innings;
+            const winner = body.scorecard.result.match(/^(.+?) won by/)?.[1];
+            if (!winner || (winner !== body.scorecard.team1 && winner !== body.scorecard.team2)) {
+              return Response.json({ error: 'The scorecard result must name one of the two teams as the winner.' }, { status: 400, headers: corsHeaders });
+            }
+
+            const importFingerprint = await scorecardImportFingerprint(body.scorecard);
+            const existingImport = await env.cricket_mgr.prepare(
+              'SELECT Match_ID FROM match_data WHERE group_id = ? AND Import_Fingerprint = ?'
+            ).bind(body.group_id, importFingerprint).first<{ Match_ID: string }>();
+            if (existingImport) {
+              return Response.json({
+                success: true,
+                alreadyImported: true,
+                matchId: existingImport.Match_ID
+              }, { headers: corsHeaders });
+            }
+
+            const sourceNames = new Set(scorecardAssociationNames(body.scorecard));
+            const ignoredSourceNameList = body.ignoredSourceNames || [];
+            const invalidIgnoredSourceNames = ignoredSourceNameList.filter(sourceName =>
+              typeof sourceName !== 'string' || sourceName.trim().length === 0
+            );
+            if (invalidIgnoredSourceNames.length > 0) {
+              return Response.json({
+                error: 'Each ignored scorecard player must have a valid name.'
+              }, { status: 400, headers: corsHeaders });
+            }
+            const ignoredSourceNames = new Set(ignoredSourceNameList);
+            if (ignoredSourceNames.size !== ignoredSourceNameList.length) {
+              return Response.json({
+                error: 'Each scorecard player can only be ignored once.'
+              }, { status: 400, headers: corsHeaders });
+            }
+            const unknownIgnoredSourceNames = [...ignoredSourceNames].filter(name => !sourceNames.has(name));
+            if (unknownIgnoredSourceNames.length > 0) {
+              return Response.json({
+                error: `These players are not in this scorecard: ${unknownIgnoredSourceNames.join(', ')}.`
+              }, { status: 400, headers: corsHeaders });
+            }
+            const invalidMappings = body.mappings.filter(mapping =>
+              typeof mapping.sourceName !== 'string'
+              || mapping.sourceName.trim().length === 0
+              || typeof mapping.playerId !== 'string'
+              || mapping.playerId.trim().length === 0
+            );
+            const invalidMappingSourceNames = invalidMappings
+              .map(mapping => typeof mapping.sourceName === 'string' ? mapping.sourceName.trim() : '')
+              .filter(Boolean);
+            if (invalidMappings.length > 0) {
+              const error = invalidMappingSourceNames.length > 0
+                ? `Choose a roster player or finish adding one for: ${invalidMappingSourceNames.join(', ')}.`
+                : 'Every scorecard name must have a valid roster player mapping.';
+              return Response.json({
+                error
+              }, { status: 400, headers: corsHeaders });
+            }
+            const mappingByName = new Map(body.mappings.map(mapping => [mapping.sourceName, mapping.playerId]));
+            const unknownMappedSourceNames = [...mappingByName.keys()].filter(name => !sourceNames.has(name));
+            const bothMappedAndIgnoredSourceNames = [...ignoredSourceNames].filter(name => mappingByName.has(name));
+            const missingSourceNames = [...sourceNames].filter(name =>
+              !mappingByName.has(name) && !ignoredSourceNames.has(name)
+            );
+            if (
+              body.mappings.length !== mappingByName.size
+              || unknownMappedSourceNames.length > 0
+              || bothMappedAndIgnoredSourceNames.length > 0
+              || missingSourceNames.length > 0
+            ) {
+              const error = bothMappedAndIgnoredSourceNames.length > 0
+                ? `Choose either a roster player or ignore: ${bothMappedAndIgnoredSourceNames.join(', ')}.`
+                : missingSourceNames.length > 0
+                  ? `Confirm a roster player or ignore: ${missingSourceNames.join(', ')}.`
+                  : 'The player association list has changed. Review the scorecard again before importing.';
+              return Response.json({ error }, { status: 400, headers: corsHeaders });
+            }
+
+            const team1CaptainSourceName = scorecardCaptainName(body.scorecard, 'team1');
+            const team2CaptainSourceName = scorecardCaptainName(body.scorecard, 'team2');
+            const isIgnoredCaptainName = (captainSourceName: string) => [...ignoredSourceNames].some(
+              sourceName => normaliseScorecardName(sourceName) === normaliseScorecardName(captainSourceName)
+            );
+            if (isIgnoredCaptainName(team1CaptainSourceName) || isIgnoredCaptainName(team2CaptainSourceName)) {
+              return Response.json({
+                error: 'A captain named in the scorecard title cannot be ignored. Confirm their roster association instead.'
+              }, { status: 400, headers: corsHeaders });
+            }
+            const team1CaptainId = resolveMappedPlayerId(mappingByName, team1CaptainSourceName) || '';
+            const team2CaptainId = resolveMappedPlayerId(mappingByName, team2CaptainSourceName) || '';
+            const playerIds = [...new Set(body.mappings.map(mapping => mapping.playerId))];
+            const knownPlayers = await env.cricket_mgr.prepare(
+              `SELECT Player_ID FROM player_data WHERE group_id = ? AND Player_ID IN (${playerIds.map(() => '?').join(', ')})`
+            ).bind(body.group_id, ...playerIds).all<{ Player_ID: string }>();
+            if (knownPlayers.results.length !== playerIds.length) {
+              return Response.json({ error: 'One or more selected players are not in this group.' }, { status: 400, headers: corsHeaders });
+            }
+
+            const playerIdsFor = (performances: ImportedPerformance[]): string[] => [...new Set(
+              performances
+                .filter(performance => !ignoredSourceNames.has(performance.sourceName))
+                .map(performance => mappingByName.get(performance.sourceName) as string)
+            )];
+            const team1Composition = playerIdsFor(firstInnings.batting.concat(secondInnings.bowling));
+            const team2Composition = playerIdsFor(secondInnings.batting.concat(firstInnings.bowling));
+            if (
+              !team1CaptainId
+              || !team2CaptainId
+            ) {
+              return Response.json({
+                error: 'The captain names in the scorecard must be confirmed in the player associations.'
+              }, { status: 400, headers: corsHeaders });
+            }
+            if (!team1Composition.includes(team1CaptainId)) team1Composition.push(team1CaptainId);
+            if (!team2Composition.includes(team2CaptainId)) team2Composition.push(team2CaptainId);
+
+            const matchId = crypto.randomUUID();
+            const matchDate = new Date().toISOString().slice(0, 10);
+            const performances = new Map<string, {
+              runs: number; ballsFaced: number; fours: number; sixes: number; ballsBowled: number;
+              runsConceded: number; wickets: number; maidenOvers: number; notOuts: number; isOut: boolean; dismissalType: string | null;
+            }>();
+            body.scorecard.innings.forEach(innings => {
+              innings.batting.concat(innings.bowling).forEach(performance => {
+                if (ignoredSourceNames.has(performance.sourceName)) return;
+                const playerId = mappingByName.get(performance.sourceName) as string;
+                const current = performances.get(playerId) || {
+                  runs: 0, ballsFaced: 0, fours: 0, sixes: 0, ballsBowled: 0, runsConceded: 0,
+                  wickets: 0, maidenOvers: 0, notOuts: 0, isOut: false, dismissalType: null
+                };
+                current.runs += performance.runs;
+                current.ballsFaced += performance.ballsFaced;
+                current.fours += performance.fours;
+                current.sixes += performance.sixes;
+                current.ballsBowled += performance.ballsBowled;
+                current.runsConceded += performance.runsConceded;
+                current.wickets += performance.wickets;
+                current.maidenOvers += performance.maidenOvers;
+                current.notOuts += performance.notOuts;
+                current.isOut = current.isOut || performance.isOut;
+                current.dismissalType ||= performance.dismissalType;
+                performances.set(playerId, current);
+              });
+            });
+
+            const losingTeam = winner === body.scorecard.team1 ? body.scorecard.team2 : body.scorecard.team1;
+            const winningInnings = winner === body.scorecard.team1 ? firstInnings : secondInnings;
+            const losingInnings = winner === body.scorecard.team1 ? secondInnings : firstInnings;
+            const winningComposition = winner === body.scorecard.team1 ? team1Composition : team2Composition;
+            const winningCaptain = winner === body.scorecard.team1 ? team1CaptainId : team2CaptainId;
+            const losingCaptain = winner === body.scorecard.team1 ? team2CaptainId : team1CaptainId;
+            const manOfTheMatch = calculateImportedManOfTheMatch(
+              [...performances.entries()].map(([playerId, performance]) => ({ playerId, ...performance })),
+              new Set(winningComposition)
+            );
+            const statements = [
+              env.cricket_mgr.prepare(`
+                INSERT INTO match_data (Match_ID, group_id, Date, Team1, Team2, Team1_Composition, Team2_Composition,
+                  Team1_Captain, Team2_Captain, Winning_Team, Losing_Team, Winning_Team_Score, Losing_Team_Score,
+                  Result, Overs, Game_Finish_Time, Man_Of_The_Match, Winning_Captain, Losing_Captain, Import_Fingerprint)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `).bind(
+                matchId, body.group_id, matchDate, body.scorecard.team1, body.scorecard.team2,
+                JSON.stringify(team1Composition), JSON.stringify(team2Composition),
+                team1CaptainId, team2CaptainId, winner, losingTeam,
+                winningInnings.score, losingInnings.score, body.scorecard.result,
+                Math.max(firstInnings.overs, secondInnings.overs), new Date().toISOString(), manOfTheMatch,
+                winningCaptain, losingCaptain, importFingerprint
+              ),
+              ...[...performances.entries()].map(([playerId, performance]) => env.cricket_mgr.prepare(`
+                INSERT INTO performance_data (Match_ID, Player_ID, notOuts, runs, ballsFaced, fours, sixes,
+                  ballsBowled, runsConceded, wickets, maidenOvers, isOut, dismissalType)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `).bind(
+                matchId, playerId, performance.notOuts, performance.runs, performance.ballsFaced,
+                performance.fours, performance.sixes, performance.ballsBowled, performance.runsConceded,
+                performance.wickets, performance.maidenOvers, performance.isOut, performance.dismissalType
+              ))
+            ];
+            try {
+              await env.cricket_mgr.batch(statements);
+            } catch (error) {
+              const concurrentImport = await env.cricket_mgr.prepare(
+                'SELECT Match_ID FROM match_data WHERE group_id = ? AND Import_Fingerprint = ?'
+              ).bind(body.group_id, importFingerprint).first<{ Match_ID: string }>();
+              if (concurrentImport) {
+                return Response.json({
+                  success: true,
+                  alreadyImported: true,
+                  matchId: concurrentImport.Match_ID
+                }, { headers: corsHeaders });
+              }
+              throw error;
+            }
+            return Response.json({ success: true, alreadyImported: false, matchId }, { headers: corsHeaders });
+      }
+
       if (path === '/random' && method === 'GET') {
         const generateUuid = (): string => {
           const cryptoRef = (globalThis as unknown as { crypto?: Crypto }).crypto;
@@ -106,17 +442,37 @@ export default {
 
       // Group authentication
       if (path === '/groups/auth' && method === 'POST') {
-        const body = await request.json() as { group_name: string; password_hash: string | null };
+        const body = await request.json() as {
+          group_name: string;
+          password_hash: string | null;
+          login_as_admin?: boolean;
+        };
         const { group_name, password_hash } = body;
+        const loginAsAdmin = body.login_as_admin === true;
+        const passwordColumn = loginAsAdmin ? 'admin_password_hash' : 'password_hash';
+
+        if (typeof group_name !== 'string' || group_name.trim().length === 0) {
+          return Response.json({
+            success: false,
+            error: 'A group name is required.'
+          }, { status: 400, headers: corsHeaders });
+        }
+
+        if (loginAsAdmin && (typeof password_hash !== 'string' || password_hash.length === 0)) {
+          return Response.json({
+            success: false,
+            error: 'An administrator password is required.'
+          }, { status: 401, headers: corsHeaders });
+        }
         
-        let query = "SELECT * FROM groups WHERE group_name = ?";
+        let query = 'SELECT * FROM groups WHERE group_name = ?';
         let params = [group_name];
         
         if (password_hash) {
-          query += " AND password_hash = ?";
+          query += ` AND ${passwordColumn} = ?`;
           params.push(password_hash);
         } else {
-          query += " AND password_hash IS NULL";
+          query += ` AND ${passwordColumn} IS NULL`;
         }
         
         const group = await env.cricket_mgr.prepare(query).bind(...params).first() as CricketGroup | null;
@@ -124,7 +480,12 @@ export default {
         if (group) {
           return Response.json({ 
             success: true, 
-            group: { id: group.id, name: group.group_name } 
+            group: {
+              id: group.id,
+              name: group.group_name,
+              isAdmin: loginAsAdmin,
+              hasAdminPassword: Boolean(group.admin_password_hash)
+            }
           }, { headers: corsHeaders });
         } else {
           return Response.json({ 
@@ -136,8 +497,24 @@ export default {
 
       // Create new group
       if (path === '/groups' && method === 'POST') {
-        const body = await request.json() as { group_name: string; password_hash: string | null };
-        const { group_name, password_hash } = body;
+        const body = await request.json() as {
+          group_name: string;
+          password_hash: string | null;
+          admin_password_hash: string;
+        };
+        const { group_name, password_hash, admin_password_hash } = body;
+
+        if (
+          typeof group_name !== 'string'
+          || group_name.trim().length === 0
+          || typeof admin_password_hash !== 'string'
+          || admin_password_hash.length === 0
+        ) {
+          return Response.json({
+            success: false,
+            error: 'A group name and administrator password are required.'
+          }, { status: 400, headers: corsHeaders });
+        }
         
         // First check if group already exists
         const existingGroup = await env.cricket_mgr.prepare(
@@ -153,14 +530,16 @@ export default {
         
         try {
           const result = await env.cricket_mgr.prepare(
-            "INSERT INTO groups (group_name, password_hash) VALUES (?, ?)"
-          ).bind(group_name, password_hash).run();
+            'INSERT INTO groups (group_name, password_hash, admin_password_hash) VALUES (?, ?, ?)'
+          ).bind(group_name, password_hash, admin_password_hash).run();
           
           return Response.json({ 
             success: true, 
             group: { 
               id: result.meta.last_row_id, 
-              name: group_name 
+              name: group_name,
+              isAdmin: true,
+              hasAdminPassword: true
             } 
           }, { headers: corsHeaders });
         } catch (error: any) {
@@ -172,6 +551,43 @@ export default {
           }
           throw error;
         }
+      }
+
+      if (path.match(/^\/groups\/\d+\/admin-password$/) && method === 'POST') {
+        const groupId = Number(path.split('/')[2]);
+        const body = await request.json() as {
+          group_password_hash: string | null;
+          admin_password_hash: string;
+        };
+
+        if (
+          !Number.isInteger(groupId)
+          || groupId < 1
+          || typeof body.admin_password_hash !== 'string'
+          || body.admin_password_hash.length === 0
+        ) {
+          return Response.json({ error: 'A valid administrator password is required.' }, { status: 400, headers: corsHeaders });
+        }
+
+        const group = await env.cricket_mgr.prepare(
+          'SELECT id, password_hash, admin_password_hash FROM groups WHERE id = ?'
+        ).bind(groupId).first<Pick<CricketGroup, 'id' | 'password_hash' | 'admin_password_hash'>>();
+
+        if (!group) {
+          return Response.json({ error: 'Group not found.' }, { status: 404, headers: corsHeaders });
+        }
+        if (group.admin_password_hash) {
+          return Response.json({ error: 'An administrator password is already configured for this group.' }, { status: 409, headers: corsHeaders });
+        }
+        if (group.password_hash !== body.group_password_hash) {
+          return Response.json({ error: 'Current group password is incorrect.' }, { status: 401, headers: corsHeaders });
+        }
+
+        await env.cricket_mgr.prepare(
+          'UPDATE groups SET admin_password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+        ).bind(body.admin_password_hash, groupId).run();
+
+        return Response.json({ success: true }, { headers: corsHeaders });
       }
 
       // Get group data (players and matches)
@@ -211,7 +627,7 @@ export default {
         const groupName = path.split('/')[3];
         
         const groupResult = await env.cricket_mgr.prepare(
-          "SELECT id, group_name FROM groups WHERE group_name = ?"
+          'SELECT id, group_name, admin_password_hash FROM groups WHERE group_name = ?'
         ).bind(groupName).first();
         
         if (!groupResult) {
@@ -220,7 +636,8 @@ export default {
         
         return Response.json({ 
           id: groupResult.id, 
-          name: groupResult.group_name 
+          name: groupResult.group_name,
+          hasAdminPassword: Boolean(groupResult.admin_password_hash)
         }, { headers: corsHeaders });
       }
 
@@ -328,7 +745,6 @@ export default {
         // 🔒 Use INSERT (not INSERT OR REPLACE) to prevent accidental overwrites
         try {
           console.log(`🔍 WORKER_INSERT: Executing INSERT for match ${Match_ID}...`);
-          
           const insertResult = await env.cricket_mgr.prepare(`
             INSERT INTO match_data 
             (Match_ID, group_id, Date, Team1, Team2, Team1_Captain, Team2_Captain,
@@ -614,7 +1030,10 @@ export default {
               const gameFinishTimeValue = gameFinishTimeRaw ? String(gameFinishTimeRaw).trim() || null : null;
               const overs = Number(match.Overs || match.totalOvers || match.overs || 20);
               const result = match.Result || match.result || '';
-              
+              const importFingerprint = typeof (match.Import_Fingerprint || match.importFingerprint) === 'string'
+                ? String(match.Import_Fingerprint || match.importFingerprint).trim() || null
+                : null;
+
               console.log('🏏 Inserting match data:', {
                 matchId,
                 team1Name,
@@ -627,12 +1046,33 @@ export default {
               });
               
               const insertResult = await env.cricket_mgr.prepare(`
-                INSERT OR REPLACE INTO match_data 
+                INSERT INTO match_data
                 (Match_ID, group_id, Date, Team1, Team2, Team1_Captain, Team2_Captain,
                  Team1_Composition, Team2_Composition, Winning_Team, Losing_Team, 
                  Game_Start_Time, Game_Finish_Time, Winning_Team_Score, Losing_Team_Score, 
-                 Result, Overs, Man_Of_The_Match, Winning_Captain, Losing_Captain) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 Result, Overs, Man_Of_The_Match, Winning_Captain, Losing_Captain, Import_Fingerprint)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(Match_ID) DO UPDATE SET
+                 group_id = excluded.group_id,
+                 Date = excluded.Date,
+                 Team1 = excluded.Team1,
+                 Team2 = excluded.Team2,
+                 Team1_Captain = excluded.Team1_Captain,
+                 Team2_Captain = excluded.Team2_Captain,
+                 Team1_Composition = excluded.Team1_Composition,
+                 Team2_Composition = excluded.Team2_Composition,
+                 Winning_Team = excluded.Winning_Team,
+                 Losing_Team = excluded.Losing_Team,
+                 Game_Start_Time = excluded.Game_Start_Time,
+                 Game_Finish_Time = excluded.Game_Finish_Time,
+                 Winning_Team_Score = excluded.Winning_Team_Score,
+                 Losing_Team_Score = excluded.Losing_Team_Score,
+                 Result = excluded.Result,
+                 Overs = excluded.Overs,
+                 Man_Of_The_Match = excluded.Man_Of_The_Match,
+                 Winning_Captain = excluded.Winning_Captain,
+                 Losing_Captain = excluded.Losing_Captain,
+                 Import_Fingerprint = COALESCE(excluded.Import_Fingerprint, Import_Fingerprint)
               `).bind(
                 matchId,
                 group_id,
@@ -653,7 +1093,8 @@ export default {
                 overs,
                 manOfTheMatchFK, // Use null-converted value
                 winningCaptainFK,
-                losingCaptainFK
+                losingCaptainFK,
+                importFingerprint
               ).run();
               
               console.log(`✅ WORKER: Match ${matchId} inserted successfully`);
@@ -862,13 +1303,29 @@ export default {
             name: m.Team2,
             captain: m.Team2_Captain
           },
+          Team1_Captain: m.Team1_Captain,
+          Team2_Captain: m.Team2_Captain,
+          team1CaptainId: m.Team1_Captain,
+          team2CaptainId: m.Team2_Captain,
           winningTeam: m.Winning_Team,
           losingTeam: m.Losing_Team,
+          Winning_Captain: m.Winning_Captain,
+          Losing_Captain: m.Losing_Captain,
+          winningCaptain: m.Winning_Captain,
+          losingCaptain: m.Losing_Captain,
           result: m.Result,
           overs: m.Overs,
+          Winning_Team_Score: m.Winning_Team_Score,
+          Losing_Team_Score: m.Losing_Team_Score,
+          winningTeamScore: m.Winning_Team_Score,
+          losingTeamScore: m.Losing_Team_Score,
           finalScore: {
-            team1: m.Winning_Team_Score || 'N/A',
-            team2: m.Losing_Team_Score || 'N/A'
+            team1: (m.Team1 === m.Winning_Team
+              ? m.Winning_Team_Score
+              : m.Losing_Team_Score) || 'N/A',
+            team2: (m.Team2 === m.Winning_Team
+              ? m.Winning_Team_Score
+              : m.Losing_Team_Score) || 'N/A'
           },
           // Convert Man_Of_The_Match Player_ID back to app format
           manOfTheMatch: m.Man_Of_The_Match ? {
@@ -876,6 +1333,9 @@ export default {
               id: m.Man_Of_The_Match
             }
           } : null,
+          Man_Of_The_Match: m.Man_Of_The_Match,
+          Import_Fingerprint: m.Import_Fingerprint,
+          importFingerprint: m.Import_Fingerprint,
           gameStartTime: m.Game_Start_Time,
           gameFinishTime: m.Game_Finish_Time,
           // 🔄 CRITICAL: Include team compositions for captain performance tracking
@@ -898,6 +1358,7 @@ export default {
           'GET /health',
           'POST /groups/auth',
           'POST /groups',
+          'POST /groups/{id}/admin-password',
           'GET /groups/check/{name}',
           'GET /groups/{id}/data',
           'GET /groups/find/{name}',
@@ -905,6 +1366,8 @@ export default {
           'GET /random',
           'POST /players',
           'POST /matches',
+          'POST /scorecard-imports/preview',
+          'POST /scorecard-imports/confirm',
           'POST /sync/upload',
           'GET /sync/download/{groupId}',
           'DELETE /groups/{groupId}/performance',

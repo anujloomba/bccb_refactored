@@ -137,7 +137,7 @@
             backdrop-filter: blur(20px);
             border-top: 1px solid rgba(0, 0, 0, 0.1);
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             padding: 8px 0;
         }
 
@@ -3570,10 +3570,6 @@
                         <div class="status-number" id="matchCount">0</div>
                         <div class="status-label">Matches</div>
                     </div>
-                    <div class="status-card" onclick="navigateToOversSettings()" style="cursor: pointer;">
-                        <div class="status-number" id="matchFormat">20</div>
-                        <div class="status-label">Overs</div>
-                    </div>
                 </div>
             </div>
 
@@ -3589,10 +3585,10 @@
         <div class="content" id="players">
             <div class="page-header">
                 <div class="page-title">👥 Players</div>
-                <div class="page-subtitle">Manage your team roster</div>
+                <div class="page-subtitle" id="playersPageSubtitle">Manage your team roster</div>
             </div>
 
-            <div class="glass-card">
+            <div class="glass-card" id="addPlayerCard" hidden>
                 <button class="btn btn-primary" onclick="if (window.cricketApp) { window.cricketApp.showAddPlayerModal(); } else { console.error('❌ window.cricketApp not available'); showAddPlayerModal(); }">
                     ➕ Add New Player
                 </button>
@@ -3620,26 +3616,34 @@
                 <!-- Teams will be dynamically loaded here -->
             </div>
 
-            <!-- Captain Statistics Section -->
-            <div class="captainship-section" style="margin-top: 40px;">
-                <div class="page-header">
-                    <div class="page-title">👑 Captainship History</div>
-                    <div class="page-subtitle">Performance analysis of team captains</div>
-                </div>
+        </div>
 
-                <div class="captains-stats-container" id="captainsStatsContainer">
-                    <!-- Captain stats will be dynamically loaded here -->
-                </div>
+        <!-- CAPTAINCY PAGE -->
+        <div class="content" id="captaincy">
+            <div class="page-header">
+                <div class="page-title">👑 Captaincy</div>
+                <div class="page-subtitle">Win/loss records, player uplift, and Man of the Match leaders</div>
+            </div>
+
+            <div class="captains-stats-container" id="captaincyStatsContainer">
+                <!-- Captaincy statistics load from imported scorecards -->
             </div>
         </div>
 
-        <!-- SCORING PAGE -->
+        <!-- ANALYTICS PAGE -->
         <div class="content" id="scoring">
             <div class="page-header">
-                <div class="page-title">🏏 <span id="scoringPageTitle">Player Analytics</span></div>
+                <div class="page-title">📈 <span id="scoringPageTitle">Analytics</span></div>
             </div>
 
-            <!-- Pre-Game Analytics View -->
+            <div class="glass-card" id="scorecardImportCard" hidden>
+                <h3>Import scorecard</h3>
+                <p>Upload a completed PDF scorecard. Review every suggested player match before its statistics are saved.</p>
+                <input id="scorecardImportFile" type="file" accept="application/pdf">
+                <button class="btn btn-primary" onclick="window.cricketApp.importScorecardPdf()">Review scorecard</button>
+                <div id="scorecardImportReview" style="margin-top: 16px;"></div>
+            </div>
+
             <div id="preGameAnalytics" class="analytics-section">
                 <div class="glass-card">
                     <div class="analytics-controls">
@@ -3660,113 +3664,13 @@
                 </div>
             </div>
 
-            <!-- Live Match View (hidden initially) -->
-            <div id="liveMatchView" style="display: none;">
-                <!-- Score Display -->
-                <div class="score-board">
-                    <div class="score-main">
-                        <div id="currentTeam" style="font-size: 1.1em; margin-bottom: 5px;">Team A</div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px;">
-                            <div class="score-display" id="currentScore">0/0</div>
-                            <div id="currentOver" style="font-size: 1em; opacity: 0.9;">Over: 0.0</div>
-                        </div>
-                    </div>
-                    <!-- Target info section removed - now shown in over display -->
-                    <div class="target-info" id="targetInfo" style="display: none !important; visibility: hidden !important;">
-                        <!-- Content removed to prevent display -->
-                    </div>
-                </div>
-
-                <!-- Main Scoring Buttons -->
-                <div class="score-actions">
-                    <div class="score-section">
-                        <div class="score-buttons-grid">
-                            <button class="btn score-btn" onclick="handleRunButton(0)">0</button>
-                            <button class="btn score-btn" onclick="handleRunButton(1)">1</button>
-                            <button class="btn score-btn" onclick="handleRunButton(2)">2</button>
-                            <button class="btn score-btn" onclick="handleRunButton(3)">3</button>
-                            <button class="btn score-btn boundary" onclick="handleRunButton(4)">4</button>
-                            <button class="btn score-btn boundary" onclick="handleRunButton(6)">6</button>
-                        </div>
-                    </div>
-
-                    <div class="score-section">
-                        <h4></h4>
-                        <div class="score-buttons-grid extras-grid">
-                            <button class="btn score-btn extra toggle-extra" id="wideBtn" onclick="toggleExtra('wide')">Wide</button>
-                            <button class="btn score-btn extra toggle-extra" id="noballBtn" onclick="toggleExtra('noball')">No Ball</button>
-                            <button class="btn score-btn extra toggle-extra" id="byeBtn" onclick="toggleExtra('bye')">Bye</button>
-                            <button class="btn score-btn extra toggle-extra" id="legByeBtn" onclick="toggleExtra('legbye')">Leg Bye</button>
-                        </div>
-                        <div id="extraInstructions" class="extra-instructions" style="display: none;">
-                            <p></p>
-                        </div>
-                    </div>
-
-                    <div class="score-section">
-                        <h4></h4>
-                        <div class="score-buttons-grid">
-                            <button class="btn score-btn wicket" onclick="showWicketModal()">🎯 WICKET</button>
-                        <button class="btn score-btn" onclick="undoLastBall()">↶ Undo</button>
-                        <button class="btn score-btn" onclick="swapBatsmen()">Swap Strike</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Current Players -->
-            <div class="glass-card">
-                <div class="batting-info">
-                    <div class="batsman">
-                        <span class="batsman-name" id="strikerName">Striker</span>
-                        <span class="batsman-score" id="strikerScore">0* (0)</span>
-                    </div>
-                    <div class="batsman">
-                        <span class="batsman-name" id="nonStrikerName">Non-Striker</span>
-                        <span class="batsman-score" id="nonStrikerScore">0* (0)</span>
-                    </div>
-                </div>
-                <div class="bowling-info">
-                    <span class="bowler-name" id="bowlerName">Bowler</span>
-                    <span class="bowler-figures" id="bowlerFigures">0-0-0-0</span>
-                </div>
-            </div>
-
-            <!-- Quick Over Summary -->
-            <div class="glass-card">
-                <h4>This Over</h4>
-                <div class="over-summary" id="overSummary">
-                    <span class="ball">1</span>
-                    <span class="ball">2</span>
-                    <span class="ball">•</span>
-                    <span class="ball">4</span>
-                    <span class="ball">1</span>
-                    <span class="ball">W</span>
-                </div>
-                <div class="over-total">Over Total: <span id="overTotal">8 runs, 1 wicket</span></div>
-            </div>
-
-            <!-- Match Actions -->
-            <div class="glass-card">
-                <div class="match-actions">
-                    <button class="btn btn-success" onclick="showScorecard()">
-                        📊 Scorecard
-                    </button>
-                    <button class="btn btn-warning" onclick="endInnings()">
-                        🔄 End Innings
-                    </button>
-                    <button class="btn btn-danger" onclick="endMatch()">
-                        🏁 End Match
-                    </button>
-                </div>
-            </div>
-            </div> <!-- End liveMatchView -->
         </div>
 
         <!-- SETTINGS PAGE -->
         <div class="content" id="settings">
             <div class="page-header">
                 <div class="page-title">⚙️ Settings</div>
-                <div class="page-subtitle">App configuration</div>
+                <div class="page-subtitle">Group and data management</div>
             </div>
 
             <!-- Group Login Section -->
@@ -3785,6 +3689,9 @@
                             <button class="btn btn-success" onclick="showCreateGroupForm()" id="createGroupBtn">
                                 ➕ Create New Group
                             </button>
+                            <button class="btn btn-primary" onclick="showAdminPasswordForm()" id="setupAdminPasswordBtn" hidden>
+                                🔑 Set Admin Password
+                            </button>
                         </div>
                     </div>
 
@@ -3796,11 +3703,17 @@
                             <input type="text" id="loginGroupName" placeholder="Enter group name" maxlength="50">
                         </div>
                         <div class="form-group">
-                            <label for="loginPassword">Password:</label>
-                            <input type="password" id="loginPassword" placeholder="Enter password (leave empty for guest)">
+                            <label>
+                                <input type="checkbox" id="loginAsAdmin" onchange="updateLoginMode()">
+                                Sign in as administrator
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPassword" id="loginPasswordLabel">Group Password:</label>
+                            <input type="password" id="loginPassword" placeholder="Enter group password (leave empty for guest)">
                         </div>
                         <div class="form-actions">
-                            <button class="btn btn-primary" onclick="loginToGroup()">
+                            <button class="btn btn-primary" onclick="loginToGroup()" id="loginButton">
                                 🔓 Login
                             </button>
                             <button class="btn btn-secondary" onclick="hideLoginForm()">
@@ -3817,12 +3730,20 @@
                             <input type="text" id="newGroupName" placeholder="Enter unique group name" maxlength="50">
                         </div>
                         <div class="form-group">
-                            <label for="newGroupPassword">Password (Optional):</label>
-                            <input type="password" id="newGroupPassword" placeholder="Leave empty for no password">
+                            <label for="newGroupPassword">Member Password (Optional):</label>
+                            <input type="password" id="newGroupPassword" placeholder="Leave empty for no member password" autocomplete="new-password">
                         </div>
                         <div class="form-group">
-                            <label for="confirmGroupPassword">Confirm Password:</label>
+                            <label for="confirmGroupPassword">Confirm Member Password:</label>
                             <input type="password" id="confirmGroupPassword" placeholder="Re-enter password">
+                        </div>
+                        <div class="form-group">
+                            <label for="newGroupAdminPassword">Administrator Password:</label>
+                            <input type="password" id="newGroupAdminPassword" placeholder="At least 8 characters" minlength="8" autocomplete="new-password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmGroupAdminPassword">Confirm Administrator Password:</label>
+                            <input type="password" id="confirmGroupAdminPassword" placeholder="Re-enter administrator password" minlength="8" autocomplete="new-password" required>
                         </div>
                         <div class="form-actions">
                             <button class="btn btn-success" onclick="createNewGroup()">
@@ -3834,11 +3755,40 @@
                         </div>
                     </div>
 
+                    <div id="adminPasswordForm" class="auth-form" style="display: none;">
+                        <h4>🔑 Set Administrator Password</h4>
+                        <p style="margin: 0 0 12px; font-size: 0.9em; opacity: 0.8;">
+                            Use this once for an existing group that does not yet have administrator access.
+                        </p>
+                        <div class="form-group">
+                            <label for="currentGroupPassword">Current Group Password:</label>
+                            <input type="password" id="currentGroupPassword" placeholder="Leave empty only if the group has no password" autocomplete="current-password">
+                        </div>
+                        <div class="form-group">
+                            <label for="newAdminPassword">Administrator Password:</label>
+                            <input type="password" id="newAdminPassword" placeholder="At least 8 characters" minlength="8" autocomplete="new-password">
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmAdminPassword">Confirm Administrator Password:</label>
+                            <input type="password" id="confirmAdminPassword" placeholder="Re-enter administrator password" minlength="8" autocomplete="new-password">
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" onclick="setAdminPassword()">
+                                ✅ Set Administrator Password
+                            </button>
+                            <button class="btn btn-secondary" onclick="hideAdminPasswordForm()">
+                                ❌ Cancel
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="login-info">
                         <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
                             <strong style="color: #4caf50;">👥 Groups:</strong> Create or join a group to keep your cricket data separate. Each group has its own players, matches, and statistics.
                             <br><br>
                             <strong style="color: #2196f3;">🔐 Default:</strong> Everyone starts in the "guest" group with no password. Create your own group to secure your data.
+                            <br><br>
+                            <strong style="color: #9c27b0;">🔑 Administrator Access:</strong> New groups set a separate administrator password. Use "Sign in as administrator" to unlock scorecard imports and player classifications.
                             <br><br>
                             <strong style="color: #ff9800;">⚠️ Data Isolation:</strong> Switching groups will show only that group's data. Your previous group's data remains safe and separate.
                         </p>
@@ -3871,7 +3821,7 @@
                     
                     <div class="sync-info" style="margin-top: 15px;">
                         <p style="font-size: 0.9em; opacity: 0.8;">
-                            <strong style="color: #2196f3;">☁️ Auto-Sync:</strong> Data automatically syncs to the cloud when you edit players, save teams, or finish matches.
+                            <strong style="color: #2196f3;">☁️ Auto-Sync:</strong> Data automatically syncs to the cloud when you edit players, save teams, or import scorecards.
                             <br><br>
                             <strong style="color: #4caf50;">📱 Multi-Device:</strong> Login to your group on any device to access your latest data.
                             <br><br>
@@ -3886,57 +3836,6 @@
                 </div>
             </div>
 
-            <div class="glass-card">
-                <h3>🏏 Match Settings</h3>
-                <div class="match-settings" id="matchSettingsContent" style="display: none;">
-                    <div class="setting-item" style="margin-bottom: 15px;">
-                        <label for="totalOvers" style="display: block; margin-bottom: 5px; font-weight: bold;">Match Overs:</label>
-                        <select id="totalOvers" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ccc;" onchange="handleOversChange(this.value)">
-                            <option value="5" selected>5 Overs (Quick)</option>
-                            <option value="10">10 Overs (Short)</option>
-                            <option value="15">15 Overs (Medium)</option>
-                            <option value="20">20 Overs (T20)</option>
-                            <option value="25">25 Overs</option>
-                            <option value="30">30 Overs</option>
-                            <option value="40">40 Overs</option>
-                            <option value="50">50 Overs (ODI)</option>
-                            <option value="custom">Custom...</option>
-                        </select>
-                        <input type="number" id="customOvers" placeholder="Enter custom overs (1-100)" 
-                               style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ccc; margin-top: 5px; display: none;"
-                               min="1" max="100" onblur="setCustomOvers(this.value)">
-                        <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 5px;">
-                            ⚠️ Changing overs will affect new matches only
-                        </div>
-                    </div>
-                    
-                    <div class="setting-item" style="margin-bottom: 15px;">
-                        <label for="runsOnWide" style="display: block; margin-bottom: 5px; font-weight: bold;">Runs on Wide:</label>
-                        <select id="runsOnWide" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ccc;" onchange="saveMatchSetting('runsOnWide', this.value)">
-                            <option value="0">0 Run</option>
-                            <option value="1">1 Run</option>
-                            <option value="2">2 Runs</option>
-                        </select>
-                    </div>
-                    
-                    <div class="setting-item" style="margin-bottom: 15px;">
-                        <label for="runsOnNoBall" style="display: block; margin-bottom: 5px; font-weight: bold;">Runs on No Ball:</label>
-                        <select id="runsOnNoBall" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ccc;" onchange="saveMatchSetting('runsOnNoBall', this.value)">
-                            <option value="0">0 Run</option>
-                            <option value="1">1 Run</option>
-                            <option value="2">2 Runs</option>
-                        </select>
-                    </div>
-                    
-                    <div class="setting-item" style="margin-bottom: 15px;">
-                        <label for="enableByes" style="display: inline-block; margin-right: 10px; font-weight: bold;">Enable Byes:</label>
-                        <input type="checkbox" id="enableByes" style="width: 20px; height: 20px;" onchange="saveMatchSetting('enableByes', this.checked)">
-                    </div>
-                </div>
-                <div class="tile-click-hint" onclick="toggleTile('matchSettingsContent', this)" style="cursor: pointer; padding: 10px; text-align: center; color: #666;">
-                    Click to expand
-                </div>
-            </div>
         </div>
 
         <!-- Bottom Navigation -->
@@ -3953,9 +3852,13 @@
                 <div class="nav-icon">⚡</div>
                 <div class="nav-label">Teams</div>
             </a>
+            <a class="nav-item" onclick="showPage('captaincy')">
+                <div class="nav-icon">👑</div>
+                <div class="nav-label">Captaincy</div>
+            </a>
             <a class="nav-item" onclick="showPage('scoring')">
                 <div class="nav-icon">🏏</div>
-                <div class="nav-label">Scoring</div>
+                <div class="nav-label">Analytics</div>
             </a>
             <a class="nav-item" onclick="showPage('settings')">
                 <div class="nav-icon">⚙️</div>
@@ -4066,11 +3969,7 @@
         </div>
     </div>
 
-    <script src="data-manager.js"></script>
-    <!-- Default data script removed for fresh start -->
-    <!-- <script src="cricket_stats.js"></script> -->
-    <script src="data-loader.js"></script>
-    <script src="app.js?v=20251107-1110"></script>
+    <script src="app.js"></script>
     
     <!-- Emergency function definitions in case app.js fails to load -->
     <script>
@@ -4201,202 +4100,6 @@
 
     </script>
     <script>
-        // Enhanced Data Management Functions for JSON backup/restore
-        function exportCricketData() {
-            try {
-                // Get all cricket data from localStorage
-                const data = {
-                    players: JSON.parse(localStorage.getItem('cricket-players') || '[]'),
-                    teams: JSON.parse(localStorage.getItem('cricket-teams') || '[]'),
-                    matches: JSON.parse(localStorage.getItem('cricket-matches') || '[]'),
-                    settings: JSON.parse(localStorage.getItem('match-settings') || '{}'),
-                    exportDate: new Date().toISOString(),
-                    version: '1.0'
-                };
-                
-                // Create filename with timestamp
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
-                const filename = `cricket-data-backup-${timestamp}.json`;
-                
-                // Create and download file
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                a.click();
-                URL.revokeObjectURL(url);
-                
-                showNotification(`📦 Data exported to Downloads/${filename}`);
-            } catch (error) {
-                console.error('❌ Export error:', error);
-                showNotification('❌ Failed to export data');
-            }
-        }
-        
-        function importCricketData() {
-            try {
-                showNotification('🔍 Searching Downloads folder for cricket backup files...');
-                
-                // Create file input that will default to Downloads folder
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = '.json';
-                input.style.display = 'none';
-                
-                // Try to set the default directory to Downloads (browser limitation)
-                // Modern browsers will remember the last used directory
-                input.setAttribute('webkitdirectory', false);
-                input.setAttribute('multiple', false);
-                
-                input.onchange = function(event) {
-                    const file = event.target.files[0];
-                    if (!file) {
-                        showNotification('❌ No file selected');
-                        return;
-                    }
-                    
-                    // Check if it's a cricket backup file
-                    if (!file.name.includes('cricket-data-backup') || !file.name.endsWith('.json')) {
-                        showNotification('❌ Please select a cricket backup JSON file (cricket-data-backup-*.json)');
-                        return;
-                    }
-                    
-                    showNotification(`📥 Processing backup file: ${file.name}`);
-                    
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        try {
-                            const importedData = JSON.parse(e.target.result);
-                            
-                            // Validate the backup file format
-                            if (!importedData.version || !importedData.exportDate) {
-                                showNotification('❌ Invalid backup file format');
-                                return;
-                            }
-                            
-                            // Create auto-backup before import
-                            if (window.cricketDataManager) {
-                                window.cricketDataManager.createAutoBackup();
-                            }
-                            
-                            // Get current localStorage data
-                            const currentPlayers = JSON.parse(localStorage.getItem('cricket-players') || '[]');
-                            const currentTeams = JSON.parse(localStorage.getItem('cricket-teams') || '[]');
-                            const currentMatches = JSON.parse(localStorage.getItem('cricket-matches') || '[]');
-                            const currentSettings = JSON.parse(localStorage.getItem('match-settings') || '{}');
-                            
-                            // Merge players (avoid duplicates by name)
-                            const mergedPlayers = [...currentPlayers];
-                            if (importedData.players && Array.isArray(importedData.players)) {
-                                importedData.players.forEach(importedPlayer => {
-                                    const existingPlayer = mergedPlayers.find(p => p.name === importedPlayer.name);
-                                    if (!existingPlayer) {
-                                        mergedPlayers.push(importedPlayer);
-                                    } else {
-                                        // Merge statistics for existing players
-                                        existingPlayer.runs = (existingPlayer.runs || 0) + (importedPlayer.runs || 0);
-                                        existingPlayer.wickets = (existingPlayer.wickets || 0) + (importedPlayer.wickets || 0);
-                                        existingPlayer.matches = (existingPlayer.matches || 0) + (importedPlayer.matches || 0);
-                                        existingPlayer.ballsFaced = (existingPlayer.ballsFaced || 0) + (importedPlayer.ballsFaced || 0);
-                                        existingPlayer.bowlingRuns = (existingPlayer.bowlingRuns || 0) + (importedPlayer.bowlingRuns || 0);
-                                        existingPlayer.bowlingBalls = (existingPlayer.bowlingBalls || 0) + (importedPlayer.bowlingBalls || 0);
-                                        
-                                        // Merge boundaries
-                                        if (importedPlayer.boundaries) {
-                                            if (!existingPlayer.boundaries) existingPlayer.boundaries = { fours: 0, sixes: 0 };
-                                            existingPlayer.boundaries.fours = (existingPlayer.boundaries.fours || 0) + (importedPlayer.boundaries.fours || 0);
-                                            existingPlayer.boundaries.sixes = (existingPlayer.boundaries.sixes || 0) + (importedPlayer.boundaries.sixes || 0);
-                                        }
-                                        
-                                    }
-                                });
-                            }
-                            
-                            // Merge teams (avoid duplicates by name)
-                            const mergedTeams = [...currentTeams];
-                            if (importedData.teams && Array.isArray(importedData.teams)) {
-                                importedData.teams.forEach(importedTeam => {
-                                    const existingTeam = mergedTeams.find(t => t.name === importedTeam.name);
-                                    if (!existingTeam) {
-                                        mergedTeams.push(importedTeam);
-                                    } else {
-                                    }
-                                });
-                            }
-                            
-                            // Merge matches (avoid duplicates by checking if exact same match exists)
-                            const mergedMatches = [...currentMatches];
-                            if (importedData.matches && Array.isArray(importedData.matches)) {
-                                importedData.matches.forEach(importedMatch => {
-                                    // Check for duplicate matches (same teams, date, and scores)
-                                    const isDuplicate = mergedMatches.some(existingMatch => 
-                                        existingMatch.team1 === importedMatch.team1 &&
-                                        existingMatch.team2 === importedMatch.team2 &&
-                                        existingMatch.date === importedMatch.date &&
-                                        existingMatch.team1Score?.runs === importedMatch.team1Score?.runs &&
-                                        existingMatch.team2Score?.runs === importedMatch.team2Score?.runs
-                                    );
-                                    
-                                    if (!isDuplicate) {
-                                        mergedMatches.push(importedMatch);
-                                    } else {
-                                    }
-                                });
-                            }
-                            
-                            // Merge settings (keep current settings but add new ones)
-                            const mergedSettings = { ...currentSettings };
-                            if (importedData.settings && typeof importedData.settings === 'object') {
-                                Object.keys(importedData.settings).forEach(key => {
-                                    if (!(key in mergedSettings)) {
-                                        mergedSettings[key] = importedData.settings[key];
-                                    }
-                                });
-                            }
-                            
-                            // Save merged data back to localStorage
-                            localStorage.setItem('cricket-players', JSON.stringify(mergedPlayers));
-                            localStorage.setItem('cricket-teams', JSON.stringify(mergedTeams));
-                            localStorage.setItem('cricket-matches', JSON.stringify(mergedMatches));
-                            localStorage.setItem('match-settings', JSON.stringify(mergedSettings));
-                            
-                            // Calculate what was added
-                            const addedPlayers = mergedPlayers.length - currentPlayers.length;
-                            const addedTeams = mergedTeams.length - currentTeams.length;
-                            const addedMatches = mergedMatches.length - currentMatches.length;
-                            
-                            // Show detailed success message
-                            showNotification(`✅ Import complete! Added: ${addedPlayers} players, ${addedTeams} teams, ${addedMatches} matches from ${file.name}`);
-                            
-                            // Reload page to reflect changes
-                            setTimeout(() => {
-                                location.reload();
-                            }, 3000);
-                            
-                        } catch (error) {
-                            console.error('❌ Import parsing error:', error);
-                            showNotification('❌ Invalid JSON file format or corrupted backup file');
-                        }
-                    };
-                    
-                    reader.readAsText(file);
-                };
-                
-                // Show instruction to user about file selection
-                showNotification('📁 Please select your cricket backup file from Downloads folder (cricket-data-backup-*.json)');
-                
-                // Trigger file selection - browser will open Downloads by default if last used
-                document.body.appendChild(input);
-                input.click();
-                document.body.removeChild(input);
-                
-            } catch (error) {
-                console.error('❌ Import setup error:', error);
-                showNotification('❌ Failed to setup import process');
-            }
-        }
-        
         function showNotification(message) {
             if (window.app && app.showNotification) {
                 app.showNotification(message);
@@ -4502,73 +4205,6 @@
             }
         }
                 
-        /*
-        // ORPHANED BACKUP CODE - TEMPORARILY DISABLED TO FIX REFERENCE ERRORS
-        // Get all localStorage data
-                try {
-                    completeBackup.localStorage = {
-                        'cricket-stats': localStorage.getItem('cricket-stats'),
-                        'cricket-players': localStorage.getItem('cricket-players'),
-                        'cricket-matches': localStorage.getItem('cricket-matches'),
-                        'cricket-teams': localStorage.getItem('cricket-teams'),
-                        'cricket-current-match': localStorage.getItem('cricket-current-match'),
-                        'match-settings': localStorage.getItem('match-settings'),
-                        'cricket-metadata': localStorage.getItem('cricket-metadata')
-                    };
-                    
-                    // Remove null values
-                    Object.keys(completeBackup.localStorage).forEach(key => {
-                        if (completeBackup.localStorage[key] === null) {
-                            delete completeBackup.localStorage[key];
-                        }
-                    });
-                } catch (error) {
-                    console.error('Error collecting localStorage data:', error);
-                }
-                
-                // Step 2: Download the backup file
-                const jsonStr = JSON.stringify(completeBackup, null, 2);
-                const blob = new Blob([jsonStr], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-        */
-
-        // Initialize app when page loads
-        window.addEventListener('load', async () => {
-            if (typeof CricketApp !== 'undefined') {
-                
-                // Wait a moment for data import to complete
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                // Don't override the existing cricketApp instance
-                if (!window.cricketApp) {
-                    window.cricketApp = new CricketApp();
-                    
-                    window.debugBowlerSelection = () => window.cricketApp.debugBowlerSelection();
-                    window.debugTestButton = () => window.cricketApp.debugTestButtonClick();
-                    window.debugForceReset = () => window.cricketApp.debugForceResetBowlerSelection();
-                    window.debugAppState = () => window.cricketApp.debugAppState();
-                    
-                }
-                // Keep backward compatibility
-                window.app = window.cricketApp;
-                
-                window.debugBowlerSelection = () => window.cricketApp.debugBowlerSelection();
-                window.debugTestButton = () => window.cricketApp.debugTestButtonClick();
-                window.debugForceReset = () => window.cricketApp.debugForceResetBowlerSelection();
-                window.debugAppState = () => window.cricketApp.debugAppState();
-                
-            }
-        });
-
         // Global function for toggling player selection
         window.togglePlayerSelection = function(labelElement) {
             const checkbox = labelElement.querySelector('input[type="checkbox"]');
@@ -4627,189 +4263,6 @@
             }
         }
 
-        // Navigation functions for overview statistics
-        function showCaptainshipHistory() {
-            // Navigate to teams page
-            showPage('teams');
-            
-            // Scroll to captainship history section at the top
-            setTimeout(() => {
-                const captainshipSection = document.querySelector('.captainship-section');
-                if (captainshipSection) {
-                    captainshipSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }, 100);
-        }
-
-        function showMatchHistory() {
-            // Just scroll to match history section on current page
-            const matchHistoryContainer = document.getElementById('matchHistoryContainer');
-            if (matchHistoryContainer) {
-                // Scroll to the parent glass-card containing the match history
-                const parentCard = matchHistoryContainer.closest('.glass-card');
-                if (parentCard) {
-                    parentCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }
-        }
-
-        function navigateToOversSettings() {
-            // Navigate to settings page
-            showPage('settings');
-            
-            // Open the match settings section and scroll to it
-            setTimeout(() => {
-                const matchSettingsContent = document.getElementById('matchSettingsContent');
-                const matchSettingsCard = matchSettingsContent ? matchSettingsContent.closest('.glass-card') : null;
-                
-                if (matchSettingsContent && matchSettingsCard) {
-                    // Expand the settings if collapsed
-                    matchSettingsContent.style.display = 'block';
-                    
-                    // Hide the "Click to expand" hint
-                    const hintElement = matchSettingsCard.querySelector('.tile-click-hint');
-                    if (hintElement) {
-                        hintElement.style.display = 'none';
-                    }
-                    
-                    // Scroll to the match settings card
-                    matchSettingsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    
-                    // Focus on the total overs dropdown
-                    setTimeout(() => {
-                        const totalOversSelect = document.getElementById('totalOvers');
-                        if (totalOversSelect) {
-                            totalOversSelect.focus();
-                        }
-                    }, 500);
-                }
-            }, 100);
-        }
-
-        // Match settings save functionality
-        function saveMatchSetting(settingName, value) {
-            const settings = JSON.parse(localStorage.getItem('match-settings') || '{}');
-            settings[settingName] = value;
-            localStorage.setItem('match-settings', JSON.stringify(settings));
-            
-            if (window.cricketApp && window.cricketApp.showNotification) {
-                if (settingName === 'totalOvers') {
-                    window.cricketApp.showNotification(`🏏 Match format updated to ${value} overs`);
-                    
-                    // Update the home page match format display
-                    const matchFormatEl = document.getElementById('matchFormat');
-                    if (matchFormatEl) {
-                        matchFormatEl.textContent = value;
-                    }
-                    
-                    // Update the display if no match is active
-                    if (!window.cricketApp.currentMatch) {
-                        window.cricketApp.updateScoreDisplay();
-                    }
-                } else if (settingName === 'enableByes') {
-                    window.cricketApp.showNotification(`🎯 Byes ${value ? 'enabled' : 'disabled'}`);
-                    
-                    // Update bye button visibility immediately
-                    if (window.cricketApp.updateByeButtonVisibility) {
-                        window.cricketApp.updateByeButtonVisibility();
-                    }
-                } else {
-                    window.cricketApp.showNotification(`✅ ${settingName} updated to ${value}`);
-                }
-            }
-            
-        }
-
-        // Load saved match settings when page loads
-        function loadMatchSettings() {
-            const settings = JSON.parse(localStorage.getItem('match-settings') || '{}');
-            
-            // Initialize default value of 5 overs if not set
-            if (settings.totalOvers === undefined) {
-                settings.totalOvers = 5;
-                localStorage.setItem('match-settings', JSON.stringify(settings));
-            }
-            
-            // Set default values and load saved values
-            const totalOversSelect = document.getElementById('totalOvers');
-            const runsOnWideSelect = document.getElementById('runsOnWide');
-            const runsOnNoBallSelect = document.getElementById('runsOnNoBall');
-            const enableByesCheckbox = document.getElementById('enableByes');
-            
-            if (totalOversSelect) {
-                const savedOvers = settings.totalOvers || 5;
-                // Check if saved value matches predefined options
-                const predefinedValues = ['5', '10', '15', '20', '25', '30', '40', '50'];
-                if (predefinedValues.includes(savedOvers.toString())) {
-                    totalOversSelect.value = savedOvers;
-                } else {
-                    // Custom value
-                    totalOversSelect.value = 'custom';
-                    const customInput = document.getElementById('customOvers');
-                    if (customInput) {
-                        customInput.style.display = 'block';
-                        customInput.value = savedOvers;
-                    }
-                }
-            }
-            if (runsOnWideSelect) {
-                runsOnWideSelect.value = settings.runsOnWide || '1';
-            }
-            if (runsOnNoBallSelect) {
-                runsOnNoBallSelect.value = settings.runsOnNoBall || '1';
-            }
-            if (enableByesCheckbox) {
-                enableByesCheckbox.checked = settings.enableByes || false;
-            }
-        }
-
-        // Handle overs selection change
-        function handleOversChange(value) {
-            const customInput = document.getElementById('customOvers');
-            
-            if (value === 'custom') {
-                customInput.style.display = 'block';
-                customInput.focus();
-            } else {
-                customInput.style.display = 'none';
-                const overs = parseInt(value);
-                saveMatchSetting('totalOvers', overs);
-                
-                // Verify it was saved
-                setTimeout(() => {
-                    const saved = JSON.parse(localStorage.getItem('match-settings') || '{}');
-                }, 100);
-            }
-        }
-
-        // Set custom overs value
-        function setCustomOvers(value) {
-            const overs = parseInt(value);
-            if (overs && overs >= 1 && overs <= 100) {
-                saveMatchSetting('totalOvers', overs);
-                if (window.cricketApp && window.cricketApp.showNotification) {
-                    window.cricketApp.showNotification(`🏏 Custom match format set to ${overs} overs`);
-                }
-                
-                // Update the home page match format display
-                const matchFormatEl = document.getElementById('matchFormat');
-                if (matchFormatEl) {
-                    matchFormatEl.textContent = overs;
-                }
-            } else {
-                if (window.cricketApp && window.cricketApp.showNotification) {
-                    window.cricketApp.showNotification(`❌ Please enter a valid number between 1 and 100`);
-                }
-                // Reset to default
-                document.getElementById('totalOvers').value = '20';
-                document.getElementById('customOvers').style.display = 'none';
-            }
-        }
-
-        // Load settings when page is ready
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(loadMatchSettings, 100); // Small delay to ensure elements are ready
-        });
     </script>
 
     <!-- DEBUG FUNCTIONS - LOADED AT END TO ENSURE EVERYTHING IS READY -->
@@ -5541,11 +4994,14 @@
     function showLoginForm() {
         document.getElementById('loginForm').style.display = 'block';
         document.getElementById('createGroupForm').style.display = 'none';
+        document.getElementById('adminPasswordForm').style.display = 'none';
         document.getElementById('currentUserInfo').style.display = 'none';
         
         // Clear form
         document.getElementById('loginGroupName').value = '';
         document.getElementById('loginPassword').value = '';
+        document.getElementById('loginAsAdmin').checked = false;
+        updateLoginMode();
     }
 
     function hideLoginForm() {
@@ -5553,15 +5009,31 @@
         document.getElementById('currentUserInfo').style.display = 'block';
     }
 
+    function updateLoginMode() {
+        const loginAsAdmin = document.getElementById('loginAsAdmin').checked;
+        document.getElementById('loginPasswordLabel').textContent = loginAsAdmin
+            ? 'Administrator Password:'
+            : 'Group Password:';
+        document.getElementById('loginPassword').placeholder = loginAsAdmin
+            ? 'Enter administrator password'
+            : 'Enter group password (leave empty for guest)';
+        document.getElementById('loginButton').textContent = loginAsAdmin
+            ? '🔑 Login as Administrator'
+            : '🔓 Login';
+    }
+
     function showCreateGroupForm() {
         document.getElementById('createGroupForm').style.display = 'block';
         document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('adminPasswordForm').style.display = 'none';
         document.getElementById('currentUserInfo').style.display = 'none';
         
         // Clear form
         document.getElementById('newGroupName').value = '';
         document.getElementById('newGroupPassword').value = '';
         document.getElementById('confirmGroupPassword').value = '';
+        document.getElementById('newGroupAdminPassword').value = '';
+        document.getElementById('confirmGroupAdminPassword').value = '';
     }
 
     function hideCreateGroupForm() {
@@ -5569,9 +5041,25 @@
         document.getElementById('currentUserInfo').style.display = 'block';
     }
 
+    function showAdminPasswordForm() {
+        document.getElementById('adminPasswordForm').style.display = 'block';
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('createGroupForm').style.display = 'none';
+        document.getElementById('currentUserInfo').style.display = 'none';
+        document.getElementById('currentGroupPassword').value = '';
+        document.getElementById('newAdminPassword').value = '';
+        document.getElementById('confirmAdminPassword').value = '';
+    }
+
+    function hideAdminPasswordForm() {
+        document.getElementById('adminPasswordForm').style.display = 'none';
+        document.getElementById('currentUserInfo').style.display = 'block';
+    }
+
     async function loginToGroup() {
         const groupName = document.getElementById('loginGroupName').value;
         const password = document.getElementById('loginPassword').value;
+        const loginAsAdmin = document.getElementById('loginAsAdmin').checked;
 
         if (!groupName.trim()) {
             alert('Please enter a group name');
@@ -5589,11 +5077,13 @@
                 return;
             }
             
-            const result = await window.cricketApp.authManager.loginToGroup(groupName, password);
+            const result = await window.cricketApp.authManager.loginToGroup(groupName, password, loginAsAdmin);
             
             if (result.success) {
                 hideLoginForm();
-                window.cricketApp.showNotification(`✅ Logged in to group: ${result.group.name}`);
+                window.cricketApp.showNotification(
+                    `✅ Logged in to group: ${result.group.name}${result.group.isAdmin ? ' (Administrator)' : ''}`
+                );
                 
                 // Reload data for new group (will auto-sync from D1)
                 await window.cricketApp.loadDataFromManager();
@@ -5613,6 +5103,8 @@
         const groupName = document.getElementById('newGroupName').value;
         const password = document.getElementById('newGroupPassword').value;
         const confirmPassword = document.getElementById('confirmGroupPassword').value;
+        const adminPassword = document.getElementById('newGroupAdminPassword').value;
+        const confirmAdminPassword = document.getElementById('confirmGroupAdminPassword').value;
 
         if (!groupName.trim()) {
             alert('Please enter a group name');
@@ -5620,7 +5112,17 @@
         }
 
         if (password !== confirmPassword) {
-            alert('Passwords do not match');
+            alert('Member passwords do not match');
+            return;
+        }
+
+        if (adminPassword.length < 8) {
+            alert('Administrator password must be at least 8 characters');
+            return;
+        }
+
+        if (adminPassword !== confirmAdminPassword) {
+            alert('Administrator passwords do not match');
             return;
         }
 
@@ -5635,11 +5137,11 @@
                 return;
             }
             
-            const result = await window.cricketApp.authManager.createGroup(groupName, password);
+            const result = await window.cricketApp.authManager.createGroup(groupName, password, adminPassword);
             
             if (result.success) {
                 hideCreateGroupForm();
-                window.cricketApp.showNotification(`✅ Created and joined group: ${result.group.name}`);
+                window.cricketApp.showNotification(`✅ Created and joined ${result.group.name} as administrator.`);
                 
                 // Clear current data as we're in a new group
                 window.cricketApp.players = [];
@@ -5658,6 +5160,34 @@
         } catch (error) {
             console.error('Group creation error:', error);
             alert('Group creation failed: ' + error.message);
+        }
+    }
+
+    async function setAdminPassword() {
+        const groupPassword = document.getElementById('currentGroupPassword').value;
+        const adminPassword = document.getElementById('newAdminPassword').value;
+        const confirmAdminPassword = document.getElementById('confirmAdminPassword').value;
+
+        if (adminPassword.length < 8) {
+            alert('Administrator password must be at least 8 characters');
+            return;
+        }
+        if (adminPassword !== confirmAdminPassword) {
+            alert('Administrator passwords do not match');
+            return;
+        }
+
+        try {
+            const result = await window.cricketApp.authManager.setAdminPassword(groupPassword, adminPassword);
+            if (result.success) {
+                hideAdminPasswordForm();
+                window.cricketApp.showNotification('✅ Administrator access is enabled for this group.');
+            } else {
+                alert('Could not set administrator password: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Administrator password setup error:', error);
+            alert('Could not set administrator password: ' + error.message);
         }
     }
 
@@ -5706,11 +5236,14 @@
     window.hideLoginForm = hideLoginForm;
     window.showCreateGroupForm = showCreateGroupForm;
     window.hideCreateGroupForm = hideCreateGroupForm;
+    window.showAdminPasswordForm = showAdminPasswordForm;
+    window.hideAdminPasswordForm = hideAdminPasswordForm;
+    window.updateLoginMode = updateLoginMode;
     window.loginToGroup = loginToGroup;
     window.createNewGroup = createNewGroup;
+    window.setAdminPassword = setAdminPassword;
     window.syncWithD1 = syncWithD1;
 
     </script>
-    <script src="default-data.js"></script>
 </body>
 </html>

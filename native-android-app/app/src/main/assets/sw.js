@@ -1,14 +1,11 @@
 // Cricket PWA - Service Worker
-const CACHE_NAME = 'cricket-pwa-v12'; // Updated version to force refresh
+const CACHE_NAME = 'cricket-pwa-v25';
 const urlsToCache = [
     '/',
     '/index.html',
-    '/complete.html',
     '/app.js',
-    '/data-manager.js',
     '/manifest.json',
-    '/icon-512.png',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'
+    '/icon-512.png'
 ];
 
 // Install event - cache resources
@@ -18,7 +15,7 @@ self.addEventListener('install', event => {
             .then(cache => {
                 return cache.addAll(urlsToCache);
             })
-            .catch(err => console.log('❌ Cache failed:', err))
+            .catch(err => console.log('Cache failed:', err))
     );
 });
 
@@ -94,42 +91,5 @@ self.addEventListener('activate', event => {
                 })
             );
         })
-    );
-});
-
-// Background sync for data persistence
-self.addEventListener('sync', event => {
-    if (event.tag === 'background-sync') {
-        // Handle background data sync here
-    }
-});
-
-// Push notifications (future enhancement)
-self.addEventListener('push', event => {
-    if (event.data) {
-        const data = event.data.json();
-        const options = {
-            body: data.body,
-            icon: '/icon-192.png',
-            badge: '/icon-72.png',
-            vibrate: [100, 50, 100],
-            data: {
-                dateOfArrival: Date.now(),
-                primaryKey: data.primaryKey
-            }
-        };
-        
-        event.waitUntil(
-            self.registration.showNotification(data.title, options)
-        );
-    }
-});
-
-// Notification click handling
-self.addEventListener('notificationclick', event => {
-    event.notification.close();
-    
-    event.waitUntil(
-        clients.openWindow('/')
     );
 });

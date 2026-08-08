@@ -5,6 +5,56 @@ All notable changes to BCCB Cricket Manager will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - Unreleased
+
+### Added
+- Added a native iOS Capacitor project that packages the shared PWA assets for Xcode and App Store distribution, including an iOS document-picker path for PDF scorecard imports.
+- Added a GitHub-hosted macOS workflow that verifies the iOS project with an unsigned simulator build.
+- Added a manual GitHub-hosted macOS workflow that exports a signed IPA when Apple certificate and provisioning-profile secrets are configured.
+
+### Changed
+- Matchup win chances now use a calibrated logistic conversion of batting-weighted team ratings, so substantial roster changes produce visibly different estimates while equal teams remain 50/50.
+- Batting and bowling dominance now use the same performance data as the win estimate once a player has at least four recorded matches.
+- Advanced the Android release to version 2.1.2 (versionCode 18).
+
+### Fixed
+- Direct player moves now immediately show the odds and dominant batting or bowling side for the exact modified team rosters.
+
+## [2.1.1]
+
+### Added
+- Import-first analytics workflow for PDF scorecards, including preview, parsing, player-match suggestions, and confirmed D1 persistence.
+- Full-roster player association during import, inline roster creation with batting and bowling classifications, and optional manual many-to-one associations.
+- Scorecard fingerprinting to prevent duplicate statistics when the same PDF is reviewed or imported again.
+- Captaincy analytics derived from confirmed scorecard associations: win/loss record, favorite batter and bowler by performance uplift, and Man of the Match totals.
+- Android PDF share-target support so a shared scorecard opens directly in the review workflow.
+
+### Changed
+- Refocused the product documentation, PWA metadata, cache configuration, and Android package on scorecard imports and analytics.
+- Team balancing now uses imported performance data once a player has recorded at least four games.
+- Statistics-based team balancing now distributes established and developing players as evenly as possible between both teams.
+- Statistics-based drafts also balance star players, Fast bowlers, and Reliable batters wherever the roster permits.
+- Players with one to three matches now blend observed statistics with established role-cohort baselines rather than receiving only a category proxy.
+- Reshuffling now produces a different balanced team assignment through constrained non-captain exchanges.
+- Matching controls show fuzzy suggestions first while retaining every other roster player as an explicit selectable option.
+- Restricted scorecard PDF upload, shared-PDF hand-off, scorecard-import API routes, and player-classification controls to each group's administrator login.
+- Generated teams now use captain-first names and show a four-line matchup outlook with estimated win chances plus relative batting and bowling strength.
+- Removed obsolete local JSON backup/import code and the no-op data-manager compatibility layer.
+- Advanced the Android release to version 2.1.1 (versionCode 17).
+
+### Fixed
+- Title-only captain names now resolve through the normal confirmed player-association flow.
+- Accidental non-captain scorecard entries can be ignored without creating player performances or team-composition records; captain entries remain mandatory.
+- Removed duplicate frontend application initialization and stale asset requests.
+- Bowling-average cards, comparisons, and sorting now consistently use total runs conceded divided by total wickets taken.
+- Favorite Bowler now measures the positive reduction in bowling average under a captain, matching the uplift rule used for Favorite Batsman.
+- Average-runs, fours, and sixes ranking tables now use the same batting-innings denominators as the imported-stat calculations.
+
+### Removed
+- Live ball-by-ball score controls, toss actions, and resume-match paths. Legacy in-progress match state is discarded on startup so it cannot reopen the retired workflow.
+- Match Settings, including overs, wides, no-balls, and byes controls, plus their home-screen shortcut and backup payload.
+- Obsolete repair scripts, debug tooling, backup copies, stale deployment material, and tracked local Android configuration.
+
 ## [1.0.0] - 2025-10-21 - Production Release
 
 ### 🎉 Production Ready
