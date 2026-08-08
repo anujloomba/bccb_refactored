@@ -41,6 +41,8 @@ After pushing this project to GitHub, a Windows user can run [the signed IPA wor
 
 Supply the matching Apple Developer Team ID and export method when dispatching the workflow. The workflow runs on GitHub's macOS runner and uploads the signed `.ipa` as a workflow artifact. Keep certificates and profiles in GitHub Actions secrets only; never commit them to this repository.
 
+For Windows-specific instructions to create the certificate and provisioning profile, see [the iOS signing section](../DEPLOYMENT.md#create-apple-signing-files-from-windows).
+
 ## PDF scorecard imports
 
 In the Analytics tab, the existing PDF upload control opens the standard iOS document picker. The scorecard review and administrator-access checks remain in the shared web application.

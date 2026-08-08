@@ -102,3 +102,48 @@ The manual [signed IPA workflow](.github/workflows/ios-ipa.yml) uses GitHub's ma
 | `IOS_PROVISIONING_PROFILE_BASE64` | Base64-encoded provisioning profile for `com.cricketmanager.app`. |
 
 In **Actions**, select **Build signed iOS IPA**, enter the matching Apple Developer Team ID, choose the export method, and run the workflow. Download the resulting `.ipa` from the workflow artifact. For TestFlight/App Store submission, use an `app-store-connect` profile and upload the archive through your established App Store Connect release process.
+
+#### Create Apple signing files from Windows
+
+You need an active [Apple Developer Program](https://developer.apple.com/programs/enroll/) membership. In the Apple Developer account:
+
+1. In **Certificates, Identifiers & Profiles**, create an explicit App ID with the bundle identifier `com.cricketmanager.app`.
+2. Create an **Apple Distribution** certificate. A certificate signing request can be generated on Windows with OpenSSL:
+
+   ```powershell
+   openssl req -new -newkey rsa:2048 -nodes `
+     -keyout ios-distribution.key `
+     -out ios-distribution.csr `
+     -subj "/emailAddress=YOUR_APPLE_ID_EMAIL/CN=YOUR_NAME/C=YOUR_TWO_LETTER_COUNTRY_CODE"
+   ```
+
+   Upload `ios-distribution.csr` to Apple, then download the issued `.cer` certificate. Keep `ios-distribution.key` private; it is required to export the matching certificate.
+3. Export a password-protected `.p12` certificate on Windows:
+
+   ```powershell
+   openssl x509 -inform DER -in ios-distribution.cer -out ios-distribution.pem
+   openssl pkcs12 -export `
+     -out ios-distribution.p12 `
+     -inkey ios-distribution.key `
+     -in ios-distribution.pem `
+     -name "Apple Distribution"
+   ```
+
+   OpenSSL will ask for a password. This is the value for `IOS_CERTIFICATE_PASSWORD`.
+4. Create an App Store Connect distribution provisioning profile for `com.cricketmanager.app`, selecting the Apple Distribution certificate above, then download the resulting `.mobileprovision` file.
+5. Find the Apple Developer **Team ID** under the account's Membership details.
+6. In GitHub repository **Settings → Secrets and variables → Actions**, add these secrets without committing their values:
+
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\ios-distribution.p12")) | Set-Clipboard
+   ```
+
+   Paste the clipboard value into `IOS_CERTIFICATE_BASE64`, then paste the `.p12` password into `IOS_CERTIFICATE_PASSWORD`.
+
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\BCCB-AppStore.mobileprovision")) | Set-Clipboard
+   ```
+
+   Paste that value into `IOS_PROVISIONING_PROFILE_BASE64`.
+
+Do not upload the `.key`, `.p12`, `.cer`, or `.mobileprovision` files to Git, and do not paste their contents into chat. After the secrets are configured, run **Build signed iOS IPA** with the Team ID and `app-store-connect` export method.
