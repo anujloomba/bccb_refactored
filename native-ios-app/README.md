@@ -1,35 +1,75 @@
 # BCCB Cricket for iOS
 
-This is the native iOS wrapper for BCCB Cricket Manager. It uses Capacitor and packages the shared web application from `../native-android-app/app/src/main/assets`, so Android and iOS use the same analytics and scorecard-import experience.
+This is the native iOS app for BCCB Cricket Manager. It uses Capacitor to package the shared web app from `../native-android-app/app/src/main/assets`, so Android and iOS always ship the same screens: Game Day, the toss, teams, players, captaincy, and analytics. Native features (push notifications, game-day alarms, location, live trips, shared PDFs, and `bccb://` links) implement the same contract as Android (`../tools/native-bridge-contract.json`). CI fails if the two platforms drift.
 
-## Requirements
+Current release: **version 2.2.0, build 19**, bundle ID `com.cricketmanager.app` (the same version and build as Android).
 
-- Node.js 22 or later
-- macOS with Xcode
-- An Apple Developer account to install on a physical device or distribute through App Store Connect
+## Publisher hand-off checklist
 
-## Sync the shared web app
+Work through this list once to publish the app from your Apple Developer account.
 
-Run this after changing the shared web assets:
+### 1. Accounts and keys
+
+- [ ] An active Apple Developer Program membership and a Mac with **Xcode 26 or later** (needed for AlarmKit).
+- [ ] In **Certificates, Identifiers & Profiles**, create the App ID `com.cricketmanager.app` with **Push Notifications** enabled.
+- [ ] Create an **APNs key** (Keys → Apple Push Notifications service) and download the `.p8` file. Send the owner of the Firebase project the `.p8` file, Key ID, and Team ID so they can upload it in Firebase → Project settings → Cloud Messaging. Alternatively, they can add you to the Firebase project to upload it yourself.
+- [ ] Get `GoogleService-Info.plist` for the iOS app from the Firebase project owner.
+
+### 2. Build and run
 
 ```bash
+cd native-ios-app
 npm install
-npm run sync:ios
+npm run sync:ios      # copies the shared web app into the iOS project
+npm run open:ios      # opens ios/App/App.xcodeproj
 ```
 
-`ios/App/App/public` is generated and intentionally ignored. Do not edit it directly.
+- [ ] Copy `GoogleService-Info.plist` into `ios/App/App/` (a build phase adds it to the app; it is ignored by Git).
+- [ ] In Xcode, select the **App** target → **Signing & Capabilities** → your team. Automatic signing adds Push Notifications from `App.entitlements`.
+- [ ] Run on a real iPhone and check:
+  - [ ] Sign in to a group (Settings → Group Login), open **Game Day**, and pick your name.
+  - [ ] Allow notifications. An administrator creating a game on another phone sends you an invite with **In / Maybe / Out** actions.
+  - [ ] Reply **In**, tap **Get my alarm time**, allow location and alarms, then set the alarm. On iOS 26 it appears as a system alarm; on earlier versions it is a notification with an alarm tone.
+  - [ ] Within 4 hours of a game, tap **I'm leaving: share my trip**. The blue location indicator appears, you appear on the map for the other phone, and sharing stops at the venue or when you tap Stop.
+  - [ ] Teams → save teams → flip the coin; the result appears on Game Day.
+  - [ ] Share a PDF scorecard from Files to BCCB Cricket (administrator login) and confirm the review screen opens.
 
-## Open and run in Xcode
+### 3. Release
 
-```bash
-npm run open:ios
-```
+- [ ] Before each upload, increase `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` together with Android's `versionName` and `versionCode`. `npm run check:parity` verifies they match.
+- [ ] Product → Archive (Release), then distribute to App Store Connect. Alternatively, use the GitHub **Build signed iOS IPA** workflow (see [DEPLOYMENT.md](../DEPLOYMENT.md#build-a-signed-ipa-from-windows)).
+- [ ] App Store Connect:
+  - App Privacy answers and review notes for background location and alarms: see [DEPLOYMENT.md](../DEPLOYMENT.md#app-store-connect-answers-for-version-220).
+  - Privacy policy URL: host `privacy-policy.html` after replacing its contact placeholders.
+  - iPhone screenshots: the app is iPhone-only, so no iPad screenshots are needed.
+  - A demo group login for App Review.
 
-In Xcode, select the **App** target, choose an Apple Developer signing team, then select an iPhone simulator or device. The current release is marketing version `2.1.2`, build `18`, bundle ID `com.cricketmanager.app`.
+## How the native side is organised
+
+| File | Purpose |
+| --- | --- |
+| `ios/App/App/BCCBNativePlugin.swift` | The `BCCBNative` Capacitor plugin: session, permissions, location, deep links, shared PDFs, and local-notification actions. Also `MainViewController`, which registers the plugin. |
+| `ios/App/App/GameAlarmScheduler.swift` | Game-day alarms: AlarmKit on iOS 26+ (with a **Start trip** button), and alarm-tone notifications with follow-ups on earlier versions. Also schedules the time-to-leave nudge. |
+| `ios/App/App/TripTracker.swift` | Live trip sharing with background location updates and the location indicator. |
+| `ios/App/App/AppDelegate.swift` | Forwards APNs registration to Firebase and removes alarms when a "game cancelled" push arrives. |
+| `ios/App/App/SceneDelegate.swift` | Hosts the web app and receives `bccb://` links and PDFs opened in the app. |
+| `ios/App/App/Info.plist` | Usage descriptions, background modes (location, remote notifications), the `bccb` URL scheme, PDF document type, and portrait-only orientation. |
+| `ios/App/App/PrivacyInfo.xcprivacy` | Privacy manifest. |
+
+Push notifications use `@capacitor-firebase/messaging`. Invites carry the `GAME_INVITE` category, which shows the **In / Maybe / Out** actions.
+
+`ios/App/App/public` is generated by `npm run sync:ios` and intentionally ignored. Do not edit it directly; change the shared web app in `native-android-app/app/src/main/assets` instead.
 
 ## Continuous verification
 
-[`.github/workflows/ios-verify.yml`](../.github/workflows/ios-verify.yml) builds an unsigned simulator app on a GitHub-hosted macOS runner after relevant pushes and pull requests. It verifies the native project with Xcode but cannot produce an installable device IPA or App Store archive; those require an Apple Developer certificate and provisioning profile.
+[`.github/workflows/ios-verify.yml`](../.github/workflows/ios-verify.yml) runs on a GitHub-hosted `macos-26` runner after relevant pushes and pull requests. It:
+
+- checks Android and iOS parity,
+- builds an unsigned simulator app,
+- launches it in the simulator,
+- uploads screenshots of Home, Game Day, Teams, and Settings.
+
+It cannot produce an installable device IPA or App Store archive; those require an Apple Developer certificate and provisioning profile.
 
 ## Build a signed IPA from Windows
 
@@ -37,15 +77,12 @@ After pushing this project to GitHub, a Windows user can run [the signed IPA wor
 
 - `IOS_CERTIFICATE_BASE64`: Base64-encoded Apple Distribution or Development `.p12` certificate.
 - `IOS_CERTIFICATE_PASSWORD`: Password for that `.p12` certificate.
-- `IOS_PROVISIONING_PROFILE_BASE64`: Base64-encoded `.mobileprovision` profile for `com.cricketmanager.app`.
+- `IOS_PROVISIONING_PROFILE_BASE64`: Base64-encoded `.mobileprovision` profile for `com.cricketmanager.app`, created after enabling Push Notifications on the App ID.
+- `IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64`: Base64-encoded `GoogleService-Info.plist`. Optional, but needed for push notifications.
 
-Supply the matching Apple Developer Team ID and export method when dispatching the workflow. The workflow runs on GitHub's macOS runner and uploads the signed `.ipa` as a workflow artifact. Keep certificates and profiles in GitHub Actions secrets only; never commit them to this repository.
+Supply the matching Apple Developer Team ID and export method when dispatching the workflow. The workflow runs on GitHub's macOS runner and uploads the signed `.ipa` as a workflow artifact. Keep certificates, keys, and profiles in GitHub Actions secrets only; never commit them to this repository.
 
 For Windows-specific instructions to create the certificate and provisioning profile, see [the iOS signing section](../DEPLOYMENT.md#create-apple-signing-files-from-windows).
-
-## PDF scorecard imports
-
-In the Analytics tab, the existing PDF upload control opens the standard iOS document picker. The scorecard review and administrator-access checks remain in the shared web application.
 
 ## Refresh native artwork
 

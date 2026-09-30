@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cricket Manager - Privacy Policy</title>
+    <title>BCCB Cricket Manager - Privacy Policy</title>
     <style>
         * {
             margin: 0;
@@ -83,8 +83,22 @@
             margin: 20px 0;
         }
         
-        strong {
-            color: #00ff88;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 0.95em;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: #f0f4ff;
         }
         
         @media (max-width: 600px) {
@@ -105,134 +119,68 @@
 <body>
     <div class="container">
         <h1>Privacy Policy</h1>
-        <p class="updated"><strong>Last Updated:</strong> November 7, 2024</p>
-        
+        <p class="updated"><b>Last Updated:</b> October 1, 2026</p>
         <h2>Introduction</h2>
-        <p>Cricket Manager ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how our mobile application handles information.</p>
-        
-        <h2>Information We Collect</h2>
-        
-        <h3>Local Storage Only</h3>
-        <p>Cricket Manager stores all data locally on your device, including:</p>
+        <p>BCCB Cricket Manager ("the app", "we", "our") helps a cricket group manage its roster, balance teams, toss the coin, import scorecards, and organise game days. This policy explains what information the app handles, why, and how you control it. It applies to the Android and iOS apps.</p>
+        <h2>Information the app handles</h2>
+        <h3>Group data you enter</h3>
+        <p>When you use a group other than the shared <code>guest</code> group, the app stores that group's data in our cloud database (Cloudflare D1) so every member's phone sees the same information:</p>
         <ul>
-            <li>Team names and player information</li>
-            <li>Match scores and statistics</li>
-            <li>Player performance data</li>
-            <li>Match history</li>
+            <li>Group name, and hashed (SHA-256) member and administrator passwords</li>
+            <li>Player names and cricket roles (bowling type, batting style, star player)</li>
+            <li>Imported scorecards, match results, and player statistics</li>
+            <li>Published toss results (team names, captains, and players)</li>
         </ul>
-        
-        <h3>No Personal Information</h3>
-        <p>We do NOT collect, store, or transmit any personal information such as:</p>
+        <p>Data in the <code>guest</code> group stays on your device unless you sync it yourself.</p>
+        <h3>Game Day</h3>
+        <p>If you use Game Day in your own group:</p>
         <ul>
-            <li>Your name or email address</li>
-            <li>Your location data</li>
-            <li>Your contacts</li>
-            <li>Any personally identifiable information</li>
+            <li><b>Device registration.</b> The app creates a random identifier for your phone and a secret access key. We store the identifier, a hash of the key, your platform (Android or iOS), and the app version.</li>
+            <li><b>Your roster name.</b> You choose which player on the group roster you are. Your replies and trips are shown to the group under that name.</li>
+            <li><b>Replies.</b> Your In / Maybe / Out reply to each game day is stored and visible to everyone in the group.</li>
+            <li><b>Push notification token.</b> If you allow notifications, the app sends Firebase Cloud Messaging (Google) a push token for your phone so we can deliver invites, changes, reminders, and cancellations.</li>
+            <li><b>Location for your alarm.</b> When you ask for an alarm recommendation, the app reads your current location once. It is sent to our server to work out the driving time to the ground, which passes the start and end points to OpenRouteService. It is not stored. You can instead save a "home" spot, which is kept only on your phone.</li>
+            <li><b>Live trip sharing.</b> Only after you tap <b>Start trip</b> and agree, the app shares your live location with your group so they can see you on the Game Day map. We keep only your latest position, speed, heading, and estimated arrival time. Sharing stops when you arrive, when you tap Stop, or an hour after the game starts. Trip locations are deleted within 6 hours of the game's start, or immediately when a game is cancelled, when you stop sharing, or when you leave Game Day. After you stop sharing, we keep only a note that you stopped, without any location, until that 6-hour clean-up. Your phone shows a location indicator while sharing.</li>
+            <li><b>Alarms.</b> Game-day alarms and reminders are scheduled on your phone. Alarm times and your getting-ready buffer stay on your device.</li>
         </ul>
-        
-        <h2>How We Use Information</h2>
-        <p>All data you enter into Cricket Manager remains on your device and is used solely to:</p>
-        <ul>
-            <li>Display match scores and statistics</li>
-            <li>Track player performance</li>
-            <li>Maintain match history</li>
-            <li>Generate analytics and visualizations</li>
-        </ul>
-        
-        <h2>Data Storage</h2>
-        <ul>
-            <li>All data is stored locally on your device using browser local storage</li>
-            <li>No data is transmitted to external servers</li>
-            <li>No cloud backup or synchronization occurs</li>
-            <li>Uninstalling the app will delete all local data</li>
-        </ul>
-        
+        <p>Administrators also send venue searches (the text they type, or a map point) to our server, which looks them up with OpenStreetMap's Nominatim service.</p>
+        <h3>Information we do not collect</h3>
+        <p>We do not collect contacts, photos, advertising identifiers, or payment details. We do not track you across apps or websites, and we do not sell or share your information for advertising.</p>
         <h2>Permissions</h2>
-        <p>The app requests the following Android permissions:</p>
-        
-        <h3>INTERNET & ACCESS_NETWORK_STATE</h3>
+        <table>
+            <tr><th>Permission</th><th>Why</th><th>When</th></tr>
+            <tr><td>Internet</td><td>Sync group data and Game Day</td><td>Always</td></tr>
+            <tr><td>Notifications</td><td>Game invites, reminders, and alarms</td><td>Only if you allow it</td></tr>
+            <tr><td>Location (while using the app)</td><td>Alarm recommendation and live trip sharing</td><td>Only when you ask for an alarm or start a trip</td></tr>
+            <tr><td>Alarms &amp; reminders (Android) / Alarms (iOS)</td><td>Ring the wake-up alarm you set</td><td>Only if you set an alarm</td></tr>
+            <tr><td>Foreground service (Android)</td><td>Keep sharing your trip while the phone is locked</td><td>Only during a trip you started</td></tr>
+        </table>
+        <h2>Service providers</h2>
         <ul>
-            <li><strong>Purpose:</strong> Reserved for potential future online features</li>
-            <li><strong>Current Use:</strong> Not actively used in the current version</li>
-            <li><strong>Data Transmitted:</strong> None</li>
+            <li><b>Cloudflare</b> hosts our API and database.</li>
+            <li><b>Google Firebase Cloud Messaging</b> (and Apple Push Notification service on iPhone) delivers push notifications.</li>
+            <li><b>OpenRouteService</b> (HeiGIT) calculates driving times from the points we send it.</li>
+            <li><b>OpenStreetMap Nominatim</b> looks up venue names and addresses for administrators.</li>
+            <li><b>OpenFreeMap</b> serves the map tiles. Your phone requests tiles directly, so the provider sees your IP address and which map area is shown.</li>
         </ul>
-        
-        <p>These permissions are declared but not currently utilized for data collection or transmission.</p>
-        
-        <h2>Third-Party Services</h2>
-        <p>Cricket Manager does NOT use:</p>
+        <p>Each provider processes data only to provide its service to us.</p>
+        <h2>Retention and deletion</h2>
         <ul>
-            <li>Analytics services</li>
-            <li>Advertising networks</li>
-            <li>Third-party tracking</li>
-            <li>Social media integrations</li>
-            <li>Cloud services</li>
+            <li>Live trip locations: deleted within 6 hours of the game start, or sooner as described above.</li>
+            <li>Game days and replies: kept with your group's history until an administrator removes the group's data.</li>
+            <li>Device registrations and push tokens: kept until you leave Game Day on that phone, switch groups, or the token expires.</li>
+            <li>On your phone: uninstalling the app removes locally stored data, alarms, and your saved home spot.</li>
         </ul>
-        
-        <h2>Children's Privacy</h2>
-        <p>Cricket Manager does not knowingly collect information from children under 13. The app is designed to be used by cricket scorers and enthusiasts of all ages. Since no personal data is collected, there is no risk to children's privacy.</p>
-        
-        <h2>Data Security</h2>
-        <ul>
-            <li>All data remains on your device</li>
-            <li>No transmission of data occurs</li>
-            <li>No server-side storage exists</li>
-            <li>Standard Android security measures protect locally stored data</li>
-        </ul>
-        
-        <h2>Your Rights</h2>
-        <p>Since all data is stored locally on your device, you have complete control:</p>
-        <ul>
-            <li><strong>Access:</strong> View all your data within the app</li>
-            <li><strong>Delete:</strong> Clear data through app settings or by uninstalling</li>
-            <li><strong>Export:</strong> Match data can be viewed and recorded manually</li>
-            <li><strong>Control:</strong> Complete ownership of all entered data</li>
-        </ul>
-        
-        <h2>Changes to Data Handling</h2>
-        <p>If we introduce features that collect or transmit data in future versions:</p>
-        <ul>
-            <li>We will update this privacy policy</li>
-            <li>We will notify users through app update notes</li>
-            <li>User consent will be requested where required</li>
-        </ul>
-        
-        <h2>Data Retention</h2>
-        <ul>
-            <li>Data persists on your device until you manually delete it or uninstall the app</li>
-            <li>No data is retained on external servers</li>
-            <li>No automatic deletion occurs</li>
-        </ul>
-        
-        <h2>International Users</h2>
-        <p>Since no data is collected or transmitted, there are no cross-border data transfer issues. The app operates entirely on your local device regardless of your location.</p>
-        
-        <div class="contact">
-            <h2>Contact Us</h2>
-            <p>If you have questions about this Privacy Policy or Cricket Manager's data practices:</p>
-            <p><strong>Email:</strong> anujloomba@gmail.com</p>
-            <p><strong>Developer:</strong> Anuj Loomba</p>
-        </div>
-        
-        <h2>Legal Compliance</h2>
-        <p>This app complies with:</p>
-        <ul>
-            <li>Google Play Store policies</li>
-            <li>Android privacy guidelines</li>
-            <li>GDPR (no personal data collected)</li>
-            <li>COPPA (no data collection from children)</li>
-        </ul>
-        
-        <h2>Consent</h2>
-        <p>By using Cricket Manager, you consent to this Privacy Policy. If you do not agree with this policy, please do not use the app.</p>
-        
-        <h2>Updates to This Policy</h2>
-        <p>We may update this Privacy Policy from time to time. Changes will be posted here with an updated "Last Updated" date. Continued use of the app after changes constitutes acceptance of the updated policy.</p>
-        
-        <div class="highlight">
-            <h3>Simple Summary</h3>
-            <p>Cricket Manager stores everything locally on your phone. We don't collect, send, or store any of your data anywhere else. Your cricket scores stay on your device, and you have complete control over them.</p>
-        </div>
+        <p>To remove your Game Day data from a phone, open <b>Settings → Game Day on this device → Leave Game Day on this device</b>. To delete group data, a group administrator can use <b>Wipe Local Data</b> and the group data tools, or contact us.</p>
+        <h2>Security</h2>
+        <p>Passwords are stored only as hashes. Game Day requests are authenticated with a per-device secret that is stored only as a hash on our server. All traffic uses HTTPS.</p>
+        <h2>Children</h2>
+        <p>The app is intended for members of adult and youth cricket groups organised by an administrator. We do not knowingly collect information from children under 13 without the involvement of their parent or guardian. Contact us if you believe a child's information should be removed.</p>
+        <h2>Changes</h2>
+        <p>We will update this policy when the app's data practices change and show the new "Last Updated" date here.</p>
+        <h2>Contact</h2>
+        <p><b>Email</b>: [YOUR_EMAIL@example.com]</p>
+        <p><b>Developer</b>: [YOUR NAME/COMPANY]</p>
     </div>
 </body>
 </html>

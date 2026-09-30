@@ -1,10 +1,27 @@
 # BCCB Cricket Manager
 
-BCCB Cricket Manager is an Android-first cricket analytics application. It imports completed PDF scorecards, associates every scorecard name with the roster, and stores aggregated player, match, and captaincy statistics in Cloudflare D1.
+BCCB Cricket Manager is a cricket group app for Android and iPhone. It organises game days (invites, In / Maybe / Out replies, smart wake-up alarms, and a live map of who is on the way), balances teams and runs the toss, imports completed PDF scorecards, and stores player, match, and captaincy statistics in Cloudflare D1.
 
-## Primary workflow
+## Game Day
 
-1. Open Analytics and select a completed PDF scorecard, or share a PDF to the Android app.
+1. A group administrator schedules a game: date, start time, reach-by time, venue, and notes.
+2. Every signed-in phone in the group gets a push invite with **In**, **Maybe**, and **Out** buttons. Players link their phone to their roster name once; everyone sees the live counts and who has replied.
+3. At 7 PM (venue time) the evening before, players who are in get a reminder. One tap works out the recommended alarm from their current location:
+
+   `alarm = reach-by time − driving time − getting-ready time` (45 minutes by default, adjustable)
+
+   Driving time comes from OpenRouteService, with a distance-based estimate as a fallback. Android sets an exact alarm-clock alarm (or hands off to the Clock app). iOS 26+ sets an AlarmKit system alarm, and earlier iOS versions use an alarm-tone notification. A time-to-leave nudge follows.
+4. On the day, players tap **Start trip**. The group sees them move on the Game Day map with an ETA until they arrive (within 150 m of the venue), stop, or an hour after the start. Only the latest position is kept, and it is deleted after the game.
+
+Administrators can edit or cancel a game (which removes players' alarms) and nudge players who have not replied.
+
+## The toss
+
+Once teams are saved or confirmed on the Teams tab, flip the coin: it shows each captain's initials, and the winner chooses to bat or bowl. The result is saved for the group. When an administrator runs the toss, it is shared with everyone on Game Day and the Home screen.
+
+## Scorecard workflow
+
+1. Open Analytics and select a completed PDF scorecard, or share a PDF to the app ("Share" on Android, "Open in BCCB Cricket" on iPhone).
 2. Review every scorecard name against the roster.
    - Fuzzy suggestions appear first.
    - Every other roster player remains available in the same dropdown.
@@ -40,12 +57,29 @@ For team balancing, players with at least four matches use their imported totals
 
 ## Components
 
-- `cricket-worker/cricket-api/`: Cloudflare Worker API and scorecard parser.
-- `DB/`: canonical D1 schema and the scorecard-fingerprint migration.
-- `native-android-app/`: Android WebView application and bundled web interface.
+- `cricket-worker/cricket-api/`: Cloudflare Worker API (groups, scorecards, and Game Day), the push sender, the reminder cron, and the scorecard parser.
+- `DB/`: canonical D1 schema and migrations.
+- `native-android-app/`: Android WebView application. `app/src/main/assets` holds the shared web interface used by both platforms.
 - `native-ios-app/`: Capacitor-based iOS application that packages the same web interface.
+- `tools/native-bridge-contract.json`: every native capability the web app uses, with how Android and iOS each provide it. `tools/check-native-parity.mjs` fails when the platforms drift.
+- `tests/web/`: tests for the Game Day logic (alarm maths, time zones, tallies, and toss helpers).
+
+### Keeping Android and iOS in sync
+
+Both apps load the same web assets, so every screen, the toss, and Game Day behave identically. Native features (push, alarms, location, trips, shared files, and links) go through one JavaScript facade, `window.BCCBNative` (`native-bridge.js`). Android implements it in `NativeBridge.java`; iOS implements it in `BCCBNativePlugin.swift` plus `@capacitor-firebase/messaging`. When you add a native capability:
+
+1. Add it to `tools/native-bridge-contract.json` and `native-bridge.js`.
+2. Implement it on both platforms.
+3. Run `node tools/check-native-parity.mjs`. CI runs this check too, along with version matching (`versionName`/`versionCode` must equal the iOS `MARKETING_VERSION`/`CURRENT_PROJECT_VERSION`).
 
 ## Local development
+
+### Checks
+
+```powershell
+node tools/check-native-parity.mjs
+node --test "tests/web/*.test.mjs"
+```
 
 ### Worker
 
@@ -63,11 +97,11 @@ Set-Location native-android-app
 .\gradlew.bat assembleDebug
 ```
 
-The debug APK is written to `app\build\outputs\apk\debug\app-debug.apk`.
+The debug APK is written to `app\build\outputs\apk\debug\app-debug.apk`. Push notifications are enabled when `app\google-services.json` (from Firebase) is present. Builds without it still work; push is simply unavailable.
 
 ### iOS
 
-The iOS project uses the Android wrapper's existing web assets as its single source of truth. It requires macOS and Xcode to build or publish:
+The iOS project uses the Android wrapper's existing web assets as its single source of truth. It requires macOS and Xcode 26 or later (for AlarmKit) to build or publish:
 
 ```bash
 cd native-ios-app
@@ -76,10 +110,11 @@ npm run sync:ios
 npm run open:ios
 ```
 
-Open the generated `ios/App/App.xcodeproj` in Xcode, select an Apple Developer signing team, then run on a simulator or device. PDF scorecards are selected through the standard iOS document picker in the Analytics import flow.
+Open the generated `ios/App/App.xcodeproj` in Xcode, select an Apple Developer signing team, then run on a simulator or device. Put `GoogleService-Info.plist` from Firebase in `ios/App/App/` to enable push; a build phase copies it into the app when present. PDF scorecards are selected through the standard iOS document picker in the Analytics import flow, or opened into the app from Files or Mail. See `native-ios-app/README.md` for the App Store release checklist.
 
 ## Documentation
 
-- `DEPLOYMENT.md`: Worker, D1, Android, iOS, and release-build instructions.
-- `PRIVACY_POLICY.md`: privacy policy content for distribution.
+- `DEPLOYMENT.md`: Worker, D1, Firebase, OpenRouteService, Android, iOS, and store-release instructions.
+- `native-ios-app/README.md`: iOS build and App Store hand-off checklist.
+- `PRIVACY_POLICY.md` / `privacy-policy.html`: privacy policy for both stores.
 - `CHANGELOG.md`: version history.

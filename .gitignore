@@ -19,6 +19,10 @@ native-android-app/keystore.properties
 *.keystore
 keystore.properties
 
+# Firebase configuration files: download from the Firebase console and keep them out of Git
+native-android-app/app/google-services.json
+native-ios-app/ios/App/App/GoogleService-Info.plist
+
 # iOS and Xcode build state
 native-ios-app/ios/App/build/
 native-ios-app/ios/DerivedData/

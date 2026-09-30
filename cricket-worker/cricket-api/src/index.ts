@@ -14,6 +14,9 @@ import {
   type ParsedInnings,
   type ParsedScorecard
 } from './scorecard';
+import { isAdminGroup } from './auth';
+import { handleGameDayRequest } from './gameDay';
+import { runScheduledTasks } from './scheduler';
 
 interface CricketGroup {
   id: number;
@@ -122,20 +125,6 @@ function scorecardCaptainName(scorecard: ParsedScorecard, team: 'team1' | 'team2
     : scorecard.team2CaptainName || scorecard.team2;
 }
 
-async function isAdminGroup(
-  env: Env,
-  groupId: number,
-  adminPasswordHash: unknown
-): Promise<boolean> {
-  if (typeof adminPasswordHash !== 'string' || adminPasswordHash.length === 0) {
-    return false;
-  }
-  const group = await env.cricket_mgr.prepare(
-    'SELECT id FROM groups WHERE id = ? AND admin_password_hash = ?'
-  ).bind(groupId, adminPasswordHash).first<{ id: number }>();
-  return Boolean(group);
-}
-
 export default {
   async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
@@ -146,7 +135,7 @@ export default {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Admin-Password-Hash',
     };
 
     // Handle preflight CORS requests
@@ -155,6 +144,11 @@ export default {
     }
 
     try {
+      const gameDayResponse = await handleGameDayRequest(request, env, ctx, corsHeaders);
+      if (gameDayResponse) {
+        return gameDayResponse;
+      }
+
       // Health check endpoint
       if (path === '/health' && method === 'GET') {
         return Response.json({ 
@@ -1372,7 +1366,23 @@ export default {
           'GET /sync/download/{groupId}',
           'DELETE /groups/{groupId}/performance',
           'DELETE /groups/{groupId}/matches',
-          'DELETE /groups/{groupId}/players'
+          'DELETE /groups/{groupId}/players',
+          'POST /groups/{groupId}/devices',
+          'GET|PUT|DELETE /groups/{groupId}/devices/me',
+          'GET /groups/{groupId}/devices',
+          'DELETE /groups/{groupId}/players/{playerId}/claims',
+          'GET|POST /groups/{groupId}/game-days',
+          'GET|PUT /groups/{groupId}/game-days/{gameDayId}',
+          'POST /groups/{groupId}/game-days/{gameDayId}/cancel',
+          'POST /groups/{groupId}/game-days/{gameDayId}/nudge',
+          'PUT /groups/{groupId}/game-days/{gameDayId}/rsvp',
+          'POST /groups/{groupId}/game-days/{gameDayId}/route',
+          'POST|DELETE /groups/{groupId}/game-days/{gameDayId}/trip',
+          'GET /groups/{groupId}/game-days/{gameDayId}/trips',
+          'PUT /groups/{groupId}/tosses',
+          'GET /groups/{groupId}/tosses/latest',
+          'GET /groups/{groupId}/geo/search?q=',
+          'GET /groups/{groupId}/geo/reverse?lat=&lng='
         ]
       }, { status: 404, headers: corsHeaders });
 
@@ -1386,5 +1396,11 @@ export default {
         headers: corsHeaders 
       });
     }
+  },
+
+  async scheduled(controller, env, ctx): Promise<void> {
+    ctx.waitUntil(runScheduledTasks(env, new Date(controller.scheduledTime)).then(summary => {
+      console.log('Game Day scheduled run', summary);
+    }));
   },
 } satisfies ExportedHandler<Env>;

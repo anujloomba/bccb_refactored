@@ -1,9 +1,16 @@
 // Cricket PWA - Service Worker
-const CACHE_NAME = 'cricket-pwa-v25';
+const CACHE_NAME = 'cricket-pwa-v26';
 const urlsToCache = [
     '/',
     '/index.html',
     '/app.js',
+    '/native-bridge.js',
+    '/game-day-core.js',
+    '/game-day.js',
+    '/game-day.css',
+    '/toss.js',
+    '/vendor/maplibre/maplibre-gl.js',
+    '/vendor/maplibre/maplibre-gl.css',
     '/manifest.json',
     '/icon-512.png'
 ];

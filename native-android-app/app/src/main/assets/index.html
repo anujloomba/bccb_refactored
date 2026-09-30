@@ -98,7 +98,7 @@
             min-height: 100vh;
             background: rgba(0, 0, 0, 0.1);
             position: relative;
-            padding-bottom: 80px;
+            padding-bottom: calc(80px + env(safe-area-inset-bottom));
         }
 
         /* Navigation Styles */
@@ -106,6 +106,7 @@
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(20px);
             padding: 15px 20px;
+            padding-top: calc(15px + env(safe-area-inset-top));
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -137,19 +138,22 @@
             backdrop-filter: blur(20px);
             border-top: 1px solid rgba(0, 0, 0, 0.1);
             display: grid;
-            grid-template-columns: repeat(6, 1fr);
+            grid-template-columns: repeat(7, 1fr);
             padding: 8px 0;
+            padding-bottom: calc(8px + env(safe-area-inset-bottom));
+            z-index: 900;
         }
 
         .nav-item {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 8px;
+            padding: 8px 2px;
             cursor: pointer;
             transition: all 0.2s ease;
             color: var(--gray-500);
             text-decoration: none;
+            min-width: 0;
         }
 
         .nav-item.active {
@@ -166,8 +170,23 @@
         }
 
         .nav-label {
-            font-size: 0.7em;
+            font-size: 0.66em;
             font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        @media (max-width: 380px) {
+            .nav-item {
+                padding: 8px 0;
+            }
+
+            .nav-label {
+                font-size: 0.6em;
+                letter-spacing: -0.01em;
+            }
         }
 
         /* Content Styles */
@@ -3528,6 +3547,8 @@
         }
 
     </style>
+    <link rel="stylesheet" href="vendor/maplibre/maplibre-gl.css">
+    <link rel="stylesheet" href="game-day.css">
 </head>
 <body>
     <!-- Removed base href to fix local file paths -->
@@ -3555,6 +3576,8 @@
                 </div>
             </div>
 
+            <div id="homeGameDayCard"></div>
+
             <div class="glass-card slide-up">
                 <h3>📊 Overview</h3>
                 <div class="status-grid">
@@ -3579,6 +3602,15 @@
                     <!-- Match history will load automatically -->
                 </div>
             </div>
+        </div>
+
+        <!-- GAME DAY PAGE -->
+        <div class="content" id="gameday">
+            <div class="page-header">
+                <div class="page-title">📅 Game Day</div>
+                <div class="page-subtitle">Who's in, when to leave, and who's on the way</div>
+            </div>
+            <div id="gameDayRoot"></div>
         </div>
 
         <!-- PLAYERS PAGE -->
@@ -3799,6 +3831,8 @@
                 </div>
             </div>
 
+            <div class="glass-card" id="gameDaySettingsCard" hidden></div>
+
             <div class="glass-card">
                 <h3>☁️ Data Synchronization</h3>
                 <div class="data-management" id="dataManagementContent" style="display: none;">
@@ -3843,6 +3877,10 @@
             <a class="nav-item active" onclick="showPage('home')">
                 <div class="nav-icon">🏠</div>
                 <div class="nav-label">Home</div>
+            </a>
+            <a class="nav-item" onclick="showPage('gameday')">
+                <div class="nav-icon">📅</div>
+                <div class="nav-label">Game Day</div>
             </a>
             <a class="nav-item" onclick="showPage('players')">
                 <div class="nav-icon">👥</div>
@@ -3969,7 +4007,12 @@
         </div>
     </div>
 
+    <script src="native-bridge.js"></script>
+    <script src="game-day-core.js"></script>
+    <script src="vendor/maplibre/maplibre-gl.js"></script>
     <script src="app.js"></script>
+    <script src="toss.js"></script>
+    <script src="game-day.js"></script>
     
     <!-- Emergency function definitions in case app.js fails to load -->
     <script>

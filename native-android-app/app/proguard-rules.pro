@@ -24,3 +24,9 @@
 -keep class android.webkit.** { *; }
 -keep class * extends android.webkit.WebViewClient { *; }
 -keep class * extends android.webkit.WebChromeClient { *; }
+
+# The web app calls these methods by name through window.AndroidInterface.
+-keepattributes JavascriptInterface
+-keepclassmembers class com.cricketmanager.app.NativeBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}

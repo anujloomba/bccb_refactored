@@ -21,14 +21,14 @@ def hasReleaseSigning = [
 
 android {
     namespace 'com.cricketmanager.app'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.cricketmanager.app"
-        minSdk 21
-        targetSdk 35
-        versionCode 18
-        versionName "2.1.2"
+        minSdk 23
+        targetSdk 36
+        versionCode 19
+        versionName "2.2.0"
     }
 
     buildFeatures {
@@ -62,7 +62,27 @@ android {
     }
     
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
+
+    lint {
+        abortOnError true
+        checkReleaseBuilds true
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.16.0'
+    implementation platform('com.google.firebase:firebase-bom:34.19.0')
+    implementation 'com.google.firebase:firebase-messaging'
+    implementation 'com.google.android.gms:play-services-location:21.4.0'
+}
+
+// Push notifications need the Firebase config from the Firebase console. It is never committed;
+// builds without it still work and simply report push as unavailable.
+if (file('google-services.json').exists()) {
+    apply plugin: 'com.google.gms.google-services'
+} else {
+    logger.lifecycle('google-services.json not found: building without Firebase push notifications.')
 }

@@ -1,20 +1,23 @@
 {
   "name": "bccb-cricket-ios",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
-  "description": "Native iOS wrapper for the BCCB Cricket Manager PWA.",
+  "description": "Native iOS wrapper for the BCCB Cricket Manager web app.",
   "scripts": {
     "generate:ios-assets": "capacitor-assets generate --ios",
     "sync:ios": "cap sync ios",
-    "open:ios": "cap open ios"
+    "open:ios": "cap open ios",
+    "check:parity": "node ../tools/check-native-parity.mjs"
   },
   "dependencies": {
-    "@capacitor/core": "8.5.0",
-    "@capacitor/ios": "8.5.0"
+    "@capacitor-firebase/messaging": "8.5.2",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/ios": "8.5.2",
+    "firebase": "^12.6.0"
   },
   "devDependencies": {
     "@capacitor/assets": "3.0.5",
-    "@capacitor/cli": "8.5.0"
+    "@capacitor/cli": "8.5.2"
   }
 }

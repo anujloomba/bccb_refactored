@@ -1554,7 +1554,8 @@ class CricketApp {
                 this.teams = this.tempTeams;
                 this.saveData(true); // Trigger D1 sync when teams are saved (with completed match protection)
 
-                this.showNotification('💾 Teams saved! Click "Let\'s Play" to start the toss.');
+                this.showNotification('💾 Teams saved! Flip the coin below for the toss.');
+                if (window.BCCBToss) window.BCCBToss.mountIn(document.getElementById('teamList'), this.tempTeams);
             } catch (error) {
                 console.error('Failed to save teams:', error);
                 this.showNotification('❌ Failed to save teams');
@@ -1601,6 +1602,9 @@ class CricketApp {
             this.updateScorecardImportAccess();
             this.updatePlayerManagementAccess();
         });
+        if (window.BCCBNative) {
+            window.BCCBNative.on('sharedFile', () => this.receiveSharedScorecard());
+        }
 
         this.init();
     }
@@ -3068,57 +3072,24 @@ class CricketApp {
         if (typeof showPage === 'function') showPage('scoring');
 
         const review = document.getElementById('scorecardImportReview');
-        let bridge;
         try {
             review.textContent = 'Loading shared scorecard...';
-            bridge = window.AndroidInterface;
-            if (!bridge || typeof bridge.prepareSharedScorecard !== 'function') {
+            if (!window.BCCBNative || !window.BCCBNative.isNative) {
                 throw new Error('Shared PDF support is unavailable in this app.');
             }
 
-            const preparationError = bridge.prepareSharedScorecard();
-            if (preparationError) throw new Error(preparationError);
-
-            const fileSize = Number(bridge.getSharedScorecardSize());
-            const chunkCount = Number(bridge.getSharedScorecardChunkCount());
-            if (
-                !Number.isInteger(fileSize)
-                || fileSize <= 0
-                || fileSize > 10 * 1024 * 1024
-                || !Number.isInteger(chunkCount)
-                || chunkCount <= 0
-            ) {
-                throw new Error('The shared PDF data is invalid.');
+            // Android reads the PDF in chunks and iOS through a local file URL; both return a File.
+            const { file } = await window.BCCBNative.consumeSharedFile();
+            if (!file) {
+                review.textContent = '';
+                return;
             }
-
-            const bytes = new Uint8Array(fileSize);
-            let offset = 0;
-            for (let index = 0; index < chunkCount; index++) {
-                const encodedChunk = bridge.getSharedScorecardChunk(index);
-                if (!encodedChunk) throw new Error('The shared PDF data is incomplete.');
-
-                const decodedChunk = atob(encodedChunk);
-                if (offset + decodedChunk.length > bytes.length) {
-                    throw new Error('The shared PDF data is invalid.');
-                }
-                for (let byteIndex = 0; byteIndex < decodedChunk.length; byteIndex++) {
-                    bytes[offset + byteIndex] = decodedChunk.charCodeAt(byteIndex);
-                }
-                offset += decodedChunk.length;
-            }
-            if (offset !== bytes.length) throw new Error('The shared PDF data is incomplete.');
-
-            const fileName = bridge.getSharedScorecardName() || 'shared-scorecard.pdf';
-            const scorecardFile = new File([bytes], fileName, { type: 'application/pdf' });
-            await this.reviewScorecardFile(scorecardFile);
+            await this.reviewScorecardFile(file);
         } catch (error) {
             console.error('Shared scorecard import failed:', error);
             review.textContent = '';
             this.showNotification(`Could not load the shared PDF: ${error.message}`);
         } finally {
-            if (bridge && typeof bridge.clearSharedScorecard === 'function') {
-                bridge.clearSharedScorecard();
-            }
             this.isReceivingSharedScorecard = false;
         }
     }
@@ -5183,7 +5154,9 @@ class CricketApp {
                     <button type="button" onclick="window.cricketApp.saveTeams()" class="btn btn-success" style="margin: 0 10px;">Save teams</button>
                 </div>
             </div>
+            ${window.BCCBToss ? window.BCCBToss.slotHtml() : ''}
         `;
+        if (window.BCCBToss) window.BCCBToss.mountIn(teamList, [team1, team2]);
     }
 
     calculatePlayerSkillScore(player) {
@@ -5274,13 +5247,10 @@ class CricketApp {
                 </div>
             `).join('');
 
-            // Teams are used for balancing and imported scorecard analysis only.
-            if (this.teams.length === 2) {
-                teamList.innerHTML += `
-                    <div class="glass-card" style="margin-top: 20px; text-align: center;">
-                        <p>Teams are ready. Import a completed scorecard from Analytics to record the match.</p>
-                    </div>
-                `;
+            // Teams are used for balancing, the toss, and imported scorecard analysis.
+            if (this.teams.length === 2 && window.BCCBToss) {
+                teamList.innerHTML += window.BCCBToss.slotHtml();
+                window.BCCBToss.mountIn(teamList, this.teams);
             }
         }
     }
@@ -5333,7 +5303,9 @@ class CricketApp {
                     </span>
                 </div>
             </div>
+            ${window.BCCBToss ? window.BCCBToss.slotHtml() : ''}
         `;
+        if (window.BCCBToss) window.BCCBToss.mountIn(teamList, teams);
     }
 
     loadSavedTeamsForEdit() {
@@ -11650,6 +11622,7 @@ function showPage(pageId) {
 
     const titles = {
         home: 'Cricket Manager',
+        gameday: 'Game Day',
         players: 'Players',
         teams: 'Teams',
         captaincy: 'Captaincy',
@@ -11660,6 +11633,10 @@ function showPage(pageId) {
     const navTitle = document.getElementById('navTitle');
     if (navTitle) {
         navTitle.textContent = titles[pageId] || 'Cricket Manager';
+    }
+
+    if (window.GameDay && typeof window.GameDay.onPageShown === 'function') {
+        window.GameDay.onPageShown(pageId);
     }
 
     // Special handling for scoring page
@@ -12859,12 +12836,10 @@ window.confirmTeams = function() {
                     </div>
                 </div>
             </div>
-
-            <div class="glass-card" style="margin-top: 20px; text-align: center;">
-                <p>Teams are ready. Import a completed scorecard from Analytics to record the match.</p>
-            </div>
         </div>
+        ${window.BCCBToss ? window.BCCBToss.slotHtml() : ''}
     `;
+    if (window.BCCBToss) window.BCCBToss.mountIn(teamList, window.cricketApp.teams);
 };
 
 window.movePlayerDirectly = function(playerElement) {
@@ -13042,653 +13017,6 @@ window.addEventListener('DOMContentLoaded', function() {
     `;
     document.head.appendChild(style);
 });
-
-function startToss() {
-
-    try {
-        const teams = getCurrentTeams();
-        if (teams.length !== 2) {
-            showMessage('Need exactly 2 teams for toss!', 'error');
-            return;
-        }
-
-        // Find the toss button container and create inline toss display
-        const tossButton = document.getElementById('main-toss-btn') || document.querySelector('.toss-btn');
-        if (!tossButton) {
-            showMessage('Toss button not found!', 'error');
-            return;
-        }
-
-        const tossContainer = tossButton.parentElement;
-        // Remove existing toss result if any
-        const existingTossResult = document.getElementById('toss-result-container');
-        if (existingTossResult) {
-            existingTossResult.remove();
-        }
-
-        // Create inline toss display similar to team box
-        const tossResultContainer = document.createElement('div');
-        tossResultContainer.id = 'toss-result-container';
-        tossResultContainer.className = 'simple-team-box';
-        tossResultContainer.style.marginTop = '20px';
-        tossResultContainer.innerHTML = `
-            <div style="text-align: center;">
-                <h3 style="color: #ff6b35; margin-bottom: 20px; font-size: 1.3em;">🪙 Toss Time!</h3>
-                <div id="coin-animation" style="font-size: 80px; margin: 20px 0; transition: all 0.5s ease;">🪙</div>
-                <div id="toss-status" style="font-size: 1.1em; margin: 15px 0; color: #fff;">Flipping coin...</div>
-                <div id="toss-result" style="display: none;">
-                    <h4 id="winning-team" style="color: #ff6b35; margin: 15px 0; font-size: 1.2em;"></h4>
-                    <p style="margin: 15px 0; color: #fff;">Choose your option:</p>
-                    <div style="display: flex; gap: 15px; justify-content: center; margin: 20px 0;">
-                        <button id="bat-first" class="choice-btn" style="background: #22c55e; border: none; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; touch-action: manipulation;">🏏 Bat First</button>
-                        <button id="bowl-first" class="choice-btn" style="background: #3b82f6; border: none; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; touch-action: manipulation;">⚾ Bowl First</button>
-                    </div>
-                    <div style="margin-top: 15px;">
-                        <button id="back-to-toss" style="background: #6b7280; border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em; touch-action: manipulation;">
-                            ← Back to Teams
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // Insert after toss button container
-        tossContainer.parentNode.insertBefore(tossResultContainer, tossContainer.nextSibling);
-        // Hide the toss button
-        tossButton.style.display = 'none';
-
-        // Scroll to toss container
-        setTimeout(() => {
-            tossResultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
-
-        // Animate coin flip
-        const coinAnimation = document.getElementById('coin-animation');
-        const tossStatus = document.getElementById('toss-status');
-        const tossResult = document.getElementById('toss-result');
-
-        // Spin the coin
-        let rotations = 0;
-        const spinInterval = setInterval(() => {
-            rotations += 180;
-            coinAnimation.style.transform = `rotateY(${rotations}deg)`;
-        }, 100);
-
-        // After 2 seconds, show result
-        setTimeout(() => {
-            clearInterval(spinInterval);
-
-            // Randomly select winning team
-            const winningTeam = teams[Math.floor(Math.random() * 2)];
-            tossStatus.style.display = 'none';
-            document.getElementById('winning-team').textContent = `${winningTeam.name} wins the toss!`;
-            tossResult.style.display = 'block';
-
-            // Add event listeners instead of inline onclick (better for mobile)
-            const batButton = document.getElementById('bat-first');
-            const bowlButton = document.getElementById('bowl-first');
-            const backButton = document.getElementById('back-to-toss');
-
-            // Remove any existing event listeners
-            batButton.replaceWith(batButton.cloneNode(true));
-            bowlButton.replaceWith(bowlButton.cloneNode(true));
-            backButton.replaceWith(backButton.cloneNode(true));
-
-            const newBatButton = document.getElementById('bat-first');
-            const newBowlButton = document.getElementById('bowl-first');
-            const newBackButton = document.getElementById('back-to-toss');
-
-            // Scroll to toss result
-            setTimeout(() => {
-                tossResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 100);
-
-            // Add mobile-friendly event listeners
-            ['click', 'touchend'].forEach(eventType => {
-                newBatButton.addEventListener(eventType, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    highlightChoice('bat-first');
-                    startMatchWithChoice(winningTeam, 'bat');
-                }, { passive: false });
-
-                newBowlButton.addEventListener(eventType, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    highlightChoice('bowl-first');
-                    startMatchWithChoice(winningTeam, 'bowl');
-                }, { passive: false });
-
-                newBackButton.addEventListener(eventType, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    backToToss();
-                }, { passive: false });
-            });
-
-        }, 2000);
-
-    } catch (error) {
-        console.error('❌ Error in startToss():', error);
-        showMessage('Error starting toss: ' + error.message, 'error');
-    }
-}
-
-function highlightChoice(chosenButtonId) {
-    // Highlight the chosen button and dim the other
-    const batButton = document.getElementById('bat-first');
-    const bowlButton = document.getElementById('bowl-first');
-
-    if (chosenButtonId === 'bat-first') {
-        batButton.style.background = '#16a34a';
-        batButton.style.transform = 'scale(1.05)';
-        batButton.style.boxShadow = '0 4px 15px rgba(34, 197, 94, 0.4)';
-        bowlButton.style.background = '#6b7280';
-        bowlButton.style.opacity = '0.6';
-    } else {
-        bowlButton.style.background = '#1d4ed8';
-        bowlButton.style.transform = 'scale(1.05)';
-        bowlButton.style.boxShadow = '0 4px 15px rgba(59, 130, 246, 0.4)';
-        batButton.style.background = '#6b7280';
-        batButton.style.opacity = '0.6';
-    }
-
-    batButton.disabled = true;
-    bowlButton.disabled = true;
-}
-
-function startMatchWithChoice(winningTeam, choice) {
-    const teams = getCurrentTeams();
-    const battingTeam = choice === 'bat' ? winningTeam : teams.find(t => t.id !== winningTeam.id);
-    const bowlingTeam = choice === 'bat' ? teams.find(t => t.id !== winningTeam.id) : winningTeam;
-
-    // Store toss result
-    localStorage.setItem('toss_result', JSON.stringify({
-        winningTeam: winningTeam.id,
-        choice: choice,
-        battingTeam: battingTeam.id,
-        bowlingTeam: bowlingTeam.id
-    }));
-
-    // Show player selection interface
-    showPlayerSelection(battingTeam, bowlingTeam);
-}
-
-function getCurrentTeams() {
-    try {
-        // First try the main app instance
-        if (window.cricketApp && window.cricketApp.teams && window.cricketApp.teams.length > 0) {
-            return window.cricketApp.teams;
-        }
-
-        // Fallback to global app
-        if (window.app && window.app.teams && window.app.teams.length > 0) {
-            return window.app.teams;
-        }
-
-        // Try localStorage as fallback
-        const teamsData = localStorage.getItem('cricket-teams');
-        if (teamsData) {
-            const teams = JSON.parse(teamsData);
-            if (teams && teams.length > 0) {
-                return teams;
-            }
-        }
-
-        return [];
-    } catch (error) {
-        console.error('Error getting current teams:', error);
-        return [];
-    }
-}
-
-// Player Selection Functions
-function showPlayerSelection(battingTeam, bowlingTeam) {
-    // Remove existing player selection if any
-    const existingSelection = document.getElementById('player-selection-container');
-    if (existingSelection) {
-        existingSelection.remove();
-    }
-
-    const tossContainer = document.getElementById('toss-result-container');
-
-    // Create player selection container
-    const playerSelectionContainer = document.createElement('div');
-    playerSelectionContainer.id = 'player-selection-container';
-    playerSelectionContainer.className = 'simple-team-box';
-    playerSelectionContainer.style.marginTop = '20px';
-
-    playerSelectionContainer.innerHTML = `
-        <div style="text-align: center;">
-            <h3 style="color: #22c55e; margin-bottom: 15px;">🏏 Select Opening Batsmen</h3>
-            <p style="color: rgba(255,255,255,0.8); margin-bottom: 20px;">${battingTeam.name} - Choose 2 batsmen</p>
-
-            <div id="selection-summary" class="selection-summary" style="display: none;">
-                <h4>Selected Players:</h4>
-                <div id="selected-players-list" class="selected-players"></div>
-            </div>
-
-            <div id="batsmen-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;">
-                ${battingTeam.players.map(player => `
-                    <button class="player-btn"
-                            onclick="toggleBatsmanSelection(${player.id}, '${player.name}')"
-                            data-player-id="${player.id}"
-                            style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.3s ease;">
-                        ${player.name}
-                    </button>
-                `).join('')}
-            </div>
-
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                <button onclick="backToToss()" style="background: #6b7280; border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
-                    ← Back
-                </button>
-                <button id="confirm-batsmen" onclick="showBowlerSelection()" disabled
-                        style="background: #22c55e; border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; opacity: 0.5;">
-                    Next →
-                </button>
-            </div>
-        </div>
-    `;
-
-    // Insert after toss container
-    tossContainer.parentNode.insertBefore(playerSelectionContainer, tossContainer.nextSibling);
-
-    // Store teams for later use
-    window.currentBattingTeam = battingTeam;
-    window.currentBowlingTeam = bowlingTeam;
-    window.selectedBatsmen = [];
-
-    // Scroll to player selection
-    setTimeout(() => {
-        playerSelectionContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
-}
-
-function toggleBatsmanSelection(playerId, playerName) {
-    setTimeout(() => {
-        // Fix type mismatch: try multiple ways to find the button
-        let button = document.querySelector(`[data-player-id="${playerId}"]`);
-        if (!button) {
-            // Try with .0 added
-            button = document.querySelector(`[data-player-id="${playerId}.0"]`);
-        }
-        if (!button) {
-            // Try converting to string and removing .0
-            const cleanId = String(playerId).replace('.0', '');
-            button = document.querySelector(`[data-player-id="${cleanId}"]`);
-        }
-        if (!button) {
-            const cleanId = String(playerId).replace('.0', '');
-            button = document.querySelector(`[data-player-id="${cleanId}.0"]`);
-        }
-
-        const confirmButton = document.getElementById('confirm-batsmen');
-        const summaryDiv = document.getElementById('selection-summary');
-        const selectedPlayersList = document.getElementById('selected-players-list');
-
-        // Check if button exists before accessing its properties
-        if (!button) {
-
-            const allButtons = document.querySelectorAll('[data-player-id]');
-            return;
-        }
-
-        if (window.selectedBatsmen.find(b => b.id === playerId)) {
-            window.selectedBatsmen = window.selectedBatsmen.filter(b => b.id !== playerId);
-            button.style.background = 'rgba(255,255,255,0.1)';
-            button.style.borderColor = 'rgba(255,255,255,0.3)';
-            button.style.transform = 'scale(1)';
-        } else {
-            if (window.selectedBatsmen.length < 2) {
-                // Select
-                window.selectedBatsmen.push({id: playerId, name: playerName});
-                button.style.background = '#22c55e';
-                button.style.borderColor = '#22c55e';
-                button.style.transform = 'scale(1.05)';
-            }
-        }
-
-        if (window.selectedBatsmen.length > 0) {
-            if (summaryDiv) {
-                summaryDiv.style.display = 'block';
-            }
-            if (selectedPlayersList) {
-                selectedPlayersList.innerHTML = window.selectedBatsmen.map(player =>
-                    `<span class="selected-player">${player.name}</span>`
-                ).join('');
-            }
-        } else {
-            if (summaryDiv) {
-                summaryDiv.style.display = 'none';
-            }
-        }
-
-        if (confirmButton) {
-            if (window.selectedBatsmen.length === 2) {
-                confirmButton.disabled = false;
-                confirmButton.style.opacity = '1';
-            } else {
-                confirmButton.disabled = true;
-                confirmButton.style.opacity = '0.5';
-            }
-        }
-    }, 10); // Small delay to ensure DOM is ready
-}
-
-function showBowlerSelection() {
-    // Remove existing bowler selection if any
-    const existingBowlerSelection = document.getElementById('bowler-selection-container');
-    if (existingBowlerSelection) {
-        existingBowlerSelection.remove();
-    }
-
-    const playerSelectionContainer = document.getElementById('player-selection-container');
-
-    // Create bowler selection container
-    const bowlerSelectionContainer = document.createElement('div');
-    bowlerSelectionContainer.id = 'bowler-selection-container';
-    bowlerSelectionContainer.className = 'simple-team-box';
-    bowlerSelectionContainer.style.marginTop = '20px';
-
-    bowlerSelectionContainer.innerHTML = `
-        <div style="text-align: center;">
-            <h3 style="color: #1d4ed8; margin-bottom: 15px;">⚾ Select Opening Bowler</h3>
-            <p style="color: rgba(255,255,255,0.8); margin-bottom: 20px;">${window.currentBowlingTeam.name} - Choose 1 bowler</p>
-
-            <div id="bowler-summary" class="selection-summary" style="display: none;">
-                <h4 style="color: #1d4ed8;">Selected Bowler:</h4>
-                <div id="selected-bowler-name" class="selected-players"></div>
-            </div>
-
-            <div id="bowler-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;">
-                ${window.currentBowlingTeam.players.map(player => `
-                    <button class="bowler-btn"
-                            onclick="selectBowler(${player.id}, '${player.name}')"
-                            data-player-id="${player.id}"
-                            style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.3s ease;">
-                        ${player.name}
-                    </button>
-                `).join('')}
-            </div>
-
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                <button onclick="backToBatsmenSelection()" style="background: #6b7280; border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
-                    ← Back
-                </button>
-                <button id="start-match" onclick="startMatchWithPlayers()" disabled
-                        style="background: #22c55e; border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; opacity: 0.5;">
-                    Start Match
-                </button>
-            </div>
-        </div>
-    `;
-
-    // Insert after player selection container
-    playerSelectionContainer.parentNode.insertBefore(bowlerSelectionContainer, playerSelectionContainer.nextSibling);
-
-    window.selectedBowler = null;
-
-    // Scroll to bowler selection
-    setTimeout(() => {
-        bowlerSelectionContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
-}
-
-function selectBowler(playerId, playerName) {
-    // Clear previous selection
-    document.querySelectorAll('.bowler-btn').forEach(btn => {
-        btn.style.background = 'rgba(255,255,255,0.1)';
-        btn.style.borderColor = 'rgba(255,255,255,0.3)';
-        btn.style.transform = 'scale(1)';
-    });
-
-    // Highlight selected bowler with darker blue
-    const button = document.querySelector(`[data-player-id="${playerId}"]`);
-    button.style.background = '#1d4ed8';
-    button.style.borderColor = '#1d4ed8';
-    button.style.transform = 'scale(1.05)';
-
-    window.selectedBowler = {id: playerId, name: playerName};
-
-    const bowlerSummary = document.getElementById('bowler-summary');
-    const selectedBowlerName = document.getElementById('selected-bowler-name');
-    bowlerSummary.style.display = 'block';
-    selectedBowlerName.innerHTML = `<span class="selected-player" style="background: rgba(29, 78, 216, 0.2); border-color: #1d4ed8; color: #1d4ed8;">${playerName}</span>`;
-
-    const startButton = document.getElementById('start-match');
-    startButton.disabled = false;
-    startButton.style.opacity = '1';
-}
-
-function backToToss() {
-    // Remove player selection
-    const playerSelection = document.getElementById('player-selection-container');
-    if (playerSelection) {
-        playerSelection.remove();
-    }
-
-    // Remove bowler selection
-    const bowlerSelection = document.getElementById('bowler-selection-container');
-    if (bowlerSelection) {
-        bowlerSelection.remove();
-    }
-
-    // Show toss button again and remove toss result
-    const tossButton = document.querySelector('.toss-btn');
-    const tossResult = document.getElementById('toss-result-container');
-
-    if (tossButton) {
-        tossButton.style.display = 'block';
-    }
-
-    if (tossResult) {
-        tossResult.remove();
-    }
-
-    // Clear stored data
-    localStorage.removeItem('toss_result');
-    window.selectedBatsmen = [];
-    window.selectedBowler = null;
-}
-
-function backToBatsmenSelection() {
-    // Remove bowler selection
-    const bowlerSelection = document.getElementById('bowler-selection-container');
-    if (bowlerSelection) {
-        bowlerSelection.remove();
-    }
-
-    // Reset bowler selection
-    window.selectedBowler = null;
-
-    // Re-highlight the selected batsmen
-    setTimeout(() => {
-        window.selectedBatsmen.forEach(batsman => {
-            const button = document.querySelector(`[data-player-id="${batsman.id}"]`);
-            if (button) {
-                button.style.background = '#22c55e';
-                button.style.borderColor = '#22c55e';
-                button.style.transform = 'scale(1.05)';
-            }
-        });
-
-        const summaryDiv = document.getElementById('selection-summary');
-        const selectedPlayersList = document.getElementById('selected-players-list');
-        if (window.selectedBatsmen.length > 0) {
-            summaryDiv.style.display = 'block';
-            selectedPlayersList.innerHTML = window.selectedBatsmen.map(player =>
-                `<span class="selected-player">${player.name}</span>`
-            ).join('');
-        }
-
-        const confirmButton = document.getElementById('confirm-batsmen');
-        if (window.selectedBatsmen.length === 2) {
-            confirmButton.disabled = false;
-            confirmButton.style.opacity = '1';
-        }
-    }, 100);
-}
-
-function startMatchWithPlayers() {
-    if (window.cricketApp) {
-        const completedMatchCount = window.cricketApp.matches ? window.cricketApp.matches.filter(m =>
-            m.Status === 'Completed' || m.status === 'completed' || m.ended || m.Game_Finish_Time
-        ).length : 0;
-
-        // Keep only active/incomplete matches (if any)
-        window.cricketApp.matches = window.cricketApp.matches ? window.cricketApp.matches.filter(m =>
-            !(m.Status === 'Completed' || m.status === 'completed' || m.ended || m.Game_Finish_Time)
-        ) : [];
-
-        // Save the cleaned state to localStorage (without completed matches)
-        window.cricketApp.saveData(false);
-    }
-
-    if (window.currentBattingTeam) {
-        }
-
-    if (window.currentBowlingTeam) {
-        }
-
-    if (!window.selectedBatsmen || window.selectedBatsmen.length !== 2) {
-        showMessage('Please select 2 batsmen!', 'error');
-        return;
-    }
-
-    if (!window.selectedBowler) {
-        showMessage('Please select 1 bowler!', 'error');
-        return;
-    }
-
-    // Store player selections
-    const matchSetup = {
-        battingTeam: window.currentBattingTeam,
-        bowlingTeam: window.currentBowlingTeam,
-        striker: window.selectedBatsmen[0],
-        nonStriker: window.selectedBatsmen[1],
-        bowler: window.selectedBowler
-    };
-
-    localStorage.setItem('match_setup', JSON.stringify(matchSetup));
-
-    try {
-        // Hide all content sections
-        document.querySelectorAll('.content').forEach(section => {
-            section.classList.remove('active');
-            section.style.display = 'none';
-        });
-
-        // Show scoring section
-        const scoringSection = document.getElementById('scoring');
-        if (scoringSection) {
-            scoringSection.classList.add('active');
-            scoringSection.style.display = 'block';
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.classList.remove('active');
-            });
-
-            const scoringNavItem = document.querySelector('a[onclick="showPage(\'scoring\')"]');
-            if (scoringNavItem) {
-                scoringNavItem.classList.add('active');
-            }
-
-            const navTitle = document.getElementById('navTitle');
-            if (navTitle) {
-                navTitle.textContent = 'Live Scoring';
-            }
-
-        } else {
-            // List all available content sections
-            const allContent = document.querySelectorAll('.content');
-            console.log('Available content sections:', 
-                Array.from(allContent).map(c => c.id || 'no-id'));
-        }
-    } catch (error) {
-        console.error('Error showing scoring section:', error);
-    }
-
-    // Show success message after switching
-    showMessage(`Match starting! ${matchSetup.striker.name} and ${matchSetup.nonStriker.name} are batting. ${matchSetup.bowler.name} is bowling.`, 'success');
-
-    // Start the match after a short delay to let the tab switch complete
-    setTimeout(() => {
-        try {
-            // Verify cricketApp exists before calling
-            if (!window.cricketApp) {
-                return;
-            }
-
-            startMatchWithTeam(window.currentBattingTeam.id);
-
-            // Scroll to top of the page after match starts - multiple methods for reliability
-            // Method 1: Smooth scroll
-            try {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                window.scrollTo(0, 0);
-            } catch (scrollError) {
-                console.error('Error scrolling:', scrollError);
-            }
-
-            // Method 2: Also scroll the scoring section itself
-            setTimeout(() => {
-                const scoringSection = document.getElementById('scoring');
-                if (scoringSection) {
-                    scoringSection.scrollTop = 0;
-                }
-
-                // Method 3: Scroll document body
-                document.body.scrollTop = 0;
-                document.documentElement.scrollTop = 0;
-            }, 100);
-
-            // Force update of all scoring interface elements
-            setTimeout(() => {
-                if (window.cricketApp && window.cricketApp.currentMatch) {
-                    window.cricketApp.updateScoreDisplay();
-
-                    const currentMatch = window.cricketApp.currentMatch;
-                    const currentTeamScore = currentMatch.currentTeam === 1 ?
-                        currentMatch.team1Score : currentMatch.team2Score;
-
-                    const currentTeamEl = document.getElementById('currentTeam');
-                    if (currentTeamEl && currentMatch.team1) {
-                        currentTeamEl.textContent = currentMatch.team1.name;
-                    } else {
-                        console.log('Could not update current team display');
-                    }
-
-                    const strikerNameEl = document.getElementById('strikerName');
-                    const nonStrikerNameEl = document.getElementById('nonStrikerName');
-                    const bowlerNameEl = document.getElementById('bowlerName');
-
-                    if (strikerNameEl && currentTeamScore.striker) {
-                        strikerNameEl.textContent = currentTeamScore.striker.name;
-                    } else {
-                        console.log('Could not update striker name');
-                    }
-
-                    if (nonStrikerNameEl && currentTeamScore.nonStriker) {
-                        nonStrikerNameEl.textContent = currentTeamScore.nonStriker.name;
-                    } else {
-                        console.log('Could not update non-striker name');
-                    }
-
-                    if (bowlerNameEl && currentMatch.bowler) {
-                        bowlerNameEl.textContent = currentMatch.bowler.name;
-                    } else {
-                        console.log('Could not update bowler name');
-                    }
-                } else {
-                    console.log('Cricket app or current match not available');
-                }
-            }, 200);
-
-        } catch (error) {
-            console.error('Error starting match:', error);
-        }
-    }, 100);
-}
 
 function addExtras(extraType, runs = 1) {
     if (window.cricketApp) {

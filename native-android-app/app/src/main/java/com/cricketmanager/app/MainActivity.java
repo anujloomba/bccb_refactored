@@ -2,30 +2,49 @@ package com.cricketmanager.app;
 
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.util.Base64;
+import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.webkit.WebChromeClient;
-import android.webkit.ValueCallback;
-import android.webkit.JavascriptInterface;
-import android.content.Intent;
-import android.net.Uri;
-import android.os.Build;
-import android.util.Log;
-import android.util.Base64;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 public class MainActivity extends Activity {
+    private static final String TAG = "CricketApp";
     private static final int SCORECARD_FILE_CHOOSER_REQUEST = 1001;
+    private static final int FIRST_PERMISSION_REQUEST = 2000;
     private static final int MAX_SHARED_SCORECARD_BYTES = 10 * 1024 * 1024;
     private static final int SHARED_SCORECARD_CHUNK_BYTES = 192 * 1024;
+
+    private static WeakReference<MainActivity> current = new WeakReference<>(null);
+
+    interface PermissionCallback {
+        void onResult(boolean granted);
+    }
 
     private WebView webView;
     private ValueCallback<Uri[]> scorecardFileCallback;
@@ -33,39 +52,176 @@ public class MainActivity extends Activity {
     private String pendingSharedScorecardName;
     private byte[] pendingSharedScorecardBytes;
     private boolean pageLoaded;
-    private static final String URL = "https://anujloomba.github.io/bccb_refactored/";
-    
+    private String launchRoute;
+    private final List<String[]> pendingEvents = new ArrayList<>();
+    private final Map<Integer, PermissionCallback> permissionCallbacks = new HashMap<>();
+    private int nextPermissionRequest = FIRST_PERMISSION_REQUEST;
+    private OnBackInvokedCallback backCallback;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        // Make the activity fullscreen
+        current = new WeakReference<>(this);
+
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                           WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        
-        // Hide navigation bar and status bar for true fullscreen
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        applyImmersiveMode();
+
+        setContentView(R.layout.activity_main);
+        Notifications.ensureChannels(this);
+
+        webView = findViewById(R.id.webview);
+        setupWebView();
+        registerBackHandling();
+        TripState.setListener(status -> emit("tripStatus", status));
+        handleIntent(getIntent(), true);
+
+        // The web app is bundled in the APK so it works offline.
+        webView.loadUrl("file:///android_asset/index.html");
+    }
+
+    private void applyImmersiveMode() {
+        getWindow().getDecorView().setSystemUiVisibility(
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+        );
+    }
+
+    // ---- Events and callbacks for window.BCCBNative ----
+
+    static void emitIfAlive(String event, JSONObject payload) {
+        MainActivity activity = current.get();
+        if (activity != null && !activity.isFinishing()) {
+            activity.runOnUiThread(() -> activity.emit(event, payload));
+        }
+    }
+
+    void emit(String event, JSONObject payload) {
+        String json = payload == null ? "{}" : payload.toString();
+        if (!pageLoaded) {
+            pendingEvents.add(new String[]{event, json});
+            return;
+        }
+        webView.evaluateJavascript(
+            "window.__bccbNativeEmit && window.__bccbNativeEmit(" + JSONObject.quote(event) + "," + JSONObject.quote(json) + ");",
+            null
+        );
+    }
+
+    private void flushPendingEvents() {
+        List<String[]> events = new ArrayList<>(pendingEvents);
+        pendingEvents.clear();
+        for (String[] event : events) {
+            webView.evaluateJavascript(
+                "window.__bccbNativeEmit && window.__bccbNativeEmit(" + JSONObject.quote(event[0]) + "," + JSONObject.quote(event[1]) + ");",
+                null
             );
         }
-        
-        setContentView(R.layout.activity_main);
-        
-        webView = findViewById(R.id.webview);
-        setupWebView();
-        handleSharedScorecardIntent(getIntent());
-        
-        // Load the cricket app
-        // Load the web app from embedded assets (standalone/offline)
-        webView.loadUrl("file:///android_asset/index.html");
     }
+
+    void resolve(String callbackId, JSONObject payload) {
+        complete(callbackId, true, payload == null ? new JSONObject() : payload);
+    }
+
+    void reject(String callbackId, String code, String message) {
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("code", code).put("message", message);
+        } catch (JSONException exception) {
+            Log.w(TAG, "Could not build an error payload", exception);
+        }
+        complete(callbackId, false, payload);
+    }
+
+    private void complete(String callbackId, boolean ok, JSONObject payload) {
+        if (callbackId == null) {
+            return;
+        }
+        String script = "window.__bccbNativeResolve && window.__bccbNativeResolve("
+            + JSONObject.quote(callbackId) + "," + ok + "," + JSONObject.quote(payload.toString()) + ");";
+        runOnUiThread(() -> webView.evaluateJavascript(script, null));
+    }
+
+    void requestRuntimePermissions(String[] permissions, PermissionCallback callback) {
+        int requestCode = nextPermissionRequest++;
+        permissionCallbacks.put(requestCode, callback);
+        requestPermissions(permissions, requestCode);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        PermissionCallback callback = permissionCallbacks.remove(requestCode);
+        if (callback == null) {
+            return;
+        }
+        boolean granted = false;
+        for (int result : grantResults) {
+            granted |= result == PackageManager.PERMISSION_GRANTED;
+        }
+        callback.onResult(granted);
+    }
+
+    // ---- Intents: shared PDFs, deep links, and notification taps ----
+
+    private void handleIntent(Intent intent, boolean coldStart) {
+        if (intent == null) {
+            return;
+        }
+        if (Intent.ACTION_SEND.equals(intent.getAction()) && isPdfShare(intent)) {
+            handleSharedScorecardIntent(intent);
+            return;
+        }
+
+        String notificationAction = intent.getStringExtra(Notifications.EXTRA_ACTION);
+        if (notificationAction != null) {
+            try {
+                emit("notificationAction", new JSONObject()
+                    .put("action", notificationAction)
+                    .put("type", intent.getStringExtra(Notifications.EXTRA_TYPE))
+                    .put("groupId", intent.getLongExtra(Notifications.EXTRA_GROUP_ID, 0))
+                    .put("gameDayId", intent.getStringExtra(Notifications.EXTRA_GAME_DAY_ID))
+                    .put("route", intent.getStringExtra(Notifications.EXTRA_ROUTE)));
+            } catch (JSONException exception) {
+                Log.w(TAG, "Could not read the notification", exception);
+            }
+            intent.removeExtra(Notifications.EXTRA_ACTION);
+            return;
+        }
+
+        Uri data = intent.getData();
+        if (Intent.ACTION_VIEW.equals(intent.getAction()) && data != null && "bccb".equals(data.getScheme())) {
+            String route = data.toString();
+            if (coldStart) {
+                launchRoute = route;
+            } else {
+                try {
+                    emit("deepLink", new JSONObject().put("route", route));
+                } catch (JSONException exception) {
+                    Log.w(TAG, "Could not read the link", exception);
+                }
+            }
+        }
+    }
+
+    String consumeLaunchRoute() {
+        String route = launchRoute;
+        launchRoute = null;
+        return route;
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIntent(intent, false);
+    }
+
+    // ---- Shared scorecard PDFs (legacy synchronous bridge) ----
 
     @SuppressWarnings("deprecation")
     private Uri getSharedScorecardUri(Intent intent) {
@@ -78,54 +234,26 @@ public class MainActivity extends Activity {
 
     private boolean isPdfShare(Intent intent) {
         String mimeType = intent.getType();
-        return "application/pdf".equalsIgnoreCase(mimeType)
-            || "application/x-pdf".equalsIgnoreCase(mimeType);
+        return "application/pdf".equalsIgnoreCase(mimeType) || "application/x-pdf".equalsIgnoreCase(mimeType);
     }
 
     private synchronized void handleSharedScorecardIntent(Intent intent) {
-        if (!Intent.ACTION_SEND.equals(intent.getAction()) || !isPdfShare(intent)) {
-            return;
-        }
-
         Uri sharedUri = getSharedScorecardUri(intent);
         if (sharedUri == null) {
-            Log.w("CricketApp", "PDF share intent did not include a content URI");
+            Log.w(TAG, "PDF share intent did not include a content URI");
             return;
         }
 
         clearSharedScorecard();
         pendingSharedScorecardUri = sharedUri;
         String lastPathSegment = sharedUri.getLastPathSegment();
-        pendingSharedScorecardName = lastPathSegment != null
-            && lastPathSegment.toLowerCase().endsWith(".pdf")
+        pendingSharedScorecardName = lastPathSegment != null && lastPathSegment.toLowerCase(Locale.ROOT).endsWith(".pdf")
             ? lastPathSegment
             : "shared-scorecard.pdf";
-        notifyWebAppOfSharedScorecard();
+        emit("sharedFile", new JSONObject());
     }
 
-    private synchronized boolean hasSharedScorecard() {
-        return pendingSharedScorecardUri != null || pendingSharedScorecardBytes != null;
-    }
-
-    private void notifyWebAppOfSharedScorecard() {
-        if (!pageLoaded || !hasSharedScorecard()) {
-            return;
-        }
-
-        webView.post(() -> webView.evaluateJavascript(
-            "(function deliverSharedScorecard(attempt) {"
-                + "if (window.cricketApp && typeof window.cricketApp.receiveSharedScorecard === 'function') {"
-                + "window.cricketApp.receiveSharedScorecard(); return;"
-                + "}"
-                + "if (attempt < 20) {"
-                + "window.setTimeout(function() { deliverSharedScorecard(attempt + 1); }, 100);"
-                + "}"
-                + "})(0);",
-            null
-        ));
-    }
-
-    private synchronized String prepareSharedScorecard() {
+    synchronized String prepareSharedScorecard() {
         if (pendingSharedScorecardBytes != null) {
             return "";
         }
@@ -162,29 +290,28 @@ public class MainActivity extends Activity {
             pendingSharedScorecardUri = null;
             return "";
         } catch (IOException | SecurityException exception) {
-            Log.e("CricketApp", "Could not read shared scorecard", exception);
+            Log.e(TAG, "Could not read shared scorecard", exception);
             clearSharedScorecard();
             return "The shared PDF could not be read.";
         }
     }
 
-    private synchronized String getSharedScorecardName() {
+    synchronized String getSharedScorecardName() {
         return pendingSharedScorecardName == null ? "shared-scorecard.pdf" : pendingSharedScorecardName;
     }
 
-    private synchronized int getSharedScorecardSize() {
+    synchronized int getSharedScorecardSize() {
         return pendingSharedScorecardBytes == null ? 0 : pendingSharedScorecardBytes.length;
     }
 
-    private synchronized int getSharedScorecardChunkCount() {
+    synchronized int getSharedScorecardChunkCount() {
         if (pendingSharedScorecardBytes == null) {
             return 0;
         }
-        return (pendingSharedScorecardBytes.length + SHARED_SCORECARD_CHUNK_BYTES - 1)
-            / SHARED_SCORECARD_CHUNK_BYTES;
+        return (pendingSharedScorecardBytes.length + SHARED_SCORECARD_CHUNK_BYTES - 1) / SHARED_SCORECARD_CHUNK_BYTES;
     }
 
-    private synchronized String getSharedScorecardChunk(int index) {
+    synchronized String getSharedScorecardChunk(int index) {
         if (pendingSharedScorecardBytes == null || index < 0) {
             return "";
         }
@@ -192,96 +319,69 @@ public class MainActivity extends Activity {
         if (start >= pendingSharedScorecardBytes.length) {
             return "";
         }
-        int length = Math.min(
-            SHARED_SCORECARD_CHUNK_BYTES,
-            pendingSharedScorecardBytes.length - start
-        );
-        return Base64.encodeToString(
-            pendingSharedScorecardBytes,
-            start,
-            length,
-            Base64.NO_WRAP
-        );
+        int length = Math.min(SHARED_SCORECARD_CHUNK_BYTES, pendingSharedScorecardBytes.length - start);
+        return Base64.encodeToString(pendingSharedScorecardBytes, start, length, Base64.NO_WRAP);
     }
 
-    private synchronized void clearSharedScorecard() {
+    synchronized void clearSharedScorecard() {
         pendingSharedScorecardUri = null;
         pendingSharedScorecardName = null;
         pendingSharedScorecardBytes = null;
     }
-    
+
+    // ---- WebView ----
+
     private void setupWebView() {
         WebSettings webSettings = webView.getSettings();
-        
-        // Enable JavaScript
         webSettings.setJavaScriptEnabled(true);
-        
-        // Enable remote debugging for development
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            WebView.setWebContentsDebuggingEnabled(true);
-        }
-        
-        // Enable local storage
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG);
         webSettings.setDomStorageEnabled(true);
         webSettings.setDatabaseEnabled(true);
-        
-        // Allow mixed content
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        }
-        
-        // Set user agent to include app identifier
-        String userAgent = webSettings.getUserAgentString();
-        webSettings.setUserAgentString(userAgent + " CricketManagerApp/" + BuildConfig.VERSION_NAME);
-        
-        // Add JavaScript interface for debugging
-        webView.addJavascriptInterface(new WebViewInterface(), "AndroidInterface");
-        
-        // Enable zoom controls
+        webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        webSettings.setUserAgentString(webSettings.getUserAgentString() + " CricketManagerApp/" + BuildConfig.VERSION_NAME);
+        webView.addJavascriptInterface(new NativeBridge(this), "AndroidInterface");
         webSettings.setSupportZoom(true);
         webSettings.setBuiltInZoomControls(true);
         webSettings.setDisplayZoomControls(false);
-        
-        // Set web view client to handle navigation
+
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                // Keep navigation within the app for your domain
-                if (url.startsWith("https://anujloomba.github.io/")) {
-                    return false; // Let WebView handle it
+                if (url.startsWith("file:///android_asset/")) {
+                    return false;
                 }
-                // Open external links in browser
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                startActivity(intent);
+                if (url.startsWith("bccb://")) {
+                    try {
+                        emit("deepLink", new JSONObject().put("route", url));
+                    } catch (JSONException exception) {
+                        Log.w(TAG, "Could not open the link", exception);
+                    }
+                    return true;
+                }
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                } catch (ActivityNotFoundException exception) {
+                    Log.w(TAG, "No app can open " + url, exception);
+                }
                 return true;
             }
-            
+
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 pageLoaded = true;
-                // Hide any remaining browser UI elements
                 view.evaluateJavascript(
-                    "document.querySelector('meta[name=viewport]').setAttribute('content', " +
-                    "'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');", null);
-                notifyWebAppOfSharedScorecard();
+                    "document.querySelector('meta[name=viewport]').setAttribute('content', "
+                        + "'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');",
+                    null
+                );
+                flushPendingEvents();
             }
         });
-        
-        // Set web chrome client for better app experience
+
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
-            public void onProgressChanged(WebView view, int newProgress) {
-                super.onProgressChanged(view, newProgress);
-                // You can add a progress bar here if needed
-            }
-
-            @Override
-            public boolean onShowFileChooser(
-                WebView view,
-                ValueCallback<Uri[]> filePathCallback,
-                FileChooserParams fileChooserParams
-            ) {
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
                 if (scorecardFileCallback != null) {
                     scorecardFileCallback.onReceiveValue(null);
                 }
@@ -292,13 +392,10 @@ public class MainActivity extends Activity {
                 selectScorecard.setType("application/pdf");
 
                 try {
-                    startActivityForResult(
-                        Intent.createChooser(selectScorecard, "Select a scorecard PDF"),
-                        SCORECARD_FILE_CHOOSER_REQUEST
-                    );
+                    startActivityForResult(Intent.createChooser(selectScorecard, "Select a scorecard PDF"), SCORECARD_FILE_CHOOSER_REQUEST);
                     return true;
                 } catch (ActivityNotFoundException exception) {
-                    Log.e("CricketApp", "No file picker is available", exception);
+                    Log.e(TAG, "No file picker is available", exception);
                     scorecardFileCallback.onReceiveValue(null);
                     scorecardFileCallback = null;
                     return false;
@@ -313,43 +410,46 @@ public class MainActivity extends Activity {
         if (requestCode != SCORECARD_FILE_CHOOSER_REQUEST || scorecardFileCallback == null) {
             return;
         }
-
-        scorecardFileCallback.onReceiveValue(
-            WebChromeClient.FileChooserParams.parseResult(resultCode, data)
-        );
+        scorecardFileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
         scorecardFileCallback = null;
     }
 
-    @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        setIntent(intent);
-        handleSharedScorecardIntent(intent);
-    }
-    
-    @Override
-    public void onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
+    // ---- Back navigation (Android 13+ uses OnBackInvokedCallback; Android 16 requires it) ----
+
+    private void registerBackHandling() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            backCallback = this::handleBack;
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, backCallback);
         }
     }
-    
+
+    private void handleBack() {
+        if (webView.canGoBack()) {
+            webView.goBack();
+            return;
+        }
+        webView.evaluateJavascript(
+            "(function(){ return !!(window.BCCBHandleBack && window.BCCBHandleBack()); })();",
+            handled -> {
+                if (!"true".equals(handled)) {
+                    moveTaskToBack(true);
+                }
+            }
+        );
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        handleBack();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
-        // Maintain fullscreen when app resumes
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-            );
-        }
+        current = new WeakReference<>(this);
+        applyImmersiveMode();
+        emit("resume", new JSONObject());
     }
 
     @Override
@@ -358,50 +458,14 @@ public class MainActivity extends Activity {
             scorecardFileCallback.onReceiveValue(null);
             scorecardFileCallback = null;
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backCallback != null) {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
+        }
+        TripState.setListener(null);
         clearSharedScorecard();
+        if (current.get() == this) {
+            current = new WeakReference<>(null);
+        }
         super.onDestroy();
-    }
-    
-    // JavaScript Interface for debugging and communication
-    private class WebViewInterface {
-        @JavascriptInterface
-        public void logMessage(String message) {
-            Log.d("CricketApp", "JS: " + message);
-        }
-        
-        @JavascriptInterface
-        public void logError(String error) {
-            Log.e("CricketApp", "JS Error: " + error);
-        }
-
-        @JavascriptInterface
-        public String prepareSharedScorecard() {
-            return MainActivity.this.prepareSharedScorecard();
-        }
-
-        @JavascriptInterface
-        public String getSharedScorecardName() {
-            return MainActivity.this.getSharedScorecardName();
-        }
-
-        @JavascriptInterface
-        public int getSharedScorecardSize() {
-            return MainActivity.this.getSharedScorecardSize();
-        }
-
-        @JavascriptInterface
-        public int getSharedScorecardChunkCount() {
-            return MainActivity.this.getSharedScorecardChunkCount();
-        }
-
-        @JavascriptInterface
-        public String getSharedScorecardChunk(int index) {
-            return MainActivity.this.getSharedScorecardChunk(index);
-        }
-
-        @JavascriptInterface
-        public void clearSharedScorecard() {
-            MainActivity.this.clearSharedScorecard();
-        }
     }
 }

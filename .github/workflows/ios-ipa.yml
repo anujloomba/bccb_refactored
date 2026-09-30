@@ -23,7 +23,8 @@ permissions:
 jobs:
   build-signed-ipa:
     name: Archive and export signed IPA
-    runs-on: macos-latest
+    # Xcode 26 is required for AlarmKit, which provides real game-day alarms on iOS 26+.
+    runs-on: macos-26
     defaults:
       run:
         working-directory: native-ios-app
@@ -44,6 +45,17 @@ jobs:
 
       - name: Synchronize shared web assets
         run: npm run sync:ios
+
+      - name: Add Firebase configuration
+        env:
+          IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+        run: |
+          if [ -z "$IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64" ]; then
+            echo "::warning::IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64 is not set. This IPA will not receive Game Day push notifications."
+            exit 0
+          fi
+          printf '%s' "$IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 -D > ios/App/App/GoogleService-Info.plist
+          plutil -lint ios/App/App/GoogleService-Info.plist
 
       - name: Validate signing secrets
         env:

@@ -5,6 +5,37 @@ All notable changes to BCCB Cricket Manager will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - Unreleased
+
+### Added
+- **The toss is back.** Confirmed or saved teams show an animated coin with each captain's initials. The winning captain chooses to bat or bowl. The result is saved per group, and administrators share it with everyone on Game Day and the Home screen.
+- **Game Day.** Administrators schedule a game with its date, start time, reach-by time, venue (search, tap to drop a pin, or use the current location), and notes, then edit, cancel, or nudge players who haven't replied.
+- Every signed-in phone in the group gets a push invite with In / Maybe / Out buttons. Android saves the reply straight from the notification; iOS opens the app and saves it.
+- Everyone sees live counts, a tally bar, and who has replied. Players link their phone to their roster name once, and administrators can reset a wrong link.
+- **Smart game-day alarm.** The evening before (7 PM at the venue's local time), players who are in get a reminder. One tap reads their current location, estimates the drive with OpenRouteService (with a distance-based fallback), and recommends an alarm: reach-by time − drive − getting-ready time (45 minutes by default, adjustable). A time-to-leave nudge follows.
+  - Android: an exact system alarm-clock alarm with Stop and Start trip actions, with a hand-off to the Clock app if exact alarms are not allowed.
+  - iOS 26+: an AlarmKit system alarm with a Start trip button. Earlier iOS versions use an alarm-tone notification with follow-ups.
+  - Changing your reply or a cancelled game removes the alarm, and edited times prompt an update.
+- **Live trip map.** Players tap Start trip to share their location until they arrive, stop, or an hour after the start. A themed map shows the venue, each traveller's position and ETA, arrivals, and who hasn't left yet. Sharing runs as an Android location foreground service and as background location updates with the location indicator on iOS. The server keeps only each player's latest position and deletes it after the game.
+- Game Day tab and Next game card on Home, plus Game Day settings: player link, notification and alarm status, and leaving Game Day on a phone.
+- `bccb://` deep links on both platforms (`bccb://game-day/{id}[/alarm|/trip]`, `bccb://page/{page}`).
+- iOS can now open shared PDF scorecards ("Open in BCCB Cricket"), matching the Android share target.
+- Cloudflare Worker: device registration with hashed per-device secrets, game day, reply, toss, route, trip, and venue-search APIs, Firebase Cloud Messaging HTTP v1 delivery, and a 15-minute cron for reminders and trip clean-up. Migration `DB/migrations/20261001_add_game_day.sql` adds the new tables.
+- One shared native bridge contract (`tools/native-bridge-contract.json`) implemented by the Android and iOS shells. `tools/check-native-parity.mjs` fails CI if methods, events, notification actions, permissions, link schemes, or versions drift between the platforms.
+- CI workflow for parity, Game Day logic tests, Worker tests, and the Android build, lint, and R8. The iOS verification workflow now builds on `macos-26` and captures simulator screenshots.
+
+### Changed
+- Android targets and compiles against API 36 (required for Google Play updates from 31 August 2026), uses Android Gradle Plugin 8.10.1 with Gradle 8.11.1 and Java 17, and raises the minimum to Android 6.0 (API 23) for Firebase.
+- Android back navigation uses `OnBackInvokedCallback`, which Android 16 requires: back closes sheets, then returns Home, then leaves the app.
+- Android WebView debugging is enabled only in debug builds, and mixed content is blocked.
+- iOS uses Capacitor 8.5.2 and is iPhone-only and portrait-only (matching Android), requires arm64, declares export compliance, and includes a privacy manifest.
+- Shared PDF imports go through the same native bridge on both platforms.
+- Advanced Android to version 2.2.0 (versionCode 19) and iOS to 2.2.0 (build 19).
+- The privacy policy now describes cloud sync, Game Day, location, push notifications, and service providers.
+
+### Removed
+- The old toss-to-opening-batters chain that led into the retired live-scoring screens.
+
 ## [2.1.2] - Unreleased
 
 ### Added

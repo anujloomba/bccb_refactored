@@ -18,6 +18,13 @@
 		"enabled": true
 	},
 	/**
+	 * Game Day reminders and live-trip cleanup run every 15 minutes.
+	 * Secrets (set with `wrangler secret put`): FCM_SERVICE_ACCOUNT_JSON, ORS_API_KEY, optional NOMINATIM_EMAIL.
+	 */
+	"triggers": {
+		"crons": ["*/15 * * * *"]
+	},
+	/**
 	 * D1 Database Binding
 	 */
 	"d1_databases": [
