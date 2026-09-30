@@ -80,6 +80,6 @@ We will update this policy when the app's data practices change and show the new
 
 ## Contact
 
-**Email**: [YOUR_EMAIL@example.com]
+**Email**: [anujloomba@gmail.com](mailto:anujloomba@gmail.com)
 
-**Developer**: [YOUR NAME/COMPANY]
+**Developer**: Anuj Kumar Loomba

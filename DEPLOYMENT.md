@@ -111,7 +111,7 @@ Before publishing, increment `versionCode` and `versionName` in `native-android-
 - **Location permissions:** the app requests only foreground (while-in-use) location, so no background-location declaration is needed.
 - **Exact alarms:** the app requests `SCHEDULE_EXACT_ALARM` (granted by the user under *Alarms & reminders*) for the user-set game-day wake-up alarm. It does not use `USE_EXACT_ALARM` or full-screen intents.
 - **Data safety:** declare precise location (app functionality, shared with group members, not used for tracking), device or other IDs (device registration and push token), name (roster name), and other user-generated content (game replies). Data is encrypted in transit, and users can request deletion ("Leave Game Day on this device").
-- **Privacy policy:** publish the updated `privacy-policy.html` and replace its contact placeholders first.
+- **Privacy policy URL:** `https://anujloomba.github.io/bccb_refactored/privacy-policy.html`. GitHub Pages publishes `privacy-policy.html` from `main`, so the 2.2.0 policy goes live when this release is merged.
 
 ## iOS build and App Store release
 

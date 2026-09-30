@@ -40,7 +40,7 @@ npm run open:ios      # opens ios/App/App.xcodeproj
 - [ ] Product → Archive (Release), then distribute to App Store Connect. Alternatively, use the GitHub **Build signed iOS IPA** workflow (see [DEPLOYMENT.md](../DEPLOYMENT.md#build-a-signed-ipa-from-windows)).
 - [ ] App Store Connect:
   - App Privacy answers and review notes for background location and alarms: see [DEPLOYMENT.md](../DEPLOYMENT.md#app-store-connect-answers-for-version-220).
-  - Privacy policy URL: host `privacy-policy.html` after replacing its contact placeholders.
+  - Privacy policy URL: `https://anujloomba.github.io/bccb_refactored/privacy-policy.html` (published from `main` by GitHub Pages).
   - iPhone screenshots: the app is iPhone-only, so no iPad screenshots are needed.
   - A demo group login for App Review.
 
