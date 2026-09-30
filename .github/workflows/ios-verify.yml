@@ -85,8 +85,9 @@ jobs:
           sleep 15
           xcrun simctl io "$DEVICE_ID" screenshot build/screenshots/01-home.png
           for page in gameday teams settings; do
-            xcrun simctl openurl "$DEVICE_ID" "bccb://page/$page"
-            sleep 6
+            # A Debug-only launch argument opens each page; `simctl openurl` stops at the "Open in ...?" prompt.
+            xcrun simctl launch --terminate-running-process "$DEVICE_ID" com.cricketmanager.app -BCCBOpenRoute "bccb://page/$page"
+            sleep 12
             xcrun simctl io "$DEVICE_ID" screenshot "build/screenshots/02-$page.png"
           done
           RUNNING=$(xcrun simctl spawn "$DEVICE_ID" launchctl list || true)

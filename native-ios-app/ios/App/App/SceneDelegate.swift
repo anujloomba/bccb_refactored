@@ -13,6 +13,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         // bccb:// links and PDFs opened with "Open in BCCB Cricket" while the app was closed.
         connectionOptions.urlContexts.forEach { NativeInbox.shared.handle(url: $0.url, coldStart: true) }
+        #if DEBUG
+        // CI screenshots open pages with `simctl launch <device> <app> -BCCBOpenRoute bccb://page/teams`,
+        // because `simctl openurl` stops at the system "Open in BCCB Cricket?" prompt.
+        if let route = UserDefaults.standard.string(forKey: "BCCBOpenRoute"), let url = URL(string: route) {
+            NativeInbox.shared.handle(url: url, coldStart: true)
+        }
+        #endif
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)
     }
 
