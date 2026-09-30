@@ -82,4 +82,4 @@ We will update this policy when the app's data practices change and show the new
 
 **Email**: [anujloomba@gmail.com](mailto:anujloomba@gmail.com)
 
-**Developer**: Anuj Kumar Loomba
+**Developer**: Anuj Loomba
