@@ -5,6 +5,87 @@ All notable changes to BCCB Cricket Manager will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - Unreleased
+
+### Added
+- **The toss is back.** Confirmed or saved teams show an animated coin with each captain's initials. The winning captain chooses to bat or bowl. The result is saved per group, and administrators share it with everyone on Game Day and the Home screen.
+- **Game Day.** Administrators schedule a game with its date, start time, reach-by time, venue (search, tap to drop a pin, or use the current location), and notes, then edit, cancel, or nudge players who haven't replied.
+- Every signed-in phone in the group gets a push invite with In / Maybe / Out buttons. Android saves the reply straight from the notification; iOS opens the app and saves it.
+- Everyone sees live counts, a tally bar, and who has replied. Players link their phone to their roster name once, and administrators can reset a wrong link.
+- **Smart game-day alarm.** The evening before (7 PM at the venue's local time), players who are in get a reminder. One tap reads their current location, estimates the drive with OpenRouteService (with a distance-based fallback), and recommends an alarm: reach-by time − drive − getting-ready time (45 minutes by default, adjustable). A time-to-leave nudge follows.
+  - Android: an exact system alarm-clock alarm with Stop and Start trip actions, with a hand-off to the Clock app if exact alarms are not allowed.
+  - iOS 26+: an AlarmKit system alarm with a Start trip button. Earlier iOS versions use an alarm-tone notification with follow-ups.
+  - Changing your reply or a cancelled game removes the alarm, and edited times prompt an update.
+- **Live trip map.** Players tap Start trip to share their location until they arrive, stop, or an hour after the start. A themed map shows the venue, each traveller's position and ETA, arrivals, and who hasn't left yet. Sharing runs as an Android location foreground service and as background location updates with the location indicator on iOS. The server keeps only each player's latest position and deletes it after the game.
+- Game Day tab and Next game card on Home, plus Game Day settings: player link, notification and alarm status, and leaving Game Day on a phone.
+- `bccb://` deep links on both platforms (`bccb://game-day/{id}[/alarm|/trip]`, `bccb://page/{page}`).
+- iOS can now open shared PDF scorecards ("Open in BCCB Cricket"), matching the Android share target.
+- Cloudflare Worker: device registration with hashed per-device secrets, game day, reply, toss, route, trip, and venue-search APIs, Firebase Cloud Messaging HTTP v1 delivery, and a 15-minute cron for reminders and trip clean-up. Migration `DB/migrations/20261001_add_game_day.sql` adds the new tables.
+- One shared native bridge contract (`tools/native-bridge-contract.json`) implemented by the Android and iOS shells. `tools/check-native-parity.mjs` fails CI if methods, events, notification actions, permissions, link schemes, or versions drift between the platforms.
+- CI workflow for parity, Game Day logic tests, Worker tests, and the Android build, lint, and R8. The iOS verification workflow now builds on `macos-26` and captures simulator screenshots.
+
+### Changed
+- Android targets and compiles against API 36 (required for Google Play updates from 31 August 2026), uses Android Gradle Plugin 8.10.1 with Gradle 8.11.1 and Java 17, and raises the minimum to Android 6.0 (API 23) for Firebase.
+- Android back navigation uses `OnBackInvokedCallback`, which Android 16 requires: back closes sheets, then returns Home, then leaves the app.
+- Android WebView debugging is enabled only in debug builds, and mixed content is blocked.
+- iOS uses Capacitor 8.5.2 and is iPhone-only and portrait-only (matching Android), requires arm64, declares export compliance, and includes a privacy manifest.
+- Shared PDF imports go through the same native bridge on both platforms.
+- Advanced Android to version 2.2.0 (versionCode 19) and iOS to 2.2.0 (build 19).
+- The privacy policy now describes cloud sync, Game Day, location, push notifications, and service providers.
+
+### Removed
+- The old toss-to-opening-batters chain that led into the retired live-scoring screens.
+
+## [2.1.2] - Unreleased
+
+### Added
+- Added a native iOS Capacitor project that packages the shared PWA assets for Xcode and App Store distribution, including an iOS document-picker path for PDF scorecard imports.
+- Added a GitHub-hosted macOS workflow that verifies the iOS project with an unsigned simulator build.
+- Added a manual GitHub-hosted macOS workflow that exports a signed IPA when Apple certificate and provisioning-profile secrets are configured.
+
+### Changed
+- Matchup win chances now use a calibrated logistic conversion of batting-weighted team ratings, so substantial roster changes produce visibly different estimates while equal teams remain 50/50.
+- Batting and bowling dominance now use the same performance data as the win estimate once a player has at least four recorded matches.
+- Advanced the Android release to version 2.1.2 (versionCode 18).
+
+### Fixed
+- Direct player moves now immediately show the odds and dominant batting or bowling side for the exact modified team rosters.
+
+## [2.1.1]
+
+### Added
+- Import-first analytics workflow for PDF scorecards, including preview, parsing, player-match suggestions, and confirmed D1 persistence.
+- Full-roster player association during import, inline roster creation with batting and bowling classifications, and optional manual many-to-one associations.
+- Scorecard fingerprinting to prevent duplicate statistics when the same PDF is reviewed or imported again.
+- Captaincy analytics derived from confirmed scorecard associations: win/loss record, favorite batter and bowler by performance uplift, and Man of the Match totals.
+- Android PDF share-target support so a shared scorecard opens directly in the review workflow.
+
+### Changed
+- Refocused the product documentation, PWA metadata, cache configuration, and Android package on scorecard imports and analytics.
+- Team balancing now uses imported performance data once a player has recorded at least four games.
+- Statistics-based team balancing now distributes established and developing players as evenly as possible between both teams.
+- Statistics-based drafts also balance star players, Fast bowlers, and Reliable batters wherever the roster permits.
+- Players with one to three matches now blend observed statistics with established role-cohort baselines rather than receiving only a category proxy.
+- Reshuffling now produces a different balanced team assignment through constrained non-captain exchanges.
+- Matching controls show fuzzy suggestions first while retaining every other roster player as an explicit selectable option.
+- Restricted scorecard PDF upload, shared-PDF hand-off, scorecard-import API routes, and player-classification controls to each group's administrator login.
+- Generated teams now use captain-first names and show a four-line matchup outlook with estimated win chances plus relative batting and bowling strength.
+- Removed obsolete local JSON backup/import code and the no-op data-manager compatibility layer.
+- Advanced the Android release to version 2.1.1 (versionCode 17).
+
+### Fixed
+- Title-only captain names now resolve through the normal confirmed player-association flow.
+- Accidental non-captain scorecard entries can be ignored without creating player performances or team-composition records; captain entries remain mandatory.
+- Removed duplicate frontend application initialization and stale asset requests.
+- Bowling-average cards, comparisons, and sorting now consistently use total runs conceded divided by total wickets taken.
+- Favorite Bowler now measures the positive reduction in bowling average under a captain, matching the uplift rule used for Favorite Batsman.
+- Average-runs, fours, and sixes ranking tables now use the same batting-innings denominators as the imported-stat calculations.
+
+### Removed
+- Live ball-by-ball score controls, toss actions, and resume-match paths. Legacy in-progress match state is discarded on startup so it cannot reopen the retired workflow.
+- Match Settings, including overs, wides, no-balls, and byes controls, plus their home-screen shortcut and backup payload.
+- Obsolete repair scripts, debug tooling, backup copies, stale deployment material, and tracked local Android configuration.
+
 ## [1.0.0] - 2025-10-21 - Production Release
 
 ### 🎉 Production Ready

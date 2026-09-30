@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'agents/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parity-and-web:
+    name: Native parity and web logic
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check Android and iOS parity
+        run: node tools/check-native-parity.mjs
+
+      - name: Run Game Day logic tests
+        run: node --test "tests/web/*.test.mjs"
+
+      - name: Check shared web app syntax
+        working-directory: native-android-app/app/src/main/assets
+        run: |
+          for file in app.js native-bridge.js game-day-core.js game-day.js toss.js sw.js; do
+            node --check "$file"
+          done
+
+  worker:
+    name: Cloudflare Worker
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cricket-worker/cricket-api
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cricket-worker/cricket-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npx vitest run
+
+  android:
+    name: Android build and lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: native-android-app
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          log-accepted-android-sdk-licenses: false
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build, lint, and shrink
+        run: ./gradlew --no-daemon assembleDebug lintDebug :app:minifyReleaseWithR8
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: bccb-cricket-android-debug
+          path: native-android-app/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-lint-report
+          path: native-android-app/app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore

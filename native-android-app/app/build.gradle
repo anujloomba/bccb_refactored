@@ -2,33 +2,46 @@ plugins {
     id 'com.android.application'
 }
 
+def releaseKeystoreProperties = new Properties()
+def releaseKeystorePropertiesFile = rootProject.file('keystore.properties')
+if (releaseKeystorePropertiesFile.exists()) {
+    releaseKeystorePropertiesFile.withInputStream { releaseKeystoreProperties.load(it) }
+}
+
+def releaseStoreFile = releaseKeystoreProperties.getProperty('storeFile') ?: project.findProperty('CRICKET_KEYSTORE_FILE') ?: System.getenv('CRICKET_KEYSTORE_FILE')
+def releaseStorePassword = releaseKeystoreProperties.getProperty('storePassword') ?: project.findProperty('CRICKET_KEYSTORE_PASSWORD') ?: System.getenv('CRICKET_KEYSTORE_PASSWORD')
+def releaseKeyAlias = releaseKeystoreProperties.getProperty('keyAlias') ?: project.findProperty('CRICKET_KEY_ALIAS') ?: System.getenv('CRICKET_KEY_ALIAS')
+def releaseKeyPassword = releaseKeystoreProperties.getProperty('keyPassword') ?: project.findProperty('CRICKET_KEY_PASSWORD') ?: System.getenv('CRICKET_KEY_PASSWORD')
+def hasReleaseSigning = [
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword
+].every { value -> value?.trim() }
+
 android {
     namespace 'com.cricketmanager.app'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.cricketmanager.app"
-        minSdk 21
-        targetSdk 35
-        versionCode 2
-        versionName "1.1"
+        minSdk 23
+        targetSdk 36
+        versionCode 19
+        versionName "2.2.0"
+    }
+
+    buildFeatures {
+        buildConfig true
     }
     
     signingConfigs {
         release {
-            // To use:
-            // 1. Create keystore: keytool -genkey -v -keystore cricket-manager-release.keystore -alias cricket-manager -keyalg RSA -keysize 2048 -validity 10000
-            // 2. Set these properties in gradle.properties (DON'T commit passwords to git):
-            //    CRICKET_KEYSTORE_FILE=../cricket-manager-release.keystore
-            //    CRICKET_KEYSTORE_PASSWORD=your_keystore_password
-            //    CRICKET_KEY_ALIAS=cricket-manager
-            //    CRICKET_KEY_PASSWORD=your_key_password
-            
-            if (project.hasProperty('CRICKET_KEYSTORE_FILE')) {
-                storeFile file(CRICKET_KEYSTORE_FILE)
-                storePassword CRICKET_KEYSTORE_PASSWORD
-                keyAlias CRICKET_KEY_ALIAS
-                keyPassword CRICKET_KEY_PASSWORD
+            if (hasReleaseSigning) {
+                storeFile rootProject.file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
             }
         }
     }
@@ -38,7 +51,7 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            if (project.hasProperty('CRICKET_KEYSTORE_FILE')) {
+            if (hasReleaseSigning) {
                 signingConfig signingConfigs.release
             }
         }
@@ -49,7 +62,27 @@ android {
     }
     
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
+
+    lint {
+        abortOnError true
+        checkReleaseBuilds true
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.16.0'
+    implementation platform('com.google.firebase:firebase-bom:34.19.0')
+    implementation 'com.google.firebase:firebase-messaging'
+    implementation 'com.google.android.gms:play-services-location:21.4.0'
+}
+
+// Push notifications need the Firebase config from the Firebase console. It is never committed;
+// builds without it still work and simply report push as unavailable.
+if (file('google-services.json').exists()) {
+    apply plugin: 'com.google.gms.google-services'
+} else {
+    logger.lifecycle('google-services.json not found: building without Firebase push notifications.')
 }

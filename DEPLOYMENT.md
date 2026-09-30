@@ -1,429 +1,206 @@
-# Deployment Guide
+# Deployment
 
-Complete deployment instructions for BCCB Cricket Manager across all platforms.
+## Cloudflare Worker and D1
 
-## 🎯 Deployment Overview
+1. Install dependencies and authenticate with Cloudflare.
 
-This application consists of three main components:
-1. **Cloudflare Worker API** - Backend API with D1 database
-2. **Progressive Web App (PWA)** - Web interface
-3. **Native Android App** - Android application wrapper
+   ```powershell
+   Set-Location cricket-worker\cricket-api
+   npm install
+   npx wrangler login
+   ```
 
-## ☁️ Cloudflare Worker Deployment
+2. Configure the D1 database binding in `wrangler.jsonc`.
 
-### Prerequisites
-- Cloudflare account (free tier works)
-- Cloudflare CLI (Wrangler) installed
-- Node.js 18+ installed
+3. Initialize a new database with the canonical schema.
 
-### Step 1: Install Wrangler
-```bash
-npm install -g wrangler
-wrangler login
+   ```powershell
+   npx wrangler d1 execute cricket_mgr --file=..\..\DB\schema.sql
+   ```
+
+4. Apply migrations in `DB\migrations` in filename order. Existing databases that predate scorecard imports need:
+
+   ```powershell
+   npx wrangler d1 execute cricket_mgr --remote --file=..\..\DB\migrations\20260214_add_scorecard_import_fingerprint.sql
+   npx wrangler d1 execute cricket_mgr --remote --file=..\..\DB\migrations\20260808_add_group_admin_password.sql
+   ```
+
+   Game Day (version 2.2.0) adds devices, game days, replies, tosses, and live trips. The migration only creates new tables and is safe to run more than once:
+
+   ```powershell
+   npx wrangler d1 execute cricket_mgr --remote --file=..\..\DB\migrations\20261001_add_game_day.sql
+   ```
+
+5. Add the Game Day secrets. Game Day works without them, but push notifications and road-based travel times need them (see [Firebase](#firebase-push-notifications) and [OpenRouteService](#openrouteservice-travel-times) below):
+
+   ```powershell
+   Get-Content C:\path\to\firebase-service-account.json -Raw | npx wrangler secret put FCM_SERVICE_ACCOUNT_JSON
+   npx wrangler secret put ORS_API_KEY
+   npx wrangler secret put NOMINATIM_EMAIL   # optional contact address sent with venue searches
+   ```
+
+   Without `FCM_SERVICE_ACCOUNT_JSON`, no pushes are sent. Without `ORS_API_KEY`, travel times fall back to a straight-line estimate.
+
+6. Validate and deploy. `wrangler.jsonc` also deploys the Game Day cron trigger (`*/15 * * * *`), which sends the evening-before reminders and deletes finished trips.
+
+   ```powershell
+   npm test
+   npx tsc --noEmit
+   npx wrangler deploy
+   curl.exe https://YOUR_WORKER.workers.dev/health
+   ```
+
+   Deploy the Worker (and run the migration) **before** releasing app version 2.2.0: the new apps call the Game Day routes.
+
+## Firebase push notifications
+
+Game Day invites, changes, cancellations, reminders, and nudges are delivered through Firebase Cloud Messaging (FCM), which also relays to Apple's push service for iPhones.
+
+1. Create a Firebase project at <https://console.firebase.google.com/>.
+2. **Android:** add an Android app with package name `com.cricketmanager.app`, download `google-services.json`, and save it as `native-android-app\app\google-services.json`. Gradle applies the Google services plugin only when this file exists. The file is ignored by Git; keep it out of commits.
+3. **iOS:** add an Apple app with bundle ID `com.cricketmanager.app` and download `GoogleService-Info.plist`. For local Xcode builds, put it in `native-ios-app/ios/App/App/`, where a build phase copies it into the app. For the GitHub IPA workflow, store it as the `IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64` secret (see below). It is also ignored by Git.
+4. **Apple push key:** in the Apple Developer account, go to **Certificates, Identifiers & Profiles → Keys**, create a key with **Apple Push Notifications service (APNs)**, and download the `.p8` file. Note the Key ID and Team ID. In Firebase, open **Project settings → Cloud Messaging → Apple app configuration** and upload the `.p8` key.
+5. **Worker credentials:** in Firebase, open **Project settings → Service accounts → Generate new private key**. Store the downloaded JSON as the Worker secret `FCM_SERVICE_ACCOUNT_JSON` (command above), then delete the local copy.
+
+## OpenRouteService travel times
+
+Sign up for a free key at <https://openrouteservice.org/dev/#/signup> (the standard plan allows 2,000 route requests a day) and store it with `npx wrangler secret put ORS_API_KEY`. The Worker caches routes and limits each device to 40 travel-time requests an hour. Venue search uses OpenStreetMap Nominatim through the Worker, and the maps use OpenFreeMap tiles. Neither needs a key.
+
+## Android debug build
+
+```powershell
+Set-Location native-android-app
+.\gradlew.bat assembleDebug
+adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
-### Step 2: Create D1 Database
-```bash
-cd cricket-worker/cricket-api
-wrangler d1 create cricket_mgr
-```
+The app registers as a share target for `application/pdf`. After installation, share a PDF to **Cricket Manager** to open the scorecard review flow directly.
 
-This will output:
-```
-✅ Successfully created DB 'cricket_mgr'
-database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-```
+## Android release build
 
-### Step 3: Update Configuration
+Create `native-android-app\keystore.properties` locally. This file is intentionally ignored by Git.
 
-Edit `wrangler.jsonc`:
-```json
-{
-  "d1_databases": [
-    {
-      "binding": "cricket_mgr",
-      "database_name": "cricket_mgr",
-      "database_id": "YOUR_DATABASE_ID_HERE"  // <- Paste ID here
-    }
-  ]
-}
-```
-
-### Step 4: Initialize Database Schema
-```bash
-# From cricket-worker/cricket-api directory
-wrangler d1 execute cricket_mgr --file=../../DB/schema.sql
-```
-
-Expected output:
-```
-🌀 Executing on cricket_mgr (xxxxxxxx):
-✅ Successfully executed SQL
-```
-
-### Step 5: Deploy Worker
-```bash
-npm install
-npx wrangler deploy
-```
-
-Output will show your Worker URL:
-```
-✨ Successfully deployed cricket-api
-   https://cricket-api.YOUR_SUBDOMAIN.workers.dev
-```
-
-### Step 6: Test Deployment
-```bash
-# Health check
-curl https://cricket-api.YOUR_SUBDOMAIN.workers.dev/health
-
-# Should return:
-# {"status":"ok","timestamp":"2025-10-21T...","database":"cricket_mgr"}
-```
-
-### Step 7: Verify Database
-```bash
-# Check guest group was created
-wrangler d1 execute cricket_mgr --command="SELECT * FROM groups"
-```
-
-## 🌐 PWA Deployment (GitHub Pages)
-
-### Option 1: GitHub Pages (Recommended)
-
-1. **Push to GitHub**:
-```bash
-git add .
-git commit -m "Production ready"
-git push origin main
-```
-
-2. **Enable GitHub Pages**:
-   - Go to repository Settings → Pages
-   - Source: Deploy from branch
-   - Branch: main / root
-   - Save
-
-3. **Update Assets Path**:
-   Edit `index.html` to use relative paths for assets.
-
-4. **Access**:
-   - URL: `https://USERNAME.github.io/REPO_NAME/`
-   - Example: `https://anujloomba.github.io/bccb_refactored/`
-
-### Option 2: Custom Web Server
-
-1. **Build Static Files**:
-```bash
-# Copy assets from native-android-app/app/src/main/assets/
-cp -r native-android-app/app/src/main/assets/* /path/to/webserver/
-```
-
-2. **Configure HTTPS**:
-   - PWA requires HTTPS
-   - Use Nginx, Apache, or cloud hosting
-   - Configure SSL certificate
-
-3. **Update Service Worker**:
-   Edit `sw.js` cache name and URLs.
-
-## 📱 Android App Deployment
-
-### Development Build
-
-1. **Update API Endpoint**:
-
-Edit `native-android-app/app/src/main/assets/app.js`:
-```javascript
-// Line ~1450
-this.workerEndpoint = 'https://cricket-api.YOUR_SUBDOMAIN.workers.dev';
-```
-
-2. **Build Debug APK**:
-```bash
-cd native-android-app
-.\gradlew clean
-.\gradlew assembleDebug
-```
-
-Output: `app/build/outputs/apk/debug/app-debug.apk`
-
-3. **Install on Device**:
-```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-### Production Build (Play Store)
-
-1. **Generate Signing Key**:
-```bash
-keytool -genkey -v -keystore cricket-manager.keystore -alias cricket_manager -keyalg RSA -keysize 2048 -validity 10000
-```
-
-2. **Configure Signing**:
-
-Create `native-android-app/keystore.properties`:
 ```properties
+storeFile=cricket-manager-release.keystore
 storePassword=YOUR_STORE_PASSWORD
+keyAlias=cricket-manager
 keyPassword=YOUR_KEY_PASSWORD
-keyAlias=cricket_manager
-storeFile=../cricket-manager.keystore
 ```
 
-Update `app/build.gradle`:
-```gradle
-android {
-    signingConfigs {
-        release {
-            def keystorePropertiesFile = rootProject.file("keystore.properties")
-            def keystoreProperties = new Properties()
-            keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+Generate the keystore once if needed:
 
-            storeFile file(keystoreProperties['storeFile'])
-            storePassword keystoreProperties['storePassword']
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-        }
-    }
-    
-    buildTypes {
-        release {
-            signingConfig signingConfigs.release
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-}
+```powershell
+Set-Location native-android-app
+keytool -genkey -v -keystore cricket-manager-release.keystore -alias cricket-manager -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-3. **Build Release APK**:
+Build the signed Android App Bundle for Play Console:
+
+```powershell
+.\gradlew.bat bundleRelease
+```
+
+The bundle is written to `app\build\outputs\bundle\release\app-release.aab`.
+
+Before publishing, increment `versionCode` and `versionName` in `native-android-app\app\build.gradle` (and the iOS `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` to the same values; CI enforces this), test the release build on a device, supply the required store listing assets, and publish the privacy-policy URL.
+
+### Play Console declarations for version 2.2.0
+
+- **Target API level:** the app targets API 36, which Google Play requires for updates from 31 August 2026.
+- **Foreground service permissions:** declare the `location` foreground service type. Describe it as "Shares the player's live location with their cricket group while they travel to a game, after they tap Start trip; stops on arrival". Record and attach a short video that shows Start trip, the ongoing notification, and Stop.
+- **Location permissions:** the app requests only foreground (while-in-use) location, so no background-location declaration is needed.
+- **Exact alarms:** the app requests `SCHEDULE_EXACT_ALARM` (granted by the user under *Alarms & reminders*) for the user-set game-day wake-up alarm. It does not use `USE_EXACT_ALARM` or full-screen intents.
+- **Data safety:** declare precise location (app functionality, shared with group members, not used for tracking), device or other IDs (device registration and push token), name (roster name), and other user-generated content (game replies). Data is encrypted in transit, and users can request deletion ("Leave Game Day on this device").
+- **Privacy policy URL:** `https://anujloomba.github.io/bccb_refactored/privacy-policy.html`. GitHub Pages publishes `privacy-policy.html` from `main`, so the 2.2.0 policy goes live when this release is merged.
+
+## iOS build and App Store release
+
+The iOS application packages the same bundled web assets as Android. It must be built on macOS with Xcode 26 or later (AlarmKit) and an Apple Developer account. The step-by-step hand-off checklist for whoever publishes the iOS app is in [`native-ios-app/README.md`](native-ios-app/README.md).
+
 ```bash
-.\gradlew assembleRelease
+cd native-ios-app
+npm install
+npm run sync:ios
+npm run open:ios
 ```
 
-Output: `app/build/outputs/apk/release/app-release.apk`
+In Xcode, open `ios/App/App.xcodeproj`, select the **App** target, choose the Apple Developer signing team, and archive the Release configuration for upload through Xcode Organizer or Transporter. The current iOS marketing version is `2.2.0` and the build number is `19`, matching Android `versionName` and `versionCode`. Increment both platforms together before each store upload.
 
-4. **Generate App Bundle (AAB)**:
-```bash
-.\gradlew bundleRelease
-```
+The App ID needs the **Push Notifications** capability (the app's entitlements request `aps-environment`). Background location and remote notifications are declared in `Info.plist` as background modes, and no extra capability is needed for AlarmKit.
 
-Output: `app/build/outputs/bundle/release/app-release.aab`
+PDF scorecards can be selected from the iOS document picker in the Analytics import workflow, or opened into the app from Files, Mail, or other apps. The app bundles the frontend offline, so no separately hosted iOS web build is needed.
 
-5. **Test Release Build**:
-```bash
-adb install app/build/outputs/apk/release/app-release.apk
-```
+### GitHub-hosted iOS verification
 
-### Play Store Submission
+The [iOS verification workflow](.github/workflows/ios-verify.yml) runs on a GitHub-hosted `macos-26` runner. It checks Android and iOS parity, runs `cap sync`, builds an unsigned simulator app, launches it, and uploads screenshots of Home, Game Day, Teams, and Settings along with the simulator app. It is intentionally not an installable IPA or App Store upload: those require a valid Apple Developer signing certificate and provisioning profile, which should be configured only in a protected release workflow or Xcode keychain.
 
-1. **Prepare Assets**:
-   - App icon (512x512 PNG)
-   - Feature graphic (1024x500)
-   - Screenshots (phone and tablet)
-   - Privacy policy URL
-   - App description
+### Build a signed IPA from Windows
 
-2. **Create Play Console Account**:
-   - Go to https://play.google.com/console
-   - Pay $25 one-time fee
-   - Create developer account
+The manual [signed IPA workflow](.github/workflows/ios-ipa.yml) uses GitHub's macOS runner, so it can be triggered from Windows after the branch is pushed. Add these repository Actions secrets before dispatching it:
 
-3. **Create New App**:
-   - App name: "BCCB Cricket Manager"
-   - Default language: English
-   - App or game: App
-   - Free or paid: Free
+| Secret | Value |
+| --- | --- |
+| `IOS_CERTIFICATE_BASE64` | Base64-encoded Apple Development or Distribution `.p12` certificate. |
+| `IOS_CERTIFICATE_PASSWORD` | Password for the `.p12` certificate. |
+| `IOS_PROVISIONING_PROFILE_BASE64` | Base64-encoded provisioning profile for `com.cricketmanager.app`, created **after** Push Notifications was enabled on the App ID. |
+| `IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64` | Base64-encoded `GoogleService-Info.plist` from Firebase. Optional, but without it the IPA receives no push notifications. |
 
-4. **Upload AAB**:
-   - Production → Create new release
-   - Upload `app-release.aab`
-   - Add release notes
-   - Review and rollout
+In **Actions**, select **Build signed iOS IPA**, enter the matching Apple Developer Team ID, choose the export method, and run the workflow. Download the resulting `.ipa` from the workflow artifact. For TestFlight/App Store submission, use an `app-store-connect` profile and upload the archive through your established App Store Connect release process.
 
-5. **Store Listing**:
-   - Fill in app details
-   - Upload graphics
-   - Select category: Sports
-   - Set content rating
-   - Complete questionnaire
+#### Create Apple signing files from Windows
 
-6. **Publish**:
-   - Review all sections
-   - Submit for review
-   - Wait for approval (1-7 days)
+You need an active [Apple Developer Program](https://developer.apple.com/programs/enroll/) membership. In the Apple Developer account:
 
-## 🔄 Update Deployment
+1. In **Certificates, Identifiers & Profiles**, create an explicit App ID with the bundle identifier `com.cricketmanager.app` and enable the **Push Notifications** capability.
+2. Create an **Apple Distribution** certificate. A certificate signing request can be generated on Windows with OpenSSL:
 
-### Worker Updates
-```bash
-cd cricket-worker/cricket-api
-# Make changes to src/index.ts
-npm run deploy
-```
+   ```powershell
+   openssl req -new -newkey rsa:2048 -nodes `
+     -keyout ios-distribution.key `
+     -out ios-distribution.csr `
+     -subj "/emailAddress=YOUR_APPLE_ID_EMAIL/CN=YOUR_NAME/C=YOUR_TWO_LETTER_COUNTRY_CODE"
+   ```
 
-### Database Schema Updates
-```bash
-# Create migration SQL file
-wrangler d1 execute cricket_mgr --file=DB/migration_v2.sql
+   Upload `ios-distribution.csr` to Apple, then download the issued `.cer` certificate. Keep `ios-distribution.key` private; it is required to export the matching certificate.
+3. Export a password-protected `.p12` certificate on Windows:
 
-# Backup before major changes
-wrangler d1 execute cricket_mgr --command="SELECT * FROM groups" > backup.json
-```
+   ```powershell
+   openssl x509 -inform DER -in ios-distribution.cer -out ios-distribution.pem
+   openssl pkcs12 -export `
+     -out ios-distribution.p12 `
+     -inkey ios-distribution.key `
+     -in ios-distribution.pem `
+     -name "Apple Distribution"
+   ```
 
-### Android App Updates
-```bash
-# 1. Update version in build.gradle
-android {
-    defaultConfig {
-        versionCode 2
-        versionName "1.1.0"
-    }
-}
+   OpenSSL will ask for a password. This is the value for `IOS_CERTIFICATE_PASSWORD`.
+4. Create an App Store Connect distribution provisioning profile for `com.cricketmanager.app`, selecting the Apple Distribution certificate above, then download the resulting `.mobileprovision` file.
+5. Find the Apple Developer **Team ID** under the account's Membership details.
+6. In GitHub repository **Settings → Secrets and variables → Actions**, add these secrets without committing their values:
 
-# 2. Build new release
-.\gradlew assembleRelease
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\ios-distribution.p12")) | Set-Clipboard
+   ```
 
-# 3. Upload to Play Store
-# Internal testing → Production
-```
+   Paste the clipboard value into `IOS_CERTIFICATE_BASE64`, then paste the `.p12` password into `IOS_CERTIFICATE_PASSWORD`.
 
-## 🔒 Security Checklist
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\BCCB-AppStore.mobileprovision")) | Set-Clipboard
+   ```
 
-### Before Production Deployment
+   Paste that value into `IOS_PROVISIONING_PROFILE_BASE64`.
 
-- [ ] Changed all default passwords
-- [ ] API endpoint uses HTTPS
-- [ ] CORS configured correctly
-- [ ] Rate limiting enabled (Cloudflare)
-- [ ] Input validation on all endpoints
-- [ ] SQL injection protection (using prepared statements)
-- [ ] Authentication tokens properly hashed
-- [ ] Debug logs removed from production
-- [ ] Error messages don't expose sensitive info
-- [ ] Database backups configured
-- [ ] SSL certificate valid
-- [ ] App signing key secured
-- [ ] ProGuard enabled for release builds
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\GoogleService-Info.plist")) | Set-Clipboard
+   ```
 
-## 📊 Monitoring
+   Paste that value into `IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64`.
 
-### Cloudflare Worker Monitoring
-1. Cloudflare Dashboard → Workers
-2. View analytics:
-   - Request count
-   - Error rate
-   - Response time
-   - Data transfer
+Do not upload the `.key`, `.p12`, `.cer`, `.p8`, or `.mobileprovision` files to Git, and do not paste their contents into chat. After the secrets are configured, run **Build signed iOS IPA** with the Team ID and `app-store-connect` export method.
 
-### D1 Database Monitoring
-```bash
-# Check database size
-wrangler d1 info cricket_mgr
+### App Store Connect answers for version 2.2.0
 
-# Check number of rows
-wrangler d1 execute cricket_mgr --command="
-  SELECT 
-    (SELECT COUNT(*) FROM groups) as groups,
-    (SELECT COUNT(*) FROM player_data) as players,
-    (SELECT COUNT(*) FROM match_data) as matches
-"
-```
-
-### Android App Monitoring
-- Google Play Console → Statistics
-- Crash reports
-- ANR (Application Not Responding) reports
-- User reviews and ratings
-
-## 🚨 Rollback Procedures
-
-### Worker Rollback
-```bash
-# View deployments
-wrangler deployments list
-
-# Rollback to previous version
-wrangler rollback [DEPLOYMENT_ID]
-```
-
-### Database Rollback
-```bash
-# Restore from backup
-wrangler d1 execute cricket_mgr --file=backup.sql
-```
-
-### Android App Rollback
-- Play Console → Production → Manage
-- Halt rollout
-- Create new release with previous version
-
-## 📝 Post-Deployment Checklist
-
-- [ ] Health check endpoint responding
-- [ ] Database queries working
-- [ ] Authentication functioning
-- [ ] Guest group accessible
-- [ ] Can create new groups
-- [ ] Data sync working
-- [ ] PWA installable
-- [ ] Service worker caching correctly
-- [ ] Android app installs successfully
-- [ ] No console errors in browser
-- [ ] No crashes in Android app
-- [ ] Analytics tracking (if applicable)
-- [ ] Backup schedule configured
-- [ ] Documentation updated
-- [ ] Team notified of deployment
-
-## 🆘 Troubleshooting Deployments
-
-### Worker Deployment Fails
-```bash
-# Check syntax errors
-npm run build
-
-# Check wrangler.jsonc is valid JSON
-# Use jsonlint or IDE validation
-
-# Verify authentication
-wrangler whoami
-```
-
-### Database Connection Issues
-```bash
-# Verify database exists
-wrangler d1 list
-
-# Check binding name matches code
-grep "cricket_mgr" src/index.ts
-grep "cricket_mgr" wrangler.jsonc
-```
-
-### Android Build Fails
-```bash
-# Clean project
-.\gradlew clean
-
-# Check Java version
-java -version  # Should be Java 11+
-
-# Verify Gradle wrapper
-.\gradlew --version
-
-# Check for dependency issues
-.\gradlew dependencies
-```
-
-## 📧 Support
-
-For deployment issues:
-1. Check Cloudflare documentation
-2. Review Android Studio build logs
-3. Check this deployment guide
-4. Open GitHub issue with logs
-
----
-
-**Last Updated**: October 21, 2025
+- **App Privacy:** Precise Location, Device ID, Name, and Other User Content are collected for App Functionality, linked to the user, and not used for tracking. This matches `ios/App/App/PrivacyInfo.xcprivacy`.
+- **Export compliance:** `ITSAppUsesNonExemptEncryption` is `NO` (the app uses only standard HTTPS).
+- **Review notes (background location):** "Location is used only when the player asks for a game-day alarm recommendation or taps *Start trip* on the Game Day tab. While a trip is shared, the blue location indicator is shown, and sharing stops automatically on arrival at the venue, when the player taps Stop, or one hour after the game starts. Location is shared only with members of the player's own cricket group." Provide a demo group name and password so the reviewer can sign in.
+- **Review notes (alarms):** "Game-day alarms are set only by the player, from the recommended time on the Game Day tab, using AlarmKit."

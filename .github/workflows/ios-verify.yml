@@ -1,0 +1,113 @@
+name: Verify iOS app
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ios-verify.yml'
+      - 'native-ios-app/**'
+      - 'native-android-app/app/src/main/assets/**'
+      - 'tools/**'
+  push:
+    paths:
+      - '.github/workflows/ios-verify.yml'
+      - 'native-ios-app/**'
+      - 'native-android-app/app/src/main/assets/**'
+      - 'tools/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-simulator:
+    name: Build and screenshot the iOS simulator app
+    # Xcode 26 is required for AlarmKit, which provides real game-day alarms on iOS 26+.
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: native-ios-app
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: native-ios-app/package-lock.json
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Check Android and iOS parity
+        run: npm run check:parity
+
+      - name: Synchronize shared web assets
+        run: npm run sync:ios
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build unsigned simulator app
+        run: >-
+          xcodebuild
+          -project ios/App/App.xcodeproj
+          -scheme App
+          -configuration Debug
+          -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath build/DerivedData
+          CODE_SIGNING_ALLOWED=NO
+          build
+
+      - name: Launch in the simulator and capture screenshots
+        run: |
+          set -euo pipefail
+          APP_PATH="build/DerivedData/Build/Products/Debug-iphonesimulator/App.app"
+          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          runtimes = sorted((runtime for runtime in devices if "iOS" in runtime), reverse=True)
+          for runtime in runtimes:
+              for device in devices[runtime]:
+                  if device["name"].startswith("iPhone") and "Pro Max" not in device["name"]:
+                      print(device["udid"])
+                      raise SystemExit
+          ')
+          echo "Using simulator $DEVICE_ID"
+          mkdir -p build/screenshots
+          xcrun simctl boot "$DEVICE_ID"
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+          xcrun simctl install "$DEVICE_ID" "$APP_PATH"
+          xcrun simctl launch "$DEVICE_ID" com.cricketmanager.app
+          sleep 15
+          xcrun simctl io "$DEVICE_ID" screenshot build/screenshots/01-home.png
+          for page in gameday teams settings; do
+            # A Debug-only launch argument opens each page; `simctl openurl` stops at the "Open in ...?" prompt.
+            xcrun simctl launch --terminate-running-process "$DEVICE_ID" com.cricketmanager.app -BCCBOpenRoute "bccb://page/$page"
+            sleep 12
+            xcrun simctl io "$DEVICE_ID" screenshot "build/screenshots/02-$page.png"
+          done
+          RUNNING=$(xcrun simctl spawn "$DEVICE_ID" launchctl list || true)
+          if ! grep -q "com.cricketmanager.app" <<< "$RUNNING"; then
+            echo "::error::The app is not running after the screenshot walkthrough."
+            exit 1
+          fi
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bccb-cricket-ios-screenshots
+          path: native-ios-app/build/screenshots
+          if-no-files-found: ignore
+
+      - name: Upload simulator app
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bccb-cricket-ios-simulator
+          path: native-ios-app/build/DerivedData/Build/Products/Debug-iphonesimulator/App.app
+          if-no-files-found: ignore

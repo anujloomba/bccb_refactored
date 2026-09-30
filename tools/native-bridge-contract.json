@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "description": "Native capabilities shared by the Android WebView shell (window.AndroidInterface.invoke) and the iOS Capacitor shell (Capacitor.Plugins.BCCBNative). The web app only talks to window.BCCBNative in native-bridge.js. tools/check-native-parity.mjs fails CI when a platform is missing a method or event listed here. Implementation values: native = implemented in the platform's native bridge; firebase-messaging = provided on iOS by @capacitor-firebase/messaging through native-bridge.js; legacy-sync = provided on Android by the synchronous shared-scorecard methods listed in legacyAndroidSyncMethods.",
+  "methods": {
+    "getCapabilities": { "android": "native", "ios": "native", "returns": "{ platform, appVersion, push, alarms: 'exact'|'clock'|'alarmkit'|'notification'|'none', backgroundLocation, sharedFiles }" },
+    "setSession": { "android": "native", "ios": "native", "args": "{ apiBase, groupId, groupName, deviceId, deviceToken, playerId }" },
+    "clearSession": { "android": "native", "ios": "native", "notes": "Stops any live trip and cancels every scheduled game alarm." },
+    "getPushToken": { "android": "native", "ios": "firebase-messaging", "returns": "{ token, permission }" },
+    "requestPushPermission": { "android": "native", "ios": "firebase-messaging", "returns": "{ token, permission }" },
+    "getLocationPermission": { "android": "native", "ios": "native", "returns": "{ permission: 'granted'|'denied'|'prompt' }" },
+    "requestLocationPermission": { "android": "native", "ios": "native", "returns": "{ permission }" },
+    "getCurrentPosition": { "android": "native", "ios": "native", "args": "{ timeoutMs }", "returns": "{ lat, lng, accuracy, timestamp }" },
+    "getAlarmPermission": { "android": "native", "ios": "native", "returns": "{ permission: 'granted'|'denied'|'prompt'|'unsupported', mode, notifications: 'granted'|'denied'|'prompt' }" },
+    "requestAlarmPermission": { "android": "native", "ios": "native", "returns": "{ permission, mode, notifications }" },
+    "scheduleGameAlarm": { "android": "native", "ios": "native", "args": "{ id, gameDayId, groupId, alarmAt, leaveAt, title, body, leaveTitle, leaveBody, venueName, useClockApp }", "returns": "{ scheduled, mode, alarmAt }", "errors": "invalid_time, notifications_denied (asks first when undecided), exact_alarm_denied/too_early/no_clock_app (Android). Permission failures leave any existing alarm in place." },
+    "cancelGameAlarm": { "android": "native", "ios": "native", "args": "{ id }", "returns": "{ cancelled }" },
+    "getScheduledAlarms": { "android": "native", "ios": "native", "returns": "{ alarms: [{ id, gameDayId, alarmAt, leaveAt, mode }] }" },
+    "startTrip": { "android": "native", "ios": "native", "args": "{ gameDayId, groupId, venueLat, venueLng, venueName, stopAfter }", "returns": "{ started, startedAt }", "errors": "permission_denied, no_session, trip_closed (stopAfter has passed)", "notes": "Uploads send startedAt as tripStartedAt, and the web app sends it when it deletes the trip, so the Worker ignores late updates from a stopped trip. Replies that arrive after a trip stopped or was replaced are ignored." },
+    "stopTrip": { "android": "native", "ios": "native", "returns": "{ stopped }" },
+    "getTripStatus": { "android": "native", "ios": "native", "returns": "{ active, gameDayId, startedAt, lastUpdateAt, lastError, arrived }" },
+    "consumeSharedFile": { "android": "legacy-sync", "ios": "native", "returns": "{ file: File | null } (iOS native returns { name, mimeType, path })" },
+    "consumeLaunchRoute": { "android": "native", "ios": "native", "returns": "{ route }" },
+    "openSettings": { "android": "native", "ios": "native", "args": "{ target: 'app'|'notifications'|'alarms'|'location' }" },
+    "openExternalUrl": { "android": "native", "ios": "native", "args": "{ url }" }
+  },
+  "events": {
+    "pushToken": { "android": "native", "ios": "firebase-messaging", "payload": "{ token }" },
+    "pushReceived": { "android": "native", "ios": "firebase-messaging", "payload": "{ type, groupId, gameDayId, route, title, body }" },
+    "notificationAction": { "android": "native", "ios": "native", "payload": "{ action: 'open'|'rsvp_yes'|'rsvp_maybe'|'rsvp_no'|'start_trip', type, groupId, gameDayId, route }" },
+    "tripStatus": { "android": "native", "ios": "native", "payload": "{ active, gameDayId, lastUpdateAt, lastError, arrived }" },
+    "sharedFile": { "android": "native", "ios": "native", "payload": "{}" },
+    "deepLink": { "android": "native", "ios": "native", "payload": "{ route }" },
+    "resume": { "android": "native", "ios": "native", "payload": "{}" }
+  },
+  "legacyAndroidSyncMethods": [
+    "prepareSharedScorecard",
+    "getSharedScorecardName",
+    "getSharedScorecardSize",
+    "getSharedScorecardChunkCount",
+    "getSharedScorecardChunk",
+    "clearSharedScorecard"
+  ],
+  "notificationActions": {
+    "RSVP_YES": "rsvp_yes",
+    "RSVP_MAYBE": "rsvp_maybe",
+    "RSVP_NO": "rsvp_no",
+    "START_TRIP": "start_trip"
+  },
+  "deepLinks": [
+    "bccb://game-day/{gameDayId}",
+    "bccb://game-day/{gameDayId}/alarm",
+    "bccb://game-day/{gameDayId}/trip",
+    "bccb://page/{pageId}"
+  ]
+}
